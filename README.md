@@ -189,7 +189,7 @@ FaultMaven uses a **microservices architecture** with the following components:
 | Interface | Port | Description | Repository | Docker Image |
 |-----------|------|-------------|------------|--------------|
 | **Browser Extension** | N/A | Chat interface for troubleshooting | [faultmaven-copilot](https://github.com/FaultMaven/faultmaven-copilot) | Chrome/Firefox Store |
-| **Dashboard** | 3000 | KB management UI (Next.js) | [faultmaven-dashboard](https://github.com/FaultMaven/faultmaven-dashboard) | `faultmaven/faultmaven-dashboard` |
+| **Dashboard** | 3000 | KB management UI (Vite + React) | [faultmaven-dashboard](https://github.com/FaultMaven/faultmaven-dashboard) | `faultmaven/faultmaven-dashboard` |
 
 ### Deployment
 
@@ -389,7 +389,7 @@ This is the **complete, self-hosted version** for individuals and teams:
 - ✅ Knowledge base with RAG (ChromaDB)
 - ✅ Case & session management
 - ✅ Browser extension (Chrome/Firefox)
-- ✅ Knowledge base dashboard (Next.js)
+- ✅ Knowledge base dashboard (Vite + React)
 - ✅ JWT authentication
 - ✅ Docker Compose deployment (SQLite + Redis)
 
