@@ -17,62 +17,68 @@ FaultMaven is an open-source AI troubleshooting assistant that helps Developers,
 This repository contains the core microservices that power the FaultMaven platform.
 
 **Key Features:**
-- 🤖 **AI-Powered Root Cause Analysis** - Structured 5-phase SRE troubleshooting doctrine
-- 📚 **Knowledge Base with RAG** - Learn from past incidents and documentation
+- 🧠 **MilestoneEngine v2.0** - Opportunistic AI investigation, completes milestones based on data availability
+- 🤖 **LangGraph Stateful Agents** - Advanced AI troubleshooting with context awareness
+- 📚 **3-Tier RAG Architecture** - User KB, Global KB, and ephemeral Case Evidence
 - 🔐 **Privacy-First** - All sensitive data sanitized before AI processing
 - 🐳 **Zero-Configuration Deployment** - Docker Compose for single-user setups
 - 🌐 **Browser Extension** - Troubleshoot directly from your browser
-- 🔄 **Session Management** - Track investigation progress across sessions
+- ⚡ **Async Processing** - Celery-based background jobs for document ingestion and cleanup
 
 ---
 
-## 🏗️ Architecture Philosophy: Enterprise Superset Model
+## 🏗️ Architecture Philosophy: Open Core Strategy
 
-FaultMaven uses a unique **upstream/downstream** architecture where the public version is the foundation for everything:
+FaultMaven uses an **Open Core** architecture with a single codebase and runtime configuration:
 
-### Public Version (This Repository) = The Foundation
-- **Role:** Single source of truth for all core logic
+### Public Edition (Default) = The Foundation
+- **Configuration:** `PROFILE=public`, `DB_TYPE=sqlite`
 - **Database:** SQLite (zero-config)
 - **Auth:** Lightweight JWT (`fm-auth-service`)
 - **Target:** Self-hosted, single-user/small teams, privacy-focused organizations
 - **License:** Apache 2.0 (fully open source)
 - **Registry:** Docker Hub (`faultmaven/*`)
 
-### Enterprise SaaS (Proprietary) = The Extension
-- **Role:** Extends public foundation with enterprise features
+### Enterprise Edition = The Extension
+- **Configuration:** `PROFILE=enterprise`, `DB_TYPE=postgresql`
 - **Database:** PostgreSQL (multi-tenant, scalable)
-- **Auth:** Supabase (SSO, SAML)
+- **Auth:** Supabase/Auth0 (SSO, SAML)
+- **Storage:** S3/MinIO (object storage)
 - **Target:** Organizations requiring managed hosting, teams, compliance
-- **License:** Proprietary
-- **Registry:** GitHub Container Registry (GHCR)
+- **License:** Apache 2.0 (same codebase!)
+- **Deployment:** Kubernetes with Helm charts
 
-### How They Relate
+### How It Works
 
 ```
 ┌─────────────────────────────────────────┐
-│   Public Repos (GitHub)                 │
-│   - fm-case-service                     │
-│   - fm-knowledge-service                │
-│   - fm-auth-service                     │
+│   Single Codebase (All Services)        │
+│   - fm-core-lib (shared models)         │
+│   - fm-agent-service (AI brain)         │
+│   - fm-knowledge-service (3-tier RAG)   │
+│   - fm-case-service (milestones)        │
+│   - fm-job-worker (async tasks)         │
 │   └──→ Docker Hub: faultmaven/*         │
-└─────────────────┬───────────────────────┘
-                  │ Inherits via FROM
-                  ▼
-┌─────────────────────────────────────────┐
-│   Private Repos (Internal)              │
-│   - fm-case-service-enterprise          │
-│   - fm-auth-service-enterprise          │
-│   └──→ GHCR: ghcr.io/faultmaven/*       │
-└─────────────────────────────────────────┘
+└───────────────┬─────────────────────────┘
+                │ Runtime Config
+     ┌──────────┴──────────┐
+     │                     │
+     ▼                     ▼
+┌──────────┐         ┌──────────┐
+│  Public  │         │Enterprise│
+│ SQLite   │         │PostgreSQL│
+│ Local FS │         │   S3     │
+└──────────┘         └──────────┘
 ```
 
 **Key Principle:**
-> All bug fixes and core improvements are made in PUBLIC repos first. Enterprise automatically inherits them when Docker images rebuild.
+> Same Docker image, different runtime behavior via environment variables (`PROFILE`, `DB_TYPE`). Dependency injection handles storage backend selection.
 
 **For Users:**
-- ✅ Self-hosted version is **fully functional**, not a demo
-- ✅ Clear upgrade path to enterprise when you need teams/SSO
+- ✅ Self-hosted version is **fully functional** with complete AI capabilities
+- ✅ Seamless upgrade path: change env vars, swap backends
 - ✅ No vendor lock-in (Apache 2.0 license)
+- ✅ No code forking - single source of truth
 
 ---
 
@@ -158,35 +164,44 @@ FaultMaven uses a **microservices architecture** with the following components:
                             │ HTTPS
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      API Gateway (8000)                      │
+│                      API Gateway (8090)                      │
 │              Pluggable Auth + Capabilities API               │
-└─────┬────────┬──────────┬──────────┬──────────┬─────────────┘
-      │        │          │          │          │
-      ▼        ▼          ▼          ▼          ▼
-┌──────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────────┐
-│   Auth   │ │Session │ │  Case  │ │Evidence│ │ Knowledge  │
-│ Service  │ │Service │ │Service │ │Service │ │  Service   │
-│  (8001)  │ │ (8002) │ │ (8003) │ │ (8005) │ │   (8004)   │
-└────┬─────┘ └───┬────┘ └───┬────┘ └───┬────┘ └─────┬──────┘
-     │           │          │          │            │
-     │           │          │          │            │
-     ▼           ▼          ▼          ▼            ▼
-┌─────────┐  ┌──────┐  ┌──────┐  ┌──────┐    ┌──────────┐
-│ SQLite  │  │Redis │  │SQLite│  │ File │    │ChromaDB  │
-│  Auth   │  │Session  │ Cases│  │Upload│    │Vector DB │
-└─────────┘  └──────┘  └──────┘  └──────┘    └──────────┘
+└─────┬────────┬──────────┬──────────┬──────────┬──────┬──────┘
+      │        │          │          │          │      │
+      ▼        ▼          ▼          ▼          ▼      ▼
+┌──────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────┐ ┌──────┐
+│   Auth   │ │Session │ │  Case  │ │Evidence│ │ KB │ │Agent │
+│ Service  │ │Service │ │Service │ │Service │ │Svc │ │ Svc  │
+│  (8001)  │ │ (8002) │ │ (8003) │ │ (8005) │ │8004│ │ 8006 │
+└────┬─────┘ └───┬────┘ └───┬────┘ └───┬────┘ └──┬─┘ └───┬──┘
+     │           │          │          │         │       │
+     │           │          │          │         │       │
+     ▼           ▼          ▼          ▼         ▼       ▼
+┌─────────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌────────┐ ┌─────┐
+│ SQLite  │  │Redis │  │SQLite│  │ File │  │ChromaDB│ │ LLM │
+│  Auth   │  │+Celery  │Milest│  │Upload│  │3-Tier │ │Multi│
+└─────────┘  └──┬───┘  └──────┘  └──────┘  │RAG    │ │Prov │
+                │                           └────────┘ └─────┘
+                ▼
+         ┌─────────────┐
+         │ Job Worker  │
+         │(Celery+Beat)│
+         └─────────────┘
 ```
 
 ### Core Services (Backend)
 
 | Service | Port | Description | Repository | Docker Image |
 |---------|------|-------------|------------|--------------|
-| **API Gateway** | 8000 | Unified entry point with pluggable auth | [fm-api-gateway](https://github.com/FaultMaven/fm-api-gateway) | `faultmaven/fm-api-gateway` |
+| **Core Library** | - | Shared models, LLM router, preprocessing | [fm-core-lib](https://github.com/FaultMaven/fm-core-lib) | PyPI package |
+| **API Gateway** | 8090 | Unified entry point with pluggable auth | [fm-api-gateway](https://github.com/FaultMaven/fm-api-gateway) | `faultmaven/fm-api-gateway` |
 | **Auth Service** | 8001 | Lightweight JWT authentication | [fm-auth-service](https://github.com/FaultMaven/fm-auth-service) | `faultmaven/fm-auth-service` |
 | **Session Service** | 8002 | Redis-backed session management | [fm-session-service](https://github.com/FaultMaven/fm-session-service) | `faultmaven/fm-session-service` |
-| **Case Service** | 8003 | Troubleshooting case tracking (SQLite) | [fm-case-service](https://github.com/FaultMaven/fm-case-service) | `faultmaven/fm-case-service` |
-| **Knowledge Service** | 8004 | RAG-powered knowledge base (ChromaDB) | [fm-knowledge-service](https://github.com/FaultMaven/fm-knowledge-service) | `faultmaven/fm-knowledge-service` |
+| **Case Service** | 8003 | Milestone-based case lifecycle tracking | [fm-case-service](https://github.com/FaultMaven/fm-case-service) | `faultmaven/fm-case-service` |
+| **Knowledge Service** | 8004 | 3-tier RAG (User KB, Global KB, Case Evidence) | [fm-knowledge-service](https://github.com/FaultMaven/fm-knowledge-service) | `faultmaven/fm-knowledge-service` |
 | **Evidence Service** | 8005 | File upload and attachment handling | [fm-evidence-service](https://github.com/FaultMaven/fm-evidence-service) | `faultmaven/fm-evidence-service` |
+| **Agent Service** | 8006 | AI troubleshooting (MilestoneEngine + LangGraph) | [fm-agent-service](https://github.com/FaultMaven/fm-agent-service) | `faultmaven/fm-agent-service` |
+| **Job Worker** | - | Background tasks (Celery + Redis) | [fm-job-worker](https://github.com/FaultMaven/fm-job-worker) | `faultmaven/fm-job-worker` |
 
 ### User Interfaces
 
@@ -298,20 +313,24 @@ FaultMaven uses a **two-interface model** for optimal workflows:
 ## Technology Stack
 
 **Backend:**
-- FastAPI (async Python web framework)
-- SQLAlchemy 2.0 (async ORM)
-- SQLite (zero-config database)
-- Redis (session storage)
-- ChromaDB (vector database for RAG)
-- BGE-M3 embeddings (multilingual text embeddings)
+- **Framework:** FastAPI (async Python web framework)
+- **Agent:** LangGraph (stateful AI workflows), MilestoneEngine v2.0
+- **Database:** SQLAlchemy 2.0 (async ORM), SQLite/PostgreSQL (dual support)
+- **Cache/Queue:** Redis (sessions + Celery task queue)
+- **Vector DB:** ChromaDB (semantic search)
+- **Embeddings:** BGE-M3 (multilingual, 1024-dim)
+- **LLM Providers:** OpenAI, Anthropic Claude, Fireworks AI (multi-provider routing)
+- **Async Tasks:** Celery + Redis + Beat scheduler
 
 **Frontend:**
 - React 19+ with TypeScript
 - WXT Framework (modern WebExtension toolkit)
 - Tailwind CSS (utility-first styling)
+- Next.js (dashboard)
 
 **Infrastructure:**
 - Docker & Docker Compose
+- Kubernetes + Helm (enterprise)
 - Apache 2.0 License
 
 ---
@@ -324,13 +343,16 @@ Track symptoms, hypothesis, evidence, and resolution in structured cases.
 ### 2. Knowledge Base Building
 Store runbooks, documentation, and past incident learnings in searchable knowledge base.
 
-### 3. Root Cause Analysis
-AI-powered analysis following SRE best practices:
-- Define blast radius
-- Establish timeline
-- Formulate hypothesis
-- Validate with evidence
-- Propose solution
+### 3. AI-Powered Troubleshooting
+MilestoneEngine completes investigation milestones opportunistically:
+- **Problem Verification** - Understand symptoms, scope, timeline
+- **Diagnostic Data Collection** - Gather relevant evidence
+- **Hypothesis Formulation** - Generate potential root causes
+- **Hypothesis Validation** - Test theories with data
+- **Solution Proposal** - Recommend fixes
+- **Solution Application** - Implement and verify
+- **Documentation** - Generate post-mortem
+- **Knowledge Capture** - Add learnings to KB
 
 ### 4. Team Collaboration
 Share troubleshooting sessions and build institutional knowledge.
@@ -346,12 +368,15 @@ FaultMaven is organized into **9 public repositories** in the `FaultMaven` GitHu
 #### Core Services (Backend)
 | Repository | Docker Image | Description |
 |------------|--------------|-------------|
+| [fm-core-lib](https://github.com/FaultMaven/fm-core-lib) | PyPI package | Shared models, LLM router, preprocessing |
 | [fm-api-gateway](https://github.com/FaultMaven/fm-api-gateway) | `faultmaven/fm-api-gateway` | Unified entry point with pluggable auth |
 | [fm-auth-service](https://github.com/FaultMaven/fm-auth-service) | `faultmaven/fm-auth-service` | Lightweight JWT authentication |
-| [fm-case-service](https://github.com/FaultMaven/fm-case-service) | `faultmaven/fm-case-service` | Case management (SQLite) |
+| [fm-case-service](https://github.com/FaultMaven/fm-case-service) | `faultmaven/fm-case-service` | Milestone-based case lifecycle |
 | [fm-session-service](https://github.com/FaultMaven/fm-session-service) | `faultmaven/fm-session-service` | Session tracking (Redis) |
-| [fm-knowledge-service](https://github.com/FaultMaven/fm-knowledge-service) | `faultmaven/fm-knowledge-service` | RAG knowledge base (ChromaDB) |
+| [fm-knowledge-service](https://github.com/FaultMaven/fm-knowledge-service) | `faultmaven/fm-knowledge-service` | 3-tier RAG (ChromaDB + BGE-M3) |
 | [fm-evidence-service](https://github.com/FaultMaven/fm-evidence-service) | `faultmaven/fm-evidence-service` | File uploads |
+| [fm-agent-service](https://github.com/FaultMaven/fm-agent-service) | `faultmaven/fm-agent-service` | AI agent (MilestoneEngine + LangGraph) |
+| [fm-job-worker](https://github.com/FaultMaven/fm-job-worker) | `faultmaven/fm-job-worker` | Background tasks (Celery) |
 
 #### User Interfaces
 | Repository | Docker Image | Description |
@@ -385,23 +410,27 @@ We welcome contributions! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for det
 
 ## Roadmap
 
-### ✅ Public v1.0 (Current) - Production-Ready Foundation
+### ✅ Public v2.0 (Current) - Complete AI Investigation Platform
 **Status:** Available Now | **License:** Apache 2.0
 
-This is the **complete, self-hosted version** for individuals and teams:
-- ✅ AI-powered troubleshooting (multi-LLM: OpenAI, Anthropic, Fireworks)
-- ✅ Knowledge base with RAG (ChromaDB)
-- ✅ Case & session management
-- ✅ Browser extension (Chrome/Firefox)
-- ✅ Knowledge base dashboard (Vite + React)
-- ✅ JWT authentication
-- ✅ Docker Compose deployment (SQLite + Redis)
+This is the **complete, production-ready version** with full AI capabilities:
+- ✅ **MilestoneEngine v2.0** - Opportunistic AI investigation (8 milestones)
+- ✅ **LangGraph Agents** - Stateful AI troubleshooting workflows
+- ✅ **3-Tier RAG** - User KB, Global KB, ephemeral Case Evidence
+- ✅ **Multi-LLM Support** - OpenAI, Anthropic Claude, Fireworks AI with failover
+- ✅ **Background Jobs** - Celery-based async processing for ingestion/cleanup
+- ✅ **Browser Extension** - Chrome/Firefox chat interface
+- ✅ **Web Dashboard** - Knowledge base management (Next.js)
+- ✅ **Open Core** - Single codebase, runtime config (PROFILE env var)
+- ✅ **Docker Compose** - Zero-config deployment (SQLite + Redis + ChromaDB)
+
+**Migration Complete:** 20,770 lines of AI intelligence from monolith architecture
 
 **Target Users:**
-- Self-hosters who value privacy
-- Small teams (< 10 users)
+- Self-hosters who value privacy and control
+- Small to medium teams
 - Organizations with data residency requirements
-- Developers wanting full control
+- Developers wanting full AI capabilities without SaaS lock-in
 
 ---
 
@@ -455,6 +484,8 @@ All services are published to Docker Hub:
 - [faultmaven/fm-case-service](https://hub.docker.com/r/faultmaven/fm-case-service)
 - [faultmaven/fm-knowledge-service](https://hub.docker.com/r/faultmaven/fm-knowledge-service)
 - [faultmaven/fm-evidence-service](https://hub.docker.com/r/faultmaven/fm-evidence-service)
+- [faultmaven/fm-agent-service](https://hub.docker.com/r/faultmaven/fm-agent-service)
+- [faultmaven/fm-job-worker](https://hub.docker.com/r/faultmaven/fm-job-worker)
 - [faultmaven/fm-api-gateway](https://hub.docker.com/r/faultmaven/fm-api-gateway)
 
 ---
