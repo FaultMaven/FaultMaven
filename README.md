@@ -65,9 +65,9 @@ docker-compose up -d
 - ❌ Enterprise compliance needs (no SSO/RBAC)
 
 ### Enterprise SaaS (Managed Platform)
-**For engineering teams and organizations.**
+**For individuals and teams.**
 
-The Enterprise SaaS edition provides managed infrastructure, team collaboration, and professional support.
+The Enterprise SaaS edition provides managed infrastructure, auto-scaling resources, built-in knowledge base, and professional support.
 
 **🎁 Free Tier Available** - Try before you buy:
 - 1 user
@@ -81,10 +81,9 @@ The Enterprise SaaS edition provides managed infrastructure, team collaboration,
 - 🏢 **Multi-tenancy** - Organizations, teams, role-based access control
 - ☁️ **Cloud infrastructure** - Managed PostgreSQL, Redis Cluster, S3 storage
 - 📊 **Advanced analytics** - Dashboards, trend analysis, pattern detection
-- 🚀 **Kubernetes deployment** - High availability, horizontal scaling
+- 🚀 **Auto-scaling resources** - Scales based on demand
+- 📚 **Built-in knowledge base** - Curated troubleshooting content
 - 📞 **Professional support** - Priority support, SLA guarantees
-
-**Seamless Migration:** Self-hosted data migrates to Enterprise when you're ready to scale.
 
 **Sign up:** [https://faultmaven.ai/signup](https://faultmaven.ai/signup) *(coming soon)*
 
@@ -451,21 +450,21 @@ We're planning these improvements to the open-source version:
 ---
 
 ### 🏢 Enterprise SaaS Edition
-**For Engineering Teams & Organizations**
+**For Individuals & Teams**
 
-**🎁 Free Tier Available Now**
+**🎁 Free Tier Available**
 
 Enterprise features include:
 - 👥 **Team collaboration** - Case sharing, shared knowledge bases, role-based access
 - 🔐 **Enterprise auth** - SSO (Google, Okta, Azure AD), SAML, MFA, directory sync
 - 🏢 **Multi-tenancy** - Organizations, teams, workspaces
-- ☁️ **Managed infrastructure** - No DevOps, automatic scaling, 99.9% uptime
+- ☁️ **Managed infrastructure** - No DevOps, 99.9% uptime
+- 🚀 **Auto-scaling resources** - Scales based on demand
+- 📚 **Built-in knowledge base** - Curated troubleshooting content
 - 📊 **Advanced analytics** - Dashboards, trend analysis, pattern detection
 - 📞 **Professional support** - Priority support, SLA guarantees
 
 **Try the free tier:** [https://faultmaven.ai/signup](https://faultmaven.ai/signup) *(coming soon)*
-
-**Seamless Migration:** Your self-hosted data moves with you when you're ready to scale.
 
 ---
 
