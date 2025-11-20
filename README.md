@@ -440,10 +440,10 @@ Coming soon for teams needing:
 
 ## Documentation
 
-- [Deployment Guide](https://github.com/FaultMaven/faultmaven-deploy)
-- [Architecture Overview](./docs/ARCHITECTURE.md) *(coming soon)*
-- [API Documentation](./docs/API.md) *(coming soon)*
-- [Development Setup](./docs/DEVELOPMENT.md) *(coming soon)*
+- [Deployment Guide](https://github.com/FaultMaven/faultmaven-deploy) - Complete Docker Compose setup for self-hosting
+- [Architecture Overview](./docs/ARCHITECTURE.md) - System design and service responsibilities
+- [API Documentation](./docs/API.md) - Complete REST API reference with examples
+- [Development Setup](./docs/DEVELOPMENT.md) - Local development guide for contributors
 
 ---
 
