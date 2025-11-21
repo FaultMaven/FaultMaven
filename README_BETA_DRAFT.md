@@ -345,7 +345,7 @@ If you're testing Enterprise SaaS:
 - [ ] Webhook notifications
 - [ ] Production-ready documentation
 - [ ] SOC 2 compliance (Enterprise)
-- [ ] Enterprise pricing & billing system
+- [ ] Enhanced team collaboration features
 
 **Timeline:** v1.0 production release expected Q2 2025 (subject to beta feedback)
 
