@@ -36,24 +36,14 @@ FaultMaven is available in two ways:
 
 Deploy locally using Docker. All data stays on your machine.
 
-**⚡ 2-Minute Setup:**
-```bash
-git clone https://github.com/FaultMaven/faultmaven-deploy.git
-cd faultmaven-deploy
-echo "OPENAI_API_KEY=sk-..." > .env
-docker-compose up -d
-```
+**📦 Deployment:**
+- Complete Docker Compose setup with one command
+- Multiple LLM provider support with automatic fallback
+- 11 microservices + Dashboard + Browser Extension
+- SQLite database, ChromaDB vector search, Redis cache
+- **100% free and open source** - Apache 2.0 license
 
-**What's Included:**
-- ✅ Complete AI troubleshooting agent (LangGraph with all 8 milestones)
-- ✅ Browser extension (works with all deployment options)
-- ✅ Knowledge base with semantic search (ChromaDB)
-- ✅ Case tracking and investigation history
-- ✅ Support for logs, traces, metrics, profiles, config, code, text, visual data
-- ✅ 3-tier RAG system (Personal KB + Global KB + Case Working Memory)
-- ✅ SQLite database (zero configuration, portable)
-- ✅ Background job processing (Celery + Redis)
-- ✅ Complete microservices architecture (9 Docker containers)
+**📚 Full deployment guide:** [faultmaven-deploy](https://github.com/FaultMaven/faultmaven-deploy)
 
 **Best For:**
 - Developers and SREs learning AI troubleshooting
@@ -90,71 +80,11 @@ docker-compose up -d
 
 ## Quick Start
 
-### Prerequisites
-- Docker and Docker Compose
-- 8GB RAM minimum
-- Ports 8000 (API Gateway), 3000 (Dashboard) available
-- **LLM API Key** (OpenAI, Anthropic, Fireworks, etc.)
+**Want to deploy FaultMaven?** See the complete deployment guide:
 
-### Step 1: Clone Deployment Repository
+👉 **[faultmaven-deploy](https://github.com/FaultMaven/faultmaven-deploy)** - Complete Docker Compose setup with step-by-step instructions
 
-```bash
-git clone https://github.com/FaultMaven/faultmaven-deploy.git
-cd faultmaven-deploy
-```
-
-### Step 2: Configure Environment
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and add your LLM provider credentials:
-
-```bash
-# Required: Choose ONE provider
-OPENAI_API_KEY=sk-...
-# OR
-ANTHROPIC_API_KEY=sk-ant-...
-# OR
-FIREWORKS_API_KEY=fw-...
-
-# Optional: Customize
-JWT_SECRET=your-random-secret-here
-API_PORT=8000
-DASHBOARD_PORT=3000
-```
-
-### Step 3: Deploy All Services
-
-```bash
-docker compose up -d
-```
-
-All images will be automatically pulled from Docker Hub. No manual builds required!
-
-### Step 4: Access FaultMaven
-
-- **API Gateway:** http://localhost:8000
-- **Dashboard:** http://localhost:3000
-- **API Docs:** http://localhost:8000/docs
-- **Capabilities Endpoint:** http://localhost:8000/v1/meta/capabilities
-
-### Step 5: Install Browser Extension
-
-1. Download `faultmaven-copilot` from [Chrome Web Store](https://chrome.google.com/webstore) / [Firefox Add-ons](https://addons.mozilla.org/)
-2. Configure extension settings:
-   - API Endpoint: `http://localhost:8000`
-3. Start troubleshooting!
-
-### Step 6: Verify Health
-
-```bash
-curl http://localhost:8000/health
-curl http://localhost:8000/v1/meta/capabilities
-```
-
-**Next Steps:** Upload documents to the knowledge base via the dashboard at http://localhost:3000
+**Want to contribute?** See the development section below for local development setup.
 
 ---
 
