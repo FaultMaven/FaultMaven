@@ -1,101 +1,214 @@
 # FaultMaven
 
-**The AI-Powered Troubleshooting Copilot for Modern Engineering**
-
-*Empower software and operations engineers to diagnose incidents faster with privacy-first AI and a local knowledge base.*
+**The AI-Powered Troubleshooting and Knowledge Base Platform**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-public%20beta-orange.svg)]()
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/u/faultmaven)
-[![GitHub](https://img.shields.io/badge/github-FaultMaven-blue.svg)](https://github.com/FaultMaven)
+
+---
+
+## 🎉 Public Beta Now Open: Help us Build FaultMaven
+
+Try it free (self-hosted or Enterprise SaaS), break things, and tell us what you think. Your feedback shapes the product.
+
+| **Enterprise SaaS (Free Beta)** | **Self-Hosted (Free Forever)** |
+|:---|:---|
+| [Start Your Managed Trial →](https://faultmaven.ai/signup) | [See Quick Start Guide →](#quick-start) |
+
+[![Feedback Welcome](https://img.shields.io/badge/feedback-welcome-brightgreen.svg)](https://github.com/FaultMaven/FaultMaven/discussions)
+
+---
+
+## 🧪 Public Beta Program
+
+**FaultMaven is being built WITH the community, not just FOR it.** We're opening both deployment options for public testing to validate features, gather feedback, and refine the product together.
+
+### The Value Exchange
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**🎁 What You Get**
+- Free access to all features during the Public Beta
+- Direct influence on roadmap and feature priorities
+- Recognition as a founding contributor
+- Direct line to the engineering team
+- Early access to new capabilities as we build them
+- Self-hosted version stays free forever (Apache 2.0)
+
+</td>
+<td width="50%" valign="top">
+
+**🔍 What We Need**
+- Bug reports and edge cases
+- Feature requests and real-world use cases
+- Usage patterns and workflow insights
+- Honest feedback on what works (and what doesn't)
+- Help validating team collaboration features
+- Input on the long-term sustainability and roadmap
+
+</td>
+</tr>
+</table>
+
+**How to participate:**
+- 🏢 **[Test Enterprise SaaS →](https://faultmaven.ai/signup)** — Zero-setup team collaboration testbed
+- 🔓 **[Deploy Self-Hosted →](#quick-start)** — Free forever testbed for developers
+- 💬 **[Give Feedback →](https://github.com/FaultMaven/FaultMaven/discussions)** — Shape the roadmap
+- 🐛 **[Report Bugs →](https://github.com/FaultMaven/FaultMaven/issues)** — Help us improve
 
 ---
 
 ## Overview
 
-FaultMaven is an open-source AI troubleshooting assistant that helps Developers, SREs, and DevOps engineers diagnose complex issues and capture distinct troubleshooting context. It combines privacy-first AI analysis with a local knowledge base to reduce personal toil and accelerate resolution.
+FaultMaven is an AI-powered troubleshooting and knowledge base platform that helps software and operations engineers diagnose incidents faster. It combines intelligent AI analysis with a searchable knowledge base to capture institutional knowledge, reduce toil, and accelerate resolution.
 
-This repository contains the core microservices that power the FaultMaven platform.
-
-**Key Features:**
-- 🤖 **AI-Powered Troubleshooting** - Get intelligent help diagnosing complex technical issues
-- 💬 **Interactive Chat Interface** - Talk through problems naturally via browser extension
-- 📚 **Smart Knowledge Base** - Store and search runbooks, documentation, and past solutions
-- 🔐 **Privacy-First** - All sensitive data sanitized before AI processing
-- 🐳 **Easy Self-Hosting** - One command deployment with Docker Compose
-- 🔄 **Learns From Experience** - Captures solutions and builds institutional knowledge
-- 🌐 **Multiple LLM Support** - Works with OpenAI, Anthropic Claude, or Fireworks AI
+**Key Capabilities:**
+- 🤖 **AI-Powered Troubleshooting** — Intelligent help diagnosing complex technical issues
+- 💬 **Interactive Chat Interface** — Talk through problems naturally via browser extension
+- 📚 **Smart Knowledge Base** — Store and search runbooks, documentation, and past solutions
+- 🔐 **Privacy-First** — All sensitive data sanitized before AI processing
+- 🔄 **Learns From Experience** — Captures solutions and builds institutional knowledge
+- 🌐 **Multiple LLM Support** — Works with OpenAI, Anthropic Claude, Fireworks AI, and more
 
 ---
 
 ## 🏗️ Deployment Options
 
-### Self-Hosted (Open Source)
-**Perfect for developers, tinkerers, and privacy-conscious users.**
+Choose how you want to test FaultMaven:
 
-The self-hosted version is designed for individual use - learning AI troubleshooting, experimenting with RAG architectures, or running in air-gapped environments.
-
-**⚡ 2-Minute Setup:**
-```bash
-git clone https://github.com/FaultMaven/faultmaven-deploy.git
-cd faultmaven-deploy
-echo "OPENAI_API_KEY=sk-..." > .env
-docker-compose up -d
-```
-
-**What You Get:**
-- ✅ **Complete AI agent** - Full LangGraph agent with all 8 milestones
-- ✅ **All 8 data types** - Logs, traces, profiles, metrics, config, code, text, visual
-- ✅ **3-tier RAG system** - Personal KB + Global KB + Case Working Memory
-- ✅ **SQLite database** - Zero configuration, single file, portable
-- ✅ **Local file storage** - All data stays on your machine
-- ✅ **ChromaDB vector search** - Semantic knowledge base retrieval
-- ✅ **Background job processing** - Celery + Redis for async tasks
-- ✅ **9 Docker containers** - Complete microservices architecture
-- ✅ **100% free and open source** - Apache 2.0 license
-
-**Best For:**
-- 👨‍💻 **Developers** - Study the architecture, contribute code, learn AI troubleshooting
-- 🔬 **Tinkerers** - Experiment with LLMs, RAG, and agentic workflows
-- 🔐 **Privacy-conscious** - Keep sensitive data on-premises (air-gapped environments)
-- 🌍 **Open-source contributors** - Improve the product, add features
-
-**Not For:**
-- ❌ Production team use (single-user architecture)
-- ❌ Collaboration workflows (no case/knowledge sharing)
-- ❌ Enterprise compliance needs (no SSO/RBAC)
-
-### Enterprise SaaS (Managed Platform)
-**For individuals and teams.**
-
-The Enterprise SaaS edition provides managed infrastructure, auto-scaling resources, built-in knowledge base, and professional support.
-
-**🎁 Free Tier Available** - Try before you buy:
-- 1 user
-- 5 active cases
-- 500MB storage
-- Community support
-
-**Pro & Enterprise Tiers Include:**
-- 👥 **Team collaboration** - Case sharing, shared knowledge bases
-- 🔐 **Enterprise auth** - SSO (Google, Okta, Azure AD), SAML, MFA
-- 🏢 **Multi-tenancy** - Organizations, teams, role-based access control
-- ☁️ **Cloud infrastructure** - Managed PostgreSQL, Redis Cluster, S3 storage
-- 📊 **Advanced analytics** - Dashboards, trend analysis, pattern detection
-- 🚀 **Auto-scaling resources** - Scales based on demand
-- 📚 **Built-in knowledge base** - Curated troubleshooting content
-- 📞 **Professional support** - Priority support, SLA guarantees
-
-**Sign up:** [https://faultmaven.ai/signup](https://faultmaven.ai/signup) *(coming soon)*
+| | **Self-Hosted (OSS)** | **Enterprise SaaS** |
+|---|:---:|:---:|
+| **Status** | ✅ Free beta | ✅ Free beta |
+| **Setup Time** | 2 minutes (Docker) | 60 seconds (sign up) |
+| **Best For** | Individual developers, tinkerers | Teams testing collaboration |
+| **Team Collaboration** | ❌ Single user only | ✅ Unlimited team members |
+| **Knowledge Sharing** | ❌ Local only | ✅ Organization-wide |
+| **Authentication** | JWT (basic) | SSO, SAML, MFA |
+| **Infrastructure** | You manage (Docker) | Fully managed |
+| **Storage** | SQLite, local files | PostgreSQL, S3 |
+| **Support** | Community (GitHub) | Direct engineering access |
+| **Future** | **Always free** (Apache 2.0) | **Team plans** available after beta |
+| | **[Quick Start →](#quick-start)** | **[Sign Up →](https://faultmaven.ai/signup)** |
 
 ---
 
-## Quick Start
+## 🏢 Enterprise SaaS (Free Beta)
+
+**Zero-Setup Team Collaboration Testbed**
+
+Test team collaboration features with zero infrastructure. We're validating whether these features truly solve team troubleshooting challenges.
+
+### What You're Testing
+
+This is the managed platform designed for teams:
+- 👥 **Team collaboration** — Share cases and knowledge bases across your organization
+- 🔐 **Enterprise authentication** — SSO (Google, Okta, Azure AD), SAML, MFA
+- 🏢 **Multi-tenancy** — Organizations, teams, role-based access control
+- ☁️ **Managed infrastructure** — PostgreSQL, Redis Cluster, S3 storage (auto-scaling)
+- 📊 **Advanced analytics** — Dashboards, trend analysis, pattern detection
+- 📞 **Beta support** — Direct line to engineering team via in-app chat
+
+### How Beta Works
+
+- ✅ **Free for everyone** — No credit card required, no hidden costs during beta
+- 🧪 **Help us validate** — Does this solve real team troubleshooting problems?
+- 🏆 **Beta participants** — Recognition as Founding Contributors + special access to new features
+- 💾 **Your data** — Export anytime, we'll never hold it hostage
+- 🗳️ **Your input matters** — Directly shape the Enterprise feature set and roadmap
+
+### Perfect For Testing
+
+- Engineering teams (2+ people) exploring AI troubleshooting for incidents
+- Organizations evaluating collaborative knowledge management
+- Teams needing SSO/RBAC/compliance features
+- Anyone who wants zero DevOps overhead
+
+### Get Started
+
+**[Start Enterprise Beta →](https://faultmaven.ai/signup)**
+
+*No credit card. No risk. Export your data anytime.*
+
+---
+
+## 🔓 Self-Hosted (Open Source Beta)
+
+**Free Forever Testbed for Developers & Tinkerers**
+
+Deploy locally in 2 minutes. Test the complete AI troubleshooting platform on your own infrastructure. Open source (Apache 2.0) and will always be free.
+
+### What You're Testing
+
+This is the full-featured self-hosted version:
+- ✅ **Complete AI agent** — Full LangGraph agent with all 8 milestones
+- ✅ **All 8 data types** — Logs, traces, profiles, metrics, config, code, text, visual
+- ✅ **3-tier RAG system** — Personal KB + Global KB + Case Working Memory
+- ✅ **SQLite database** — Zero configuration, single file, portable
+- ✅ **Local file storage** — All data stays on your machine
+- ✅ **ChromaDB vector search** — Semantic knowledge base retrieval
+- ✅ **Background job processing** — Celery + Redis for async tasks
+- ✅ **9 Docker containers** — Complete microservices architecture
+- ✅ **Multiple LLM providers** — OpenAI, Anthropic, Fireworks, and more
+
+### Beta Terms
+
+- ✅ **Always free** — Apache 2.0 license (no future pricing ever)
+- 🔄 **Active development** — Expect frequent updates and improvements
+- 🐛 **Beta quality** — Core features work well, but rough edges and bugs possible
+- 🔧 **Breaking changes** — Possible during beta (we'll document and communicate)
+- 💬 **Community support** — GitHub Discussions & Issues
+
+### Perfect For Testing
+
+- Individual developers and SREs learning AI troubleshooting
+- Privacy-first or air-gapped environments
+- Studying RAG architectures and agentic workflows
+- Contributing to open source development
+- Evaluating before Enterprise deployment
+
+### Get Started
+
+**[Quick Start Guide →](#quick-start)** | **[View on GitHub →](https://github.com/FaultMaven/faultmaven-deploy)**
+
+---
+
+## ⚠️ Beta Expectations
+
+**What "public beta" means for FaultMaven:**
+
+✅ **Ready for real use:**
+- Core functionality is solid and tested
+- Safe to use for real (non-critical) troubleshooting workflows
+- AI agent, knowledge base, and case tracking all work well
+- Docker deployment is stable
+
+⚠️ **Still improving:**
+- May have bugs, rough edges, and missing features
+- Breaking changes possible (we'll communicate in advance)
+- Not recommended for business-critical production use yet
+- Browser extension in active development (4-6 weeks)
+
+🤝 **Community-driven:**
+- Your feedback directly shapes feature priorities
+- We'll be transparent about bugs, roadmap, and timelines
+- Beta participants directly influence the Enterprise feature set and roadmap
+- Recognition for contributors and active testers
+
+---
+
+## 🚀 Quick Start
+
+Deploy the self-hosted version in 2 minutes.
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - 8GB RAM minimum
 - Ports 8000 (API Gateway), 3000 (Dashboard) available
-- **LLM API Key** (OpenAI, Anthropic, or Fireworks)
+- **LLM API Key** (OpenAI, Anthropic, Fireworks, etc.)
 
 ### Step 1: Clone Deployment Repository
 
@@ -134,28 +247,109 @@ docker compose up -d
 
 All images will be automatically pulled from Docker Hub. No manual builds required!
 
-### Step 4: Access FaultMaven
+### Step 4: Access and Start Using FaultMaven
 
-- **API Gateway:** http://localhost:8000
-- **Dashboard:** http://localhost:3000
-- **API Docs:** http://localhost:8000/docs
-- **Capabilities Endpoint:** http://localhost:8000/v1/meta/capabilities
+**Dashboard:** [http://localhost:3000](http://localhost:3000)
+- Access the knowledge base manager
+- Upload documents, runbooks, and troubleshooting guides
+- Create and manage your first troubleshooting case
 
-### Step 5: Install Browser Extension
+**API Gateway:** [http://localhost:8000](http://localhost:8000)
+- API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+- Capabilities: [http://localhost:8000/v1/meta/capabilities](http://localhost:8000/v1/meta/capabilities)
 
-1. Download `faultmaven-copilot` from Chrome Web Store / Firefox Add-ons *(coming soon)*
-2. Configure extension settings:
-   - API Endpoint: `http://localhost:8000`
-3. Start troubleshooting!
-
-### Step 6: Verify Health
+### Step 5: Verify Everything Works
 
 ```bash
 curl http://localhost:8000/health
 curl http://localhost:8000/v1/meta/capabilities
 ```
 
-**Next Steps:** Upload documents to the knowledge base via the dashboard at http://localhost:3000
+### Step 6: Install Browser Extension (Coming Soon)
+
+*Browser extension expected in 4-6 weeks*
+
+Once available:
+1. Download `faultmaven-copilot` from Chrome Web Store / Firefox Add-ons
+2. Configure extension settings:
+   - API Endpoint: `http://localhost:8000`
+3. Start troubleshooting with the AI copilot!
+
+---
+
+## 💬 Feedback & Support
+
+**We need your feedback to build the right product.**
+
+### Found a Bug?
+**[File an issue →](https://github.com/FaultMaven/FaultMaven/issues)**
+
+Please include:
+- What you expected to happen
+- What actually happened
+- Steps to reproduce
+- Your deployment (self-hosted vs Enterprise)
+
+### Have a Feature Idea?
+**[Start a discussion →](https://github.com/FaultMaven/FaultMaven/discussions)**
+
+Tell us:
+- What problem you're trying to solve
+- How you'd like it to work
+- Why it matters to your workflow
+
+### General Feedback
+**[Share your experience →](https://github.com/FaultMaven/FaultMaven/discussions)**
+
+We want to hear:
+- What's working well
+- What's frustrating
+- What's missing
+- How you're using it
+
+### Success Stories
+Solved a real incident with FaultMaven? **[Tell us your story →](https://github.com/FaultMaven/FaultMaven/discussions)**
+
+### Enterprise Beta Support
+If you're testing Enterprise SaaS:
+- 📞 In-app chat support
+- 📧 Email: beta@faultmaven.ai
+- 🎯 Priority response for beta participants
+
+---
+
+## 🗺️ Roadmap to v1.0
+
+### Current Status: Public Beta
+
+**What's Working Now:**
+- ✅ AI troubleshooting agent (LangGraph with 8 milestones)
+- ✅ Knowledge base with semantic search (ChromaDB)
+- ✅ Case tracking and investigation history
+- ✅ Docker Compose deployment
+- ✅ Multiple LLM providers (OpenAI, Anthropic, Fireworks, and more)
+- ✅ Team collaboration (Enterprise only)
+- ✅ SSO authentication (Enterprise only)
+- ✅ Web dashboard for KB management
+
+**In Active Development:**
+- 🔨 Browser extension (4-6 weeks)
+- 🔨 Mobile-responsive dashboard
+- 🔨 Advanced analytics and dashboards
+- 🔨 Kubernetes deployment manifests
+
+**Planned for v1.0:**
+- [ ] Local LLM support (Ollama, LM Studio)
+- [ ] Slack and PagerDuty integrations
+- [ ] Webhook notifications
+- [ ] Production-ready documentation
+- [ ] SOC 2 compliance (Enterprise)
+- [ ] Enhanced team collaboration features
+
+**Timeline:** v1.0 production release expected Q2 2025 (subject to beta feedback)
+
+**Your input shapes the roadmap.** Vote on features and suggest priorities in [GitHub Discussions](https://github.com/FaultMaven/FaultMaven/discussions).
 
 ---
 
@@ -211,10 +405,10 @@ FaultMaven uses a **microservices architecture** with the following components:
 
 ### User Interfaces
 
-| Interface | Port | Description | Repository | Docker Image |
-|-----------|------|-------------|------------|--------------|
-| **Browser Extension** | N/A | Chat interface for troubleshooting | [faultmaven-copilot](https://github.com/FaultMaven/faultmaven-copilot) | Chrome/Firefox Store |
-| **Dashboard** | 3000 | KB management UI (Vite + React) | [faultmaven-dashboard](https://github.com/FaultMaven/faultmaven-dashboard) | `faultmaven/faultmaven-dashboard` |
+| Interface | Port | Description | Repository |
+|-----------|------|-------------|------------|
+| **Browser Extension** | N/A | Chat interface for troubleshooting (in development) | [faultmaven-copilot](https://github.com/FaultMaven/faultmaven-copilot) |
+| **Dashboard** | 3000 | KB management UI (Vite + React) | [faultmaven-dashboard](https://github.com/FaultMaven/faultmaven-dashboard) |
 
 ### Deployment
 
@@ -245,109 +439,34 @@ auth:
 
 The API Gateway detects the auth provider and adapts accordingly. The browser extension calls `/v1/meta/capabilities` to discover which features are available and adjusts the UI dynamically.
 
-### Capabilities API
-
-**Endpoint:** `GET /v1/meta/capabilities`
-
-This endpoint allows clients (extension, dashboard) to discover available features at runtime.
-
-**Self-Hosted Response:**
-```json
-{
-  "deploymentMode": "self-hosted",
-  "version": "1.0.0",
-  "features": {
-    "chat": true,
-    "knowledgeBase": true,
-    "cases": true,
-    "organizations": false,
-    "teams": false,
-    "sso": false
-  },
-  "auth": {
-    "type": "jwt",
-    "loginUrl": "http://localhost:8000/auth/login"
-  },
-  "dashboardUrl": "http://localhost:3000"
-}
-```
-
-**Enterprise SaaS Response:**
-```json
-{
-  "deploymentMode": "enterprise",
-  "version": "1.0.0",
-  "features": {
-    "chat": true,
-    "knowledgeBase": true,
-    "cases": true,
-    "organizations": true,
-    "teams": true,
-    "sso": true
-  },
-  "auth": {
-    "type": "supabase",
-    "loginUrl": "https://api.faultmaven.ai/auth/login"
-  },
-  "dashboardUrl": "https://app.faultmaven.ai"
-}
-```
-
-**How Clients Use It:**
-- Extension calls this endpoint on startup
-- Enables/disables UI features based on response
-- Single codebase adapts to deployment mode
-
-### Split UI Architecture
-
-FaultMaven uses a **two-interface model** for optimal workflows:
-
-**Browser Extension (faultmaven-copilot):**
-- **Purpose:** Real-time troubleshooting chat
-- **Features:** AI-powered conversation, evidence capture, case creation
-- **Benefit:** Always available, context-aware
-
-**Web Dashboard (faultmaven-dashboard):**
-- **Purpose:** Knowledge base management
-- **Features:** Upload documents, search KB, review cases, configure settings
-- **Benefit:** Focused management tasks, advanced configurations
-
-**Why split?** Better UX than cramming everything into the extension. Each interface is optimized for its specific use case.
-
 ---
 
 ## Technology Stack
 
 **Backend:**
 - **Framework:** FastAPI (Python async web framework)
-- **AI:** Advanced language models for intelligent conversations
-- **Database:** SQLite (self-hosted) or PostgreSQL (enterprise)
+- **AI:** LangGraph for agentic workflows
+- **Database:** SQLite (self-hosted) or PostgreSQL (Enterprise)
 - **Cache:** Redis for sessions and background jobs
 - **Search:** ChromaDB vector database for semantic knowledge search
-- **LLM Support:** OpenAI GPT-4, Anthropic Claude, or Fireworks AI
+- **LLM Support:** OpenAI GPT-4, Anthropic Claude, Fireworks AI, and more
 
 **Frontend:**
 - React 19+ with TypeScript
 - WXT Framework (modern WebExtension toolkit)
 - Tailwind CSS (utility-first styling)
-- Next.js (dashboard)
+- Vite (dashboard build tool)
 
 **Infrastructure:**
 - Docker & Docker Compose
-- Kubernetes + Helm (enterprise)
-- Apache 2.0 License
+- Kubernetes + Helm (Enterprise)
+- Apache 2.0 License (Open Source)
 
 ---
 
 ## Use Cases
 
-### 1. Production Incident Investigation
-Track symptoms, hypothesis, evidence, and resolution in structured cases.
-
-### 2. Knowledge Base Building
-Store runbooks, documentation, and past incident learnings in searchable knowledge base.
-
-### 3. AI-Assisted Investigation
+### 1. AI-Assisted Incident Investigation
 The AI agent helps you work through problems systematically:
 - Ask questions to understand the issue
 - Analyze logs, metrics, and other evidence
@@ -355,8 +474,14 @@ The AI agent helps you work through problems systematically:
 - Recommend solutions based on similar past cases
 - Help document the resolution for future reference
 
+### 2. Knowledge Base Building
+Store runbooks, documentation, and past incident learnings in a searchable knowledge base with semantic search powered by ChromaDB.
+
+### 3. Structured Case Tracking
+Track symptoms, hypothesis, evidence, and resolution in structured cases that build institutional knowledge over time.
+
 ### 4. Team Collaboration (Enterprise Only)
-Share troubleshooting sessions and build institutional knowledge across your organization.
+Share troubleshooting sessions, collaborate on incidents in real-time, and build institutional knowledge across your organization.
 
 ---
 
@@ -364,7 +489,7 @@ Share troubleshooting sessions and build institutional knowledge across your org
 
 ### Repository Structure
 
-FaultMaven is organized into **9 public repositories** in the `FaultMaven` GitHub organization:
+FaultMaven is organized into **multiple public repositories** in the `FaultMaven` GitHub organization:
 
 #### Backend Services
 | Repository | What It Does |
@@ -409,65 +534,6 @@ All contributions are welcome - from bug fixes to new features!
 
 ---
 
-## Roadmap
-
-### ✅ Current Version - Production Ready
-**Status:** Available Now | **License:** Apache 2.0
-
-FaultMaven is a **complete, production-ready AI troubleshooting platform**:
-
-**What's Included:**
-- ✅ AI-powered troubleshooting assistant
-- ✅ Interactive chat via browser extension
-- ✅ Smart knowledge base with semantic search
-- ✅ Case tracking and investigation history
-- ✅ Multiple LLM provider support (OpenAI, Anthropic, Fireworks)
-- ✅ Web dashboard for knowledge management
-- ✅ One-command Docker deployment
-- ✅ Privacy-first data handling
-
-**Perfect For:**
-- Individual developers and SREs
-- Learning AI troubleshooting architectures
-- Privacy-first environments (air-gapped, on-premises)
-- Open-source experimentation and contribution
-
----
-
-### 🔮 Future Enhancements
-**Community-Driven Roadmap**
-
-We're planning these improvements to the open-source version:
-- [ ] **Local LLM Support** - Run with Ollama or LM Studio (no API keys needed)
-- [ ] **Better Search** - Improved knowledge base retrieval accuracy
-- [ ] **Kubernetes Deployment** - Production-ready K8s manifests
-- [ ] **Integrations** - Slack, PagerDuty, and webhook notifications
-- [ ] **Mobile Dashboard** - Responsive design for phones/tablets
-- [ ] **Multi-Language** - UI localization for global teams
-
-**Want to help?** We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md)
-
----
-
-### 🏢 Enterprise SaaS Edition
-**For Individuals & Teams**
-
-**🎁 Free Tier Available**
-
-Enterprise features include:
-- 👥 **Team collaboration** - Case sharing, shared knowledge bases, role-based access
-- 🔐 **Enterprise auth** - SSO (Google, Okta, Azure AD), SAML, MFA, directory sync
-- 🏢 **Multi-tenancy** - Organizations, teams, workspaces
-- ☁️ **Managed infrastructure** - No DevOps, 99.9% uptime
-- 🚀 **Auto-scaling resources** - Scales based on demand
-- 📚 **Built-in knowledge base** - Curated troubleshooting content
-- 📊 **Advanced analytics** - Dashboards, trend analysis, pattern detection
-- 📞 **Professional support** - Priority support, SLA guarantees
-
-**Try the free tier:** [https://faultmaven.ai/signup](https://faultmaven.ai/signup) *(coming soon)*
-
----
-
 ## Documentation
 
 - [Deployment Guide](https://github.com/FaultMaven/faultmaven-deploy) - Complete Docker Compose setup for self-hosting
@@ -495,6 +561,7 @@ All services are published to Docker Hub:
 
 - **Issues**: [GitHub Issues](https://github.com/FaultMaven/FaultMaven/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/FaultMaven/FaultMaven/discussions)
+- **Enterprise Beta**: beta@faultmaven.ai
 - **Website**: *Coming soon*
 
 ---
@@ -511,7 +578,7 @@ All services are published to Docker Hub:
 - ✅ **Compatible:** Integrate with proprietary systems
 - ✅ **Trusted:** Same license as Kubernetes, TensorFlow, Android
 
-**TL;DR:** You can use FaultMaven for anything, including building commercial products on top of it. No strings attached.
+**TL;DR:** You can use FaultMaven for anything, including building commercial products on top of it. The self-hosted version will always be free and open source. No strings attached.
 
 ---
 
@@ -519,6 +586,7 @@ All services are published to Docker Hub:
 
 Built with:
 - [FastAPI](https://fastapi.tiangolo.com/)
+- [LangGraph](https://github.com/langchain-ai/langgraph)
 - [ChromaDB](https://www.trychroma.com/)
 - [Redis](https://redis.io/)
 - [React](https://react.dev/)
