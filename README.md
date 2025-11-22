@@ -46,6 +46,7 @@ docker-compose up -d
 
 **What's Included:**
 - ✅ Complete AI troubleshooting agent (LangGraph with all 8 milestones)
+- ✅ Browser extension (works with all deployment options)
 - ✅ Knowledge base with semantic search (ChromaDB)
 - ✅ Case tracking and investigation history
 - ✅ Support for logs, traces, metrics, profiles, config, code, text, visual data
@@ -73,6 +74,7 @@ Single-user account with basic features. No infrastructure to manage.
 
 **What's Included:**
 - ✅ AI troubleshooting agent
+- ✅ Browser extension (works with all deployment options)
 - ✅ Knowledge base with semantic search
 - ✅ Case tracking
 - ✅ Managed infrastructure (PostgreSQL, Redis, S3)
@@ -170,7 +172,7 @@ All images will be automatically pulled from Docker Hub. No manual builds requir
 
 ### Step 5: Install Browser Extension
 
-1. Download `faultmaven-copilot` from Chrome Web Store / Firefox Add-ons *(coming soon)*
+1. Download `faultmaven-copilot` from [Chrome Web Store](https://chrome.google.com/webstore) / [Firefox Add-ons](https://addons.mozilla.org/)
 2. Configure extension settings:
    - API Endpoint: `http://localhost:8000`
 3. Start troubleshooting!
@@ -443,6 +445,7 @@ All contributions are welcome - from bug fixes to new features!
 
 **Current Features:**
 - ✅ AI-powered troubleshooting assistant
+- ✅ Browser extension (interactive chat interface)
 - ✅ Knowledge base with semantic search
 - ✅ Case tracking and investigation history
 - ✅ Multiple LLM provider support (OpenAI, Anthropic, Fireworks, and more)
@@ -456,7 +459,6 @@ All contributions are welcome - from bug fixes to new features!
 
 Future enhancements being considered:
 - [ ] **Local LLM Support** - Run with Ollama or LM Studio (no API keys needed)
-- [ ] **Browser Extension** - Interactive chat interface
 - [ ] **Improved Search** - Better knowledge base retrieval accuracy
 - [ ] **Kubernetes Deployment** - K8s manifests and Helm charts
 - [ ] **Integrations** - Slack, PagerDuty, and webhook notifications
