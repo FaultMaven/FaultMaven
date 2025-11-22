@@ -29,7 +29,7 @@ This repository contains the core microservices that power the FaultMaven platfo
 
 ## 🏗️ Deployment Options
 
-FaultMaven is available in three ways:
+FaultMaven is available in two ways:
 
 ### 1. Self-Hosted (Open Source)
 **Run on your own infrastructure.**
@@ -67,54 +67,24 @@ docker-compose up -d
 
 ---
 
-### 2. Managed SaaS (Individual)
+### 2. Managed SaaS
 **Zero setup, managed infrastructure.**
 
-Single-user account with basic features. No infrastructure to manage.
-
-**What's Included:**
+**What's Available Now:**
 - ✅ AI troubleshooting agent
 - ✅ Browser extension (works with all deployment options)
 - ✅ Knowledge base with semantic search
 - ✅ Case tracking
 - ✅ Managed infrastructure (PostgreSQL, Redis, S3)
 - ✅ Web dashboard
-- ⚠️ Single user only (no team collaboration)
-- ⚠️ Limited storage and cases
 
-**Best For:**
-- Individual developers and SREs
-- Trying FaultMaven without infrastructure setup
-- Quick evaluation
+**Current Limitations:**
+- Single user workspace (no case sharing or team knowledge bases)
+- Limited storage and active cases
 
-**Cost:** Free during development
+**Note:** Core features are functional and available for use. We're actively improving them based on user feedback.
 
 **Status:** ✅ Available now | **[Sign Up →](https://faultmaven.ai/signup)**
-
----
-
-### 3. Managed SaaS (Teams)
-**Full-featured platform for team collaboration.**
-
-Multi-user accounts with team collaboration, SSO, and enterprise features.
-
-**What's Included:**
-- ✅ Everything in Individual tier
-- ✅ Team collaboration (case sharing, shared knowledge bases)
-- ✅ Enterprise authentication (SSO, SAML, MFA)
-- ✅ Multi-tenancy (organizations, teams, RBAC)
-- ✅ Advanced analytics and dashboards
-- ✅ Auto-scaling infrastructure
-- ✅ Priority support
-
-**Best For:**
-- Engineering teams
-- Organizations with compliance requirements
-- Teams needing SSO and RBAC
-
-**Cost:** TBD
-
-**Status:** 🔨 Planned
 
 ---
 
@@ -455,14 +425,23 @@ All contributions are welcome - from bug fixes to new features!
 
 ---
 
-### 🔮 Planned Improvements
+### 🔨 Under Active Development
 
-Future enhancements being considered:
-- [ ] **Local LLM Support** - Run with Ollama or LM Studio (no API keys needed)
-- [ ] **Improved Search** - Better knowledge base retrieval accuracy
-- [ ] **Kubernetes Deployment** - K8s manifests and Helm charts
-- [ ] **Integrations** - Slack, PagerDuty, ServiceNow, and webhook notifications
-- [ ] **Mobile Dashboard** - Responsive design for phones/tablets
+**Advanced Features:**
+- Team collaboration (case sharing, shared knowledge bases)
+- Enterprise authentication (SSO, SAML, MFA, RBAC)
+- Multi-tenancy (organizations, teams, workspaces)
+- Advanced analytics and dashboards
+- Increased storage and case limits
+
+**Platform Enhancements:**
+- Local LLM support (Ollama, LM Studio)
+- Improved search and retrieval accuracy
+- Kubernetes deployment (K8s manifests and Helm charts)
+- Integrations (Slack, PagerDuty, ServiceNow, webhooks)
+- Mobile-responsive dashboard
+
+These features are being built alongside ongoing improvements to the core platform. User feedback directly influences development priorities.
 
 **Want to help?** We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md)
 
