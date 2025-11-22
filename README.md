@@ -1,6 +1,6 @@
 # FaultMaven
 
-**The AI-Powered Troubleshooting Copilot for Modern Engineering**
+**The AI-Powered Troubleshooting and Knowledge Base Platform**
 
 *Empower software and operations engineers to diagnose incidents faster with privacy-first AI and a local knowledge base.*
 
@@ -23,7 +23,7 @@ This repository contains the core microservices that power the FaultMaven platfo
 - 🔐 **Privacy-First** - All sensitive data sanitized before AI processing
 - 🐳 **Easy Self-Hosting** - One command deployment with Docker Compose
 - 🔄 **Learns From Experience** - Captures solutions and builds institutional knowledge
-- 🌐 **Multiple LLM Support** - Works with OpenAI, Anthropic Claude, or Fireworks AI
+- 🌐 **Multiple LLM Support** - Works with OpenAI, Anthropic Claude, Fireworks AI, and more
 
 ---
 
@@ -95,7 +95,7 @@ The Enterprise SaaS edition provides managed infrastructure, auto-scaling resour
 - Docker and Docker Compose
 - 8GB RAM minimum
 - Ports 8000 (API Gateway), 3000 (Dashboard) available
-- **LLM API Key** (OpenAI, Anthropic, or Fireworks)
+- **LLM API Key** (OpenAI, Anthropic, Fireworks, etc.)
 
 ### Step 1: Clone Deployment Repository
 
@@ -324,7 +324,7 @@ FaultMaven uses a **two-interface model** for optimal workflows:
 - **Database:** SQLite (self-hosted) or PostgreSQL (enterprise)
 - **Cache:** Redis for sessions and background jobs
 - **Search:** ChromaDB vector database for semantic knowledge search
-- **LLM Support:** OpenAI GPT-4, Anthropic Claude, or Fireworks AI
+- **LLM Support:** OpenAI GPT-4, Anthropic Claude, Fireworks AI, and more
 
 **Frontend:**
 - React 19+ with TypeScript
@@ -421,7 +421,7 @@ FaultMaven is a **complete, production-ready AI troubleshooting platform**:
 - ✅ Interactive chat via browser extension
 - ✅ Smart knowledge base with semantic search
 - ✅ Case tracking and investigation history
-- ✅ Multiple LLM provider support (OpenAI, Anthropic, Fireworks)
+- ✅ Multiple LLM provider support (OpenAI, Anthropic, Fireworks, and more)
 - ✅ Web dashboard for knowledge management
 - ✅ One-command Docker deployment
 - ✅ Privacy-first data handling
