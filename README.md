@@ -53,7 +53,7 @@ Deploy locally using Docker. All data stays on your machine.
 
 **License:** Apache 2.0 (free forever)
 
-**Status:** ✅ Available now | **[Quick Start Guide →](#quick-start)**
+**[📚 Deployment Guide →](https://github.com/FaultMaven/faultmaven-deploy)**
 
 ---
 
@@ -75,16 +75,6 @@ Deploy locally using Docker. All data stays on your machine.
 **Note:** Core features are functional and available for use. We're actively improving them based on user feedback.
 
 **Status:** ✅ Available now | **[Sign Up →](https://faultmaven.ai/signup)**
-
----
-
-## Quick Start
-
-**Want to deploy FaultMaven?** See the complete deployment guide:
-
-👉 **[faultmaven-deploy](https://github.com/FaultMaven/faultmaven-deploy)** - Complete Docker Compose setup with step-by-step instructions
-
-**Want to contribute?** See the development section below for local development setup.
 
 ---
 
@@ -265,27 +255,6 @@ FaultMaven uses a **two-interface model** for optimal workflows:
 - Docker & Docker Compose
 - Kubernetes + Helm (enterprise)
 - Apache 2.0 License
-
----
-
-## Use Cases
-
-### 1. Production Incident Investigation
-Track symptoms, hypothesis, evidence, and resolution in structured cases.
-
-### 2. Knowledge Base Building
-Store runbooks, documentation, and past incident learnings in searchable knowledge base.
-
-### 3. AI-Assisted Investigation
-The AI agent helps you work through problems systematically:
-- Ask questions to understand the issue
-- Analyze logs, metrics, and other evidence
-- Suggest potential root causes
-- Recommend solutions based on similar past cases
-- Help document the resolution for future reference
-
-### 4. Team Collaboration (Enterprise Only)
-Share troubleshooting sessions and build institutional knowledge across your organization.
 
 ---
 
