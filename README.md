@@ -461,7 +461,7 @@ Future enhancements being considered:
 - [ ] **Local LLM Support** - Run with Ollama or LM Studio (no API keys needed)
 - [ ] **Improved Search** - Better knowledge base retrieval accuracy
 - [ ] **Kubernetes Deployment** - K8s manifests and Helm charts
-- [ ] **Integrations** - Slack, PagerDuty, and webhook notifications
+- [ ] **Integrations** - Slack, PagerDuty, ServiceNow, and webhook notifications
 - [ ] **Mobile Dashboard** - Responsive design for phones/tablets
 
 **Want to help?** We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md)
