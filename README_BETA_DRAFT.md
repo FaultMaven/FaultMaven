@@ -1,6 +1,6 @@
 # FaultMaven
 
-**The AI-Powered Troubleshooting Copilot for Modern Engineering**
+**The AI-Powered Troubleshooting and Knowledge Base Platform**
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/status-public%20beta-orange.svg)]()
@@ -63,7 +63,7 @@ Try it free (self-hosted or Enterprise SaaS), break things, and tell us what you
 
 ## Overview
 
-FaultMaven helps software and operations engineers diagnose incidents faster with AI-powered troubleshooting, knowledge management, and case tracking. It combines privacy-first AI analysis with a searchable knowledge base to reduce toil and accelerate resolution.
+FaultMaven is an AI-powered troubleshooting and knowledge base platform that helps software and operations engineers diagnose incidents faster. It combines intelligent AI analysis with a searchable knowledge base to capture institutional knowledge, reduce toil, and accelerate resolution.
 
 **Key Capabilities:**
 - 🤖 **AI-Powered Troubleshooting** — Intelligent help diagnosing complex technical issues
@@ -71,7 +71,7 @@ FaultMaven helps software and operations engineers diagnose incidents faster wit
 - 📚 **Smart Knowledge Base** — Store and search runbooks, documentation, and past solutions
 - 🔐 **Privacy-First** — All sensitive data sanitized before AI processing
 - 🔄 **Learns From Experience** — Captures solutions and builds institutional knowledge
-- 🌐 **Multiple LLM Support** — Works with OpenAI, Anthropic Claude, or Fireworks AI
+- 🌐 **Multiple LLM Support** — Works with OpenAI, Anthropic Claude, Fireworks AI, and more
 
 ---
 
@@ -151,7 +151,7 @@ This is the full-featured self-hosted version:
 - ✅ **ChromaDB vector search** — Semantic knowledge base retrieval
 - ✅ **Background job processing** — Celery + Redis for async tasks
 - ✅ **9 Docker containers** — Complete microservices architecture
-- ✅ **Multiple LLM providers** — OpenAI, Anthropic, or Fireworks
+- ✅ **Multiple LLM providers** — OpenAI, Anthropic, Fireworks, and more
 
 ### Beta Terms
 
@@ -208,7 +208,7 @@ Deploy the self-hosted version in 2 minutes.
 - Docker and Docker Compose
 - 8GB RAM minimum
 - Ports 8000 (API Gateway), 3000 (Dashboard) available
-- **LLM API Key** (OpenAI, Anthropic, or Fireworks)
+- **LLM API Key** (OpenAI, Anthropic, Fireworks, etc.)
 
 ### Step 1: Clone Deployment Repository
 
@@ -449,7 +449,7 @@ The API Gateway detects the auth provider and adapts accordingly. The browser ex
 - **Database:** SQLite (self-hosted) or PostgreSQL (Enterprise)
 - **Cache:** Redis for sessions and background jobs
 - **Search:** ChromaDB vector database for semantic knowledge search
-- **LLM Support:** OpenAI GPT-4, Anthropic Claude, or Fireworks AI
+- **LLM Support:** OpenAI GPT-4, Anthropic Claude, Fireworks AI, and more
 
 **Frontend:**
 - React 19+ with TypeScript
