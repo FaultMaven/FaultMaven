@@ -317,7 +317,8 @@ All contributions are welcome - from bug fixes to new features!
 - ✅ Browser extension (interactive chat interface)
 - ✅ Knowledge base with semantic search
 - ✅ Case tracking and investigation history
-- ✅ Multiple LLM provider support (OpenAI, Anthropic, Fireworks, and more)
+- ✅ Multiple LLM provider support (OpenAI, Anthropic, Groq, Gemini, Fireworks, OpenRouter)
+- ✅ Local LLM support (Ollama, LM Studio, LocalAI, vLLM)
 - ✅ Web dashboard for knowledge management
 - ✅ Docker deployment
 - ✅ Privacy-first data handling
@@ -334,7 +335,7 @@ All contributions are welcome - from bug fixes to new features!
 - Increased storage and case limits
 
 **Platform Enhancements:**
-- Local LLM support (Ollama, LM Studio)
+
 - Improved search and retrieval accuracy
 - Kubernetes deployment (K8s manifests and Helm charts)
 - Integrations (Slack, PagerDuty, ServiceNow, webhooks)
