@@ -2,7 +2,7 @@
 
 **The AI-Powered Troubleshooting Copilot for Modern Engineering**
 
-Stop context-switching between dashboards, logs, and documentation. FaultMaven gives you a single AI copilot that understands your full stack—from application traces to infrastructure metrics—and learns from every incident your team resolves.
+Stop context-switching. FaultMaven connects your full stack—logs, metrics, and traces—to a unified knowledge engine. It combines global troubleshooting intelligence with your personal context to help you solve any problem faster, while automatically capturing the solution for the future.
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/u/faultmaven)
@@ -12,30 +12,21 @@ Stop context-switching between dashboards, logs, and documentation. FaultMaven g
 
 ## Quick Start
 
-Get FaultMaven running locally in under 5 minutes:
-
 ```bash
-# Clone the deployment repo
-git clone https://github.com/FaultMaven/faultmaven-deploy.git
-cd faultmaven-deploy
-
-# Configure your LLM provider (OpenAI, Anthropic, or local via Ollama)
-cp .env.example .env
-# Edit .env and add your API key: OPENAI_API_KEY=sk-...
-
-# Launch all services
-docker compose up -d
-
-# Verify it's running
-curl http://localhost:8090/health
+git clone https://github.com/FaultMaven/faultmaven-deploy.git && cd faultmaven-deploy
+cp .env.example .env                      # Add your OPENAI_API_KEY
+./faultmaven start                        # Validates env, starts all services
 ```
 
 **Access Points:**
-- **Dashboard:** http://localhost:3000
+- **Dashboard:** http://localhost:3000 (`admin` / `changeme123`)
 - **API Gateway:** http://localhost:8090
-- **Browser Extension:** Install from [Chrome Web Store](https://chromewebstore.google.com) or load unpacked from [faultmaven-copilot](https://github.com/FaultMaven/faultmaven-copilot)
 
-**Default credentials:** `admin@localhost` / `changeme`
+```bash
+./faultmaven status   # Check service health
+./faultmaven logs     # View logs
+./faultmaven stop     # Stop services (preserves data)
+```
 
 > **Full deployment guide:** [faultmaven-deploy](https://github.com/FaultMaven/faultmaven-deploy)
 
@@ -43,34 +34,34 @@ curl http://localhost:8090/health
 
 ## Why FaultMaven?
 
-### Full-Stack Analysis, Not Just Log Parsing
+**The gap between "Monitoring" and "Fixing" is too wide.**
 
-Most "AI observability" tools throw logs at an LLM and hope for the best. FaultMaven is different:
+Traditional observability tools tell you *what* is broken. Generic LLMs (like ChatGPT) guess *why* it's broken, but lack access to your data.
 
-| Traditional Tools | FaultMaven |
-|-------------------|------------|
-| Parse logs in isolation | Correlate logs, metrics, traces, and configs |
-| Generic AI responses | Context-aware suggestions from YOUR infrastructure |
-| Start fresh every incident | Learn from past resolutions in your knowledge base |
-| Vendor lock-in | Open core, run anywhere |
+FaultMaven bridges this gap by injecting **deep context** into the AI reasoning process.
 
-### Unified Knowledge Base
+### 1. Deep Context Awareness
+Generic chatbots are blind to your infrastructure. FaultMaven correlates your **full stack**—logs, metrics, traces, configuration, and source code—to understand not just the error, but the system state that caused it.
 
-Your team's troubleshooting expertise shouldn't live in Slack threads and personal notes. FaultMaven's knowledge base:
+### 2. Institutional Memory (The Tiered Knowledge Engine)
+Most troubleshooting knowledge dies in Slack threads or forgotten wikis. FaultMaven's **Unified Knowledge Base** ensures you never solve the same problem twice:
+* **Global Intelligence:** Pre-loaded with knowledge of common tech stacks (K8s, Postgres, Redis).
+* **Team Knowledge (Enterprise):** Automatically indexes your runbooks and past case resolutions.
+* **Personal Context:** Remembers your specific environment and local configurations.
 
-- **Captures** runbooks, post-mortems, and tribal knowledge
-- **Indexes** with semantic search (find solutions by describing the problem)
-- **Surfaces** relevant context automatically during incidents
-- **Grows** smarter with every resolved case
+### 3. Zero-Context Switching
+Don't tab-switch between your dashboard and your AI. The **FaultMaven Copilot** browser extension overlays intelligence directly onto your existing tools (AWS Console, Datadog, Grafana, or localhost), bringing the fix to where the problem is.
 
-### Privacy-First Architecture
+---
 
-Your data never leaves your infrastructure unless you choose to send it:
+### FaultMaven vs. Generic AI
 
-- All evidence (logs, screenshots, configs) stored locally
-- Sensitive data sanitized before LLM processing
-- Works with local LLMs (Ollama, vLLM, LM Studio) for air-gapped environments
-- You control what context goes to external APIs
+| Feature | Generic LLMs (ChatGPT/Claude) | FaultMaven |
+| :--- | :--- | :--- |
+| **Input** | Manual copy-paste of snippets | Auto-ingest logs, files, and context |
+| **Memory** | Forgets after the chat window closes | **Persistent Knowledge Base** (RAG) |
+| **Context** | None (Training data only) | **Full Stack** (Code + Config + Telemetry) |
+| **Security** | Data often trains public models | **Air-Gapped Capable** & Data Redaction |
 
 ---
 
