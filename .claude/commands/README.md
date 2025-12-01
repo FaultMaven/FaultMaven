@@ -7,15 +7,16 @@ This directory contains specialized subagent prompts (slash commands) for FaultM
 **All subagents must follow [agent-principles.md](agent-principles.md):**
 
 1. **Root Cause Resolution** — Fix the underlying issue, never bandaid symptoms
-2. **Concise Commits** — Human author, no AI mention, imperative mood
-3. **Verify First** — Read code and run tests before suggesting changes
-4. **Minimal Changes** — Do exactly what's needed, nothing more
-5. **Preserve Patterns** — Follow existing codebase conventions
-6. **Security by Default** — Never introduce vulnerabilities
-7. **Test Changes** — Run tests, add tests for new functionality
-8. **Communicate Clearly** — Be direct, admit unknowns
-9. **Respect Human Authority** — Present options, human decides
-10. **Leave It Better** — Every change should improve quality
+2. **Branch & PR Workflow** — Never commit to main; use task branches and PRs
+3. **Concise Commits** — Human author, no AI mention, imperative mood
+4. **Verify First** — Read code and run tests before suggesting changes
+5. **Minimal Changes** — Do exactly what's needed, nothing more
+6. **Preserve Patterns** — Follow existing codebase conventions
+7. **Security by Default** — Never introduce vulnerabilities
+8. **Test Changes** — Run tests, add tests for new functionality
+9. **Communicate Clearly** — Be direct, admit unknowns
+10. **Respect Human Authority** — Present options, human decides
+11. **Leave It Better** — Every change should improve quality
 
 ## Available Subagents
 

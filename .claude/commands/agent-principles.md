@@ -29,7 +29,14 @@ GOOD: Fix the code or test that's causing the failure
 
 ---
 
-## 2. Git Commit Standards
+## 2. Git Workflow & Commit Standards
+
+**Never commit directly to main. Always use branches and PRs.**
+
+- Create a task/feature branch for all work
+- Push to the branch and create a Pull Request
+- Never push directly to `main` or `master` without explicit permission
+- Let the human review and merge PRs
 
 **Commits represent the human author's work.**
 
