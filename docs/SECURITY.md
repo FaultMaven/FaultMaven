@@ -47,7 +47,7 @@ If you discover a security vulnerability in FaultMaven, please report it respons
 ### Security Advisories
 
 Security advisories are published at:
-- https://github.com/FaultMaven/FaultMaven/security/advisories
+- https://github.com/FaultMaven/faultmaven/security/advisories
 
 ---
 
@@ -661,7 +661,7 @@ CREATE TABLE audit_log (
 - PGP Key: https://faultmaven.ai/.well-known/pgp-key.txt
 
 **Security Updates:**
-- GitHub: https://github.com/FaultMaven/FaultMaven/security/advisories
+- GitHub: https://github.com/FaultMaven/faultmaven/security/advisories
 - Mailing List: security-announce@faultmaven.ai
 
 **Emergency Contact:**

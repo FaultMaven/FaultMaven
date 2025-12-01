@@ -252,9 +252,9 @@ cd faultmaven-deploy && docker compose up -d
 
 ## Support
 
-- **Issues:** [GitHub Issues](https://github.com/FaultMaven/FaultMaven/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/FaultMaven/FaultMaven/discussions)
-- **Enterprise:** [faultmaven.ai](https://faultmaven.ai)
+- **Issues**: [GitHub Issues](https://github.com/FaultMaven/faultmaven/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions)
+- **Website**: *Coming soon*
 
 ---
 

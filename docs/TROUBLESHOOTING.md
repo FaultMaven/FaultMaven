@@ -778,7 +778,7 @@ docker compose config > docker-compose-config.txt
 
 ### 3. Search GitHub Issues
 
-https://github.com/FaultMaven/FaultMaven/issues
+https://github.com/FaultMaven/faultmaven/issues
 
 ### 4. Create New Issue
 
@@ -792,7 +792,7 @@ Include:
 
 ### 5. Community Support
 
-- [GitHub Discussions](https://github.com/FaultMaven/FaultMaven/discussions)
+- [GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions)
 - Stack Overflow (tag: `faultmaven`)
 
 ---

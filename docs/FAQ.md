@@ -37,7 +37,7 @@ FaultMaven is an AI-powered troubleshooting copilot that helps you investigate a
 
 **Partially.** The self-hosted version is Apache 2.0 licensed and open source. Enterprise features (multi-tenancy, SSO, teams) are proprietary.
 
-See: [Enterprise Superset Model](https://github.com/FaultMaven/FaultMaven#architecture-philosophy-enterprise-superset-model)
+See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#architecture-philosophy-enterprise-superset-model)
 
 ### Who is FaultMaven for?
 
@@ -428,9 +428,9 @@ See: [Troubleshooting Guide - Knowledge Base](TROUBLESHOOTING.md#knowledge-base-
 
 ### Where can I get help?
 
-1. **Documentation:** https://github.com/FaultMaven/FaultMaven/tree/main/docs
-2. **GitHub Issues:** https://github.com/FaultMaven/FaultMaven/issues
-3. **Discussions:** https://github.com/FaultMaven/FaultMaven/discussions
+1. **Documentation:** https://github.com/FaultMaven/faultmaven/tree/main/docs
+2. **GitHub Issues:** https://github.com/FaultMaven/faultmaven/issues
+3. **Discussions:** https://github.com/FaultMaven/faultmaven/discussions
 4. **Email:** support@faultmaven.ai (enterprise only)
 
 ---
@@ -446,7 +446,7 @@ We welcome contributions!
 3. **Issues:** Report bugs and request features
 4. **Community:** Help others in Discussions
 
-See: [Contributing Guide](https://github.com/FaultMaven/FaultMaven/blob/main/CONTRIBUTING.md)
+See: [Contributing Guide](https://github.com/FaultMaven/faultmaven/blob/main/CONTRIBUTING.md)
 
 ### What's the roadmap?
 
@@ -463,7 +463,7 @@ See: [GitHub Projects](https://github.com/orgs/FaultMaven/projects)
 
 ### Can I request features?
 
-Yes! Open a feature request: https://github.com/FaultMaven/FaultMaven/issues/new
+Yes! Open a feature request: https://github.com/FaultMaven/faultmaven/issues/new
 
 We prioritize based on:
 - Community votes (👍 on issues)
@@ -475,7 +475,7 @@ We prioritize based on:
 ## Still Have Questions?
 
 **Community Support:**
-- GitHub Discussions: https://github.com/FaultMaven/FaultMaven/discussions
+- GitHub Discussions: https://github.com/FaultMaven/faultmaven/discussions
 - Stack Overflow: Tag with `faultmaven`
 
 **Commercial Support:**
