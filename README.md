@@ -276,5 +276,5 @@ Same license as Kubernetes, TensorFlow, and Apache Kafka.
 ---
 
 <p align="center">
-  <strong>FaultMaven</strong> — Your AI copilot for incident response.
+  <strong>FaultMaven</strong> — Your AI copilot for troubleshooting.
 </p>
