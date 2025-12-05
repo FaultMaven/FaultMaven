@@ -8,6 +8,8 @@ FaultMaven correlates your live telemetry with your runbooks, docs, and past fix
 [![Docker Hub](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/u/faultmaven)
 [![GitHub](https://img.shields.io/badge/github-FaultMaven-blue.svg)](https://github.com/FaultMaven)
 
+<!-- TODO: Add screenshot or demo GIF here showing browser extension or dashboard -->
+
 ---
 
 ## Quick Start
@@ -72,14 +74,14 @@ FaultMaven is **open core**. Run it yourself for free, or let us manage it for y
 | | **Self-Hosted** | **Enterprise Cloud** |
 |---|---|---|
 | **Best for** | Individual engineers, air-gapped environments, total data sovereignty | Teams needing HA, shared context, zero maintenance |
-| **Pricing** | Free Forever (Apache 2.0) | Subscription-based SaaS |
+| **Pricing** | Free Forever (Apache 2.0) | Managed SaaS (Private Beta) |
 | **Scope** | Individual user | Organization / multi-team |
 | **Infrastructure** | Self-managed Docker Compose | Managed HA Kubernetes (AWS/GCP) |
 | **Data Storage** | SQLite (local disk), local ChromaDB | Managed PostgreSQL, Redis, S3 |
 | **Context Scope** | Personal knowledge base only | Global KB + Team KB + shared cases |
 | **Identity** | Basic auth (single user) | SSO/SAML (Okta, Azure AD, Google) |
-| **Integrations** | — | Slack, PagerDuty, ServiceNow |
-| **SLA** | — | 99.9% uptime |
+| **Client Integrations** | Browser Extension Overlay | Browser Extension Overlay |
+| **Server Integrations** | — | Slack, PagerDuty, ServiceNow |
 
 **Self-Hosted includes:**
 - All 7 core microservices (Apache 2.0 license)

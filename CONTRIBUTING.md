@@ -1,254 +1,113 @@
 # Contributing to FaultMaven
 
-Thank you for your interest in contributing to FaultMaven! This document explains our development model and how to contribute effectively.
+Thank you for your interest in contributing to FaultMaven! We're building this in the open and welcome contributions from everyone—whether you're fixing bugs, adding features, improving documentation, or helping others in the community.
 
 ---
 
-## 🏗️ Development Model: Enterprise Superset
+## What You Can Contribute
 
-FaultMaven uses a unique **upstream/downstream** architecture:
+All core FaultMaven functionality is open for contribution:
 
-### Public Repositories (Upstream)
-- **Role:** Single source of truth for all core logic
-- **License:** Apache 2.0 (fully open source)
-- **Location:** `github.com/FaultMaven/*`
-- **Registry:** Docker Hub (`faultmaven/*`)
+- **AI Troubleshooting Engine:** Prompt engineering, LLM integrations, reasoning improvements
+- **Knowledge Base & RAG:** Semantic search, embedding models, knowledge curation
+- **Case Management:** Investigation tracking, evidence handling, export formats
+- **Session Management:** Chat persistence, context handling
+- **Authentication:** JWT improvements, session security
+- **Browser Extension:** UI enhancements, new site integrations, context capture
+- **Dashboard:** Knowledge base management UI, case visualization
+- **LLM Providers:** Add support for new providers (Groq, vLLM, etc.)
+- **Documentation:** Guides, examples, tutorials, troubleshooting tips
+- **Testing:** Bug reports, test coverage, integration tests
 
-### Private Repositories (Downstream)
-- **Role:** Extends public foundation with enterprise features
-- **License:** Proprietary
-- **Location:** Internal/private GitHub repos
-- **Registry:** GitHub Container Registry (GHCR)
-
-**Key Principle:**
-> All bug fixes and core improvements are made in PUBLIC repositories first. Private enterprise repos consume public code via Docker images.
+**New here?** Start with issues labeled [`good-first-issue`](https://github.com/search?q=org%3AFaultMaven+label%3A%22good+first+issue%22+state%3Aopen) across all FaultMaven repositories.
 
 ---
 
-## 🎯 Contributing to Public Repositories
+## How to Contribute
 
-### What Belongs in Public vs Private
+### 1. Find Something to Work On
 
-**✅ Public (This Repo):**
-- Core troubleshooting logic
-- RAG & knowledge base functionality
-- Case management (single-user)
-- Session management
-- JWT authentication
-- SQLite/Redis support
-- Multi-LLM integrations (OpenAI, Anthropic, Fireworks)
-- Browser extension (chat interface)
-- Dashboard (KB management UI)
+- **Browse Issues:** Look for [`good-first-issue`](https://github.com/search?q=org%3AFaultMaven+label%3A%22good+first+issue%22+state%3Aopen) or [`help-wanted`](https://github.com/search?q=org%3AFaultMaven+label%3A%22help+wanted%22+state%3Aopen) labels
+- **Fix a Bug:** Found a bug? Check if it's already reported, otherwise open an issue
+- **Propose a Feature:** Have an idea? Open a discussion or feature request
+- **Improve Documentation:** See gaps in the docs? PRs welcome!
 
-**❌ Private (Enterprise Only):**
-- Organizations & teams
-- RBAC & permissions
-- PostgreSQL support
-- Multi-tenancy
-- SSO/SAML
-- Advanced analytics
-- Compliance features (SOC2, HIPAA)
+### 2. Set Up Your Development Environment
 
-### How to Contribute
+```bash
+# Fork and clone the repository you want to contribute to
+git clone https://github.com/YOUR_USERNAME/fm-agent-service.git
+cd fm-agent-service
 
-1. **Fork** the repository you want to contribute to
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Make** your changes
-4. **Test** locally using `docker-compose` (see Testing section below)
-5. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-6. **Push** to your fork (`git push origin feature/amazing-feature`)
-7. **Open** a Pull Request
+# Create a feature branch
+git checkout -b feature/your-feature-name
+```
+
+### 3. Test Your Changes Locally
+
+Run the full FaultMaven stack to test your changes:
+
+```bash
+# Clone the deployment repository
+git clone https://github.com/FaultMaven/faultmaven-deploy.git
+cd faultmaven-deploy
+
+# Configure environment
+cp .env.example .env
+# Edit .env and add your OPENAI_API_KEY or configure Ollama
+
+# Start all services
+docker-compose up -d
+
+# Check health
+curl http://localhost:8090/health
+```
+
+If you're modifying a specific microservice, build it locally:
+
+```bash
+# In your service repo (e.g., fm-agent-service)
+docker build -t faultmaven/fm-agent-service:local .
+
+# Update docker-compose.yml to use your local image
+# services:
+#   agent:
+#     image: faultmaven/fm-agent-service:local
+
+# Restart the service
+cd ../faultmaven-deploy
+docker-compose up -d agent
+
+# Test your changes
+curl -X POST http://localhost:8090/v1/agent/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Test message"}'
+```
+
+### 4. Submit Your Changes
+
+```bash
+# Commit your changes with a clear message
+git add .
+git commit -m "feat: add support for Groq LLM provider"
+
+# Push to your fork
+git push origin feature/your-feature-name
+
+# Open a Pull Request on GitHub
+```
 
 ### Pull Request Guidelines
 
-- Provide a clear description of the changes
-- Reference any related issues
-- Ensure all tests pass
-- Update documentation if needed
-- Keep changes focused (one feature/fix per PR)
+- **Clear Description:** Explain what you changed and why
+- **Reference Issues:** Link to related issues (e.g., "Fixes #123")
+- **Pass Tests:** Ensure your changes don't break existing functionality
+- **Update Docs:** Add or update documentation if needed
+- **Keep Focused:** One feature or fix per PR (easier to review)
 
 ---
 
-## 🧹 Cleansing Workflow (Maintainers Only)
-
-This section documents how maintainers port new features from private enterprise repos to public repos.
-
-### Step 1: Copy Code from Private Repo
-
-```bash
-# Navigate to private enterprise service
-cd /path/to/fm-case-service-enterprise
-
-# Copy relevant code to public repo
-cp -r src/core /path/to/public/fm-case-service/src/
-```
-
-### Step 2: Cleanse Enterprise Features
-
-Remove or modify the following:
-
-**Database Fields:**
-```python
-# REMOVE these fields from SQLAlchemy models
-organization_id: Mapped[str]
-team_id: Mapped[str]
-created_by_user_id: Mapped[str]
-```
-
-**RBAC Logic:**
-```python
-# REMOVE permission checks
-@require_permission("cases:write")
-def create_case(...):
-    pass
-
-# REMOVE organization filtering
-cases = db.query(Case).filter(Case.organization_id == org_id).all()
-```
-
-**PostgreSQL Support:**
-```python
-# REMOVE psycopg2 from requirements.txt
-# psycopg2-binary==2.9.9  # <-- DELETE THIS
-
-# REMOVE PostgreSQL connection logic
-if db_type == "postgresql":
-    engine = create_async_engine(postgres_url)  # <-- DELETE THIS
-```
-
-**Multi-Tenancy:**
-```python
-# REMOVE tenant context managers
-with tenant_context(org_id):
-    # ...
-```
-
-### Step 3: Simplify to SQLite
-
-```python
-# PUBLIC version should use SQLite exclusively
-DATABASE_URL = "sqlite+aiosqlite:///data/cases.db"
-
-# Remove conditional database logic
-engine = create_async_engine(DATABASE_URL)
-```
-
-### Step 4: Update Dependencies
-
-```bash
-# requirements.txt (PUBLIC version)
-fastapi==0.109.0
-sqlalchemy==2.0.25
-aiosqlite==0.19.0           # SQLite async driver
-redis==5.0.1                # Session storage
-chromadb==0.4.22            # Vector DB
-# DO NOT include: psycopg2-binary, boto3, supabase-py
-```
-
-### Step 5: Test in Public Stack
-
-```bash
-cd /path/to/faultmaven-deploy
-docker-compose down
-docker-compose build
-docker-compose up -d
-
-# Verify service works
-curl http://localhost:8000/health
-```
-
-### Step 6: Publish to Docker Hub
-
-```bash
-# Tag the release
-git tag v1.0.0
-git push origin v1.0.0
-
-# GitHub Actions will automatically:
-# - Build Docker image
-# - Push to faultmaven/fm-case-service:v1.0.0
-# - Update :latest tag
-```
-
-### Step 7: Update Private Repo to Inherit
-
-```dockerfile
-# fm-case-service-enterprise/Dockerfile
-FROM faultmaven/fm-case-service:v1.0.0
-
-# Add enterprise overlays
-COPY ./enterprise /app/enterprise
-
-# Install PostgreSQL driver
-RUN pip install psycopg2-binary==2.9.9
-
-# Override entrypoint if needed
-COPY ./enterprise-entrypoint.sh /app/entrypoint.sh
-```
-
----
-
-## 🧪 Testing Your Contributions
-
-### Local Development Setup
-
-1. **Clone the deploy repository:**
-   ```bash
-   git clone https://github.com/FaultMaven/faultmaven-deploy.git
-   cd faultmaven-deploy
-   ```
-
-2. **Configure environment:**
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your LLM API key
-   ```
-
-3. **Start services:**
-   ```bash
-   docker-compose up -d
-   ```
-
-4. **Verify health:**
-   ```bash
-   curl http://localhost:8000/health
-   curl http://localhost:8000/v1/meta/capabilities
-   ```
-
-### Testing Your Service Changes
-
-If you're contributing to a specific microservice:
-
-1. **Build your modified service:**
-   ```bash
-   cd /path/to/fm-case-service
-   docker build -t faultmaven/fm-case-service:local .
-   ```
-
-2. **Update docker-compose.yml to use local image:**
-   ```yaml
-   services:
-     case:
-       image: faultmaven/fm-case-service:local  # Use local build
-       # ... rest of config
-   ```
-
-3. **Restart the service:**
-   ```bash
-   docker-compose up -d case
-   ```
-
-4. **Test your changes:**
-   ```bash
-   # Example: Test case creation
-   curl -X POST http://localhost:8000/v1/cases \
-     -H "Content-Type: application/json" \
-     -d '{"title": "Test Case", "description": "Testing changes"}'
-   ```
-
----
-
-## 📝 Code Style Guidelines
+## Code Style Guidelines
 
 ### Python (Backend Services)
 
@@ -315,37 +174,11 @@ const CaseList: React.FC = () => {
 
 ---
 
-## 🐛 Reporting Bugs
+## Commit Message Guidelines
 
-1. **Search** existing issues to avoid duplicates
-2. **Use** the bug report template
-3. **Include:**
-   - Steps to reproduce
-   - Expected behavior
-   - Actual behavior
-   - Environment (Docker version, OS, etc.)
-   - Logs (if applicable)
+Use **conventional commits** for clear history:
 
----
-
-## 💡 Feature Requests
-
-1. **Check** if the feature belongs in public or enterprise
-2. **Use** the feature request template
-3. **Explain:**
-   - The problem you're trying to solve
-   - Your proposed solution
-   - Why this should be in the public version
-
-**Note:** Features requiring multi-tenancy, RBAC, or PostgreSQL should be requested via the enterprise support channel.
-
----
-
-## 📜 Commit Message Guidelines
-
-Use conventional commits:
-
-```
+```text
 feat: Add RAG reranking support
 fix: Resolve session timeout issue
 docs: Update deployment guide
@@ -353,50 +186,131 @@ refactor: Simplify auth middleware
 test: Add integration tests for knowledge service
 ```
 
-Types:
+**Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
-- `docs`: Documentation only
-- `refactor`: Code refactoring
+- `docs`: Documentation changes
+- `refactor`: Code refactoring (no behavior change)
 - `test`: Adding or updating tests
 - `chore`: Maintenance tasks
 - `perf`: Performance improvements
 
 ---
 
-## 🔒 Security Vulnerabilities
+## Non-Code Contributions
 
-**DO NOT** open public issues for security vulnerabilities.
+You don't need to be a developer to help:
 
-Instead, see [SECURITY.md](SECURITY.md) for reporting instructions.
+### Documentation
+
+- Improve setup guides
+- Add troubleshooting tips
+- Create tutorials or examples
+- Fix typos or unclear wording
+
+### Community Support
+
+- Answer questions in [GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions)
+- Help reproduce bugs
+- Share your use cases and workflows
+
+### Knowledge Base
+
+- Contribute troubleshooting patterns for the Global KB
+- Add runbooks for common tech stacks (K8s, PostgreSQL, Redis)
+- Share post-mortems (anonymized)
+
+### Testing & Feedback
+
+- Report bugs with detailed reproduction steps
+- Test new features and provide feedback
+- Suggest UX improvements
 
 ---
 
-## 📄 License
+## Reporting Bugs
 
-By contributing to FaultMaven, you agree that your contributions will be licensed under the Apache 2.0 License.
+1. **Search** existing issues to avoid duplicates
+2. **Use** the bug report template (if available)
+3. **Include:**
+   - Clear description of the problem
+   - Steps to reproduce
+   - Expected vs. actual behavior
+   - Environment details (Docker version, OS, LLM provider)
+   - Relevant logs or error messages
 
-This includes:
-- ✅ Grant of copyright license
-- ✅ Grant of patent license
-- ✅ Right to sublicense and distribute
+**Example:**
+
+```text
+**Describe the bug**
+The browser extension fails to capture logs from AWS CloudWatch console.
+
+**To Reproduce**
+1. Install extension in Chrome
+2. Navigate to AWS CloudWatch Logs
+3. Click "Ask FaultMaven"
+4. Extension shows "No context captured"
+
+**Expected behavior**
+Extension should capture visible log entries
+
+**Environment**
+- Browser: Chrome 120
+- Extension version: 0.2.0
+- OS: macOS 14.1
+```
+
+---
+
+## Security Vulnerabilities
+
+**DO NOT** open public issues for security vulnerabilities.
+
+Please report security issues privately by following the instructions in [SECURITY.md](./docs/SECURITY.md).
+
+---
+
+## License
+
+By contributing to FaultMaven, you agree that your contributions will be licensed under the **Apache 2.0 License**.
+
+This means your code can be:
+
+- ✅ Used commercially
+- ✅ Modified and distributed
+- ✅ Sublicensed
 
 See [LICENSE](LICENSE) for full details.
 
 ---
 
-## 🤝 Community
+## Community Guidelines
 
-- **GitHub Discussions:** For questions and general discussion
-- **GitHub Issues:** For bug reports and feature requests
-- **Pull Requests:** For code contributions
+We're committed to maintaining a welcoming and inclusive community:
 
-We strive to maintain a welcoming and inclusive community. Please read our [Code of Conduct](CODE_OF_CONDUCT.md).
+- **Be respectful:** Treat everyone with kindness and respect
+- **Be constructive:** Provide helpful feedback, not just criticism
+- **Be patient:** Remember that contributors may be volunteers
+- **Be open:** Welcome new ideas and perspectives
+
+For detailed guidelines, see our [Code of Conduct](CODE_OF_CONDUCT.md) (if available).
 
 ---
 
-## 🙏 Thank You
+## Getting Help
 
-Your contributions help make FaultMaven better for everyone. We appreciate your time and effort!
+- **[GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions)** — Ask questions, share ideas
+- **[GitHub Issues](https://github.com/FaultMaven/faultmaven/issues)** — Report bugs, request features
+- **[Documentation](./docs/)** — Technical guides and API references
+- **[Website](https://faultmaven.ai)** — Product overview and use cases
 
-**FaultMaven Maintainers**
+---
+
+## Thank You
+
+Your contributions help make FaultMaven better for everyone. Whether it's code, documentation, bug reports, or community support—we appreciate your time and effort!
+
+Happy contributing! 🚀
+
+— The FaultMaven Team
