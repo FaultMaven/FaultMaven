@@ -1,6 +1,6 @@
 # FaultMaven
 
-**The AI-Powered Troubleshooting Copilot for Modern Engineering**
+**FaultMaven Platform The central documentation and architecture hub for the FaultMaven ecosystem.**
 
 FaultMaven correlates your live telemetry with your runbooks, docs, and past fixes. It delivers answers grounded in your actual system—not generic guesses. Resolve incidents faster with an AI copilot that understands both your stack and your organization.
 
@@ -14,7 +14,7 @@ FaultMaven correlates your live telemetry with your runbooks, docs, and past fix
 
 ## Quick Start
 
-> **Note:** This is the source code repository. To deploy FaultMaven, use our [deployment repository](https://github.com/FaultMaven/faultmaven-deploy) which orchestrates all services with Docker Compose.
+> **Note:** This is the **central platform repository**. To deploy FaultMaven, use our [deployment repository](https://github.com/FaultMaven/faultmaven-deploy) which orchestrates all services with Docker Compose. Want to contribute to the code? See the [Microservices Table](#repositories) below to find the specific service you need.
 
 ```bash
 git clone https://github.com/FaultMaven/faultmaven-deploy.git && cd faultmaven-deploy
