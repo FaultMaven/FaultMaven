@@ -252,7 +252,7 @@ User-facing applications. Great for frontend contributors.
 |------------|---------|-------------------------|
 | [fm-core-lib](https://github.com/FaultMaven/fm-core-lib) | Common utilities, models, clients | Add utility functions |
 
-**Want to contribute but not sure where to start?** Check out issues tagged with `good-first-issue` across all repos, or ask in [GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions).
+**Want to contribute but not sure where to start?** Check out issues tagged [`good-first-issue`](https://github.com/search?q=org%3AFaultMaven+label%3A%22good+first+issue%22+state%3Aopen) across all repos, or ask in [GitHub Discussions](https://github.com/FaultMaven/faultmaven/discussions).
 
 ---
 
