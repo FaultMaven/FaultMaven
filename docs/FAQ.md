@@ -231,7 +231,7 @@ Yes. The case list shows all previous investigations. You can:
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| API Gateway | 8000 | Public API |
+| API Gateway | 8090 | Public API |
 | Dashboard | 3000 | Web UI |
 | Auth Service | 8001 | Internal only |
 | Session Service | 8002 | Internal only |
@@ -241,7 +241,7 @@ Yes. The case list shows all previous investigations. You can:
 | Redis | 6379 | Internal only |
 | ChromaDB | 8000 | Internal only |
 
-Only ports 8000 and 3000 should be exposed externally (via reverse proxy).
+Only ports 8090 and 3000 should be exposed externally (via reverse proxy).
 
 ### Can I use FaultMaven offline?
 
@@ -401,7 +401,7 @@ See: [Troubleshooting Guide](TROUBLESHOOTING.md#service-startup-issues)
 
 **Common causes:**
 1. API URL incorrect (check extension settings)
-2. API not running (`curl http://localhost:8000/health`)
+2. API not running (`curl http://localhost:8090/health`)
 3. CORS issues (check browser console)
 4. Firewall blocking connection
 
