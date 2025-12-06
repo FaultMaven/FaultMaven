@@ -62,17 +62,17 @@ docker ps
 
 **Symptom:**
 ```
-Error starting userland proxy: listen tcp4 0.0.0.0:8000: bind: address already in use
+Error starting userland proxy: listen tcp4 0.0.0.0:8090: bind: address already in use
 ```
 
 **Solution:**
 
 **Option 1: Find and stop conflicting process**
 ```bash
-# Find what's using port 8000
-sudo lsof -i :8000
+# Find what's using port 8090
+sudo lsof -i :8090
 # or
-sudo netstat -tulpn | grep :8000
+sudo netstat -tulpn | grep :8090
 
 # Kill the process
 sudo kill -9 <PID>
@@ -178,10 +178,10 @@ Extension or dashboard shows "Cannot connect to API"
 **Diagnosis:**
 ```bash
 # Test API health
-curl http://localhost:8000/health
+curl http://localhost:8090/health
 
 # Test from external network
-curl http://YOUR_SERVER_IP:8000/health
+curl http://YOUR_SERVER_IP:8090/health
 
 # Check firewall
 sudo ufw status
@@ -208,7 +208,7 @@ docker compose restart gateway
 **2. Firewall Blocking**
 ```bash
 # Allow API port
-sudo ufw allow 8000/tcp
+sudo ufw allow 8090/tcp
 
 # If using nginx, allow HTTP/HTTPS
 sudo ufw allow 80/tcp
@@ -262,7 +262,7 @@ Correct credentials return 401
 docker compose logs auth-service
 
 # Test auth endpoint directly
-curl -X POST http://localhost:8000/v1/auth/login \
+curl -X POST http://localhost:8090/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"test123"}'
 ```
@@ -272,7 +272,7 @@ curl -X POST http://localhost:8000/v1/auth/login \
 **1. User Doesn't Exist**
 ```bash
 # Register user first
-curl -X POST http://localhost:8000/v1/auth/register \
+curl -X POST http://localhost:8090/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email":"test@example.com",
@@ -505,7 +505,7 @@ docker compose logs knowledge-service
 docker compose logs job-worker
 
 # Check ChromaDB
-curl http://localhost:8000/v1/knowledge/collections
+curl http://localhost:8090/v1/knowledge/collections
 ```
 
 **Solutions:**
@@ -552,7 +552,7 @@ docker compose logs job-worker | grep -i error
 ```bash
 # Verify documents exist
 curl -H "Authorization: Bearer YOUR_TOKEN" \
-  http://localhost:8000/v1/knowledge/documents
+  http://localhost:8090/v1/knowledge/documents
 ```
 
 **2. Search Query Too Specific**
@@ -586,7 +586,7 @@ Extension shows "Disconnected" or "Cannot connect"
 **1. Check API URL**
 ```
 # In extension settings:
-# Self-hosted: http://localhost:8000
+# Self-hosted: http://localhost:8090
 # Production: https://faultmaven.yourdomain.com
 ```
 

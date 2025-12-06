@@ -117,7 +117,7 @@ openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
 # /etc/nginx/sites-available/faultmaven
 
 upstream faultmaven_api {
-    server 127.0.0.1:8000;
+    server 127.0.0.1:8090;
 }
 
 upstream faultmaven_dashboard {
@@ -519,9 +519,9 @@ docker compose up -d --scale agent-service=3
 # Update nginx upstream:
 upstream faultmaven_api {
     least_conn;
-    server 127.0.0.1:8000;
-    server 127.0.0.1:8001;
-    server 127.0.0.1:8002;
+    server 127.0.0.1:8090;
+    server 127.0.0.1:8091;
+    server 127.0.0.1:8092;
 }
 ```
 
