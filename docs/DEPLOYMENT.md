@@ -30,6 +30,8 @@ This guide covers deploying FaultMaven in production environments, including clo
 
 - Docker 24.0+
 - Docker Compose 2.20+
+- jq (for `faultmaven-deploy` CLI health checks)
+- curl (for `faultmaven-deploy` CLI health checks)
 - SSL/TLS certificate (Let's Encrypt recommended)
 - Reverse proxy (nginx, Caddy, or Traefik)
 
@@ -73,16 +75,17 @@ nano .env
 
 **Required settings:**
 ```bash
-# LLM Provider (choose ONE)
+# Network (required)
+SERVER_HOST=192.168.x.x
+
+# LLM provider (required: at least one)
 OPENAI_API_KEY=sk-your-key-here
-# OR
-ANTHROPIC_API_KEY=sk-ant-your-key-here
+# (or ANTHROPIC_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / etc.)
 
-# Security
-JWT_SECRET=$(openssl rand -hex 32)
-
-# Domain (for production)
-DOMAIN=faultmaven.yourdomain.com
+# Auth (required: change defaults)
+DASHBOARD_USERNAME=admin
+DASHBOARD_PASSWORD=use-a-strong-password
+SECRET_KEY=$(openssl rand -hex 32)
 ```
 
 ### Step 4: Set Up SSL/TLS
@@ -193,12 +196,15 @@ sudo systemctl reload nginx
 
 ```bash
 cd /opt/faultmaven
-docker compose up -d
+./faultmaven start
 ```
 
 ### Step 7: Verify Deployment
 
 ```bash
+# Check status + health checks
+./faultmaven status
+
 # Check service health
 curl https://faultmaven.yourdomain.com/health
 
@@ -206,7 +212,7 @@ curl https://faultmaven.yourdomain.com/health
 curl https://faultmaven.yourdomain.com/v1/meta/capabilities
 
 # View logs
-docker compose logs -f
+./faultmaven logs --tail 200
 ```
 
 ---
@@ -297,18 +303,18 @@ sudo ufw deny 8000/tcp
 sudo ufw deny 3000/tcp
 ```
 
-### 2. Strong JWT Secret
+### 2. Strong Auth Secret (`SECRET_KEY`)
 
 ```bash
 # Generate cryptographically secure secret
-openssl rand -hex 32 > .jwt_secret
-JWT_SECRET=$(cat .jwt_secret)
+openssl rand -hex 32 > .secret_key
+SECRET_KEY=$(cat .secret_key)
 
 # Add to .env
-echo "JWT_SECRET=$JWT_SECRET" >> .env
+echo "SECRET_KEY=$SECRET_KEY" >> .env
 
 # Secure the file
-chmod 600 .env .jwt_secret
+chmod 600 .env .secret_key
 ```
 
 ### 3. Rate Limiting (nginx)

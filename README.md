@@ -18,20 +18,23 @@ FaultMaven correlates your live telemetry with your runbooks, docs, and past fix
 
 ```bash
 git clone https://github.com/FaultMaven/faultmaven-deploy.git && cd faultmaven-deploy
-cp .env.example .env                      # Configure your LLM provider (see below)
-./faultmaven start                        # Validates env, starts all services
+cp .env.example .env
+# Edit .env and set:
+#   SERVER_HOST=192.168.x.x   # Required (dashboard connects to API Gateway)
+#   OPENAI_API_KEY=sk-...     # Required: at least one LLM API key (or another provider)
+./faultmaven start           # Validates env, starts all services
 ```
 
 **Access Points:**
-- **Dashboard:** http://localhost:3000
-- **API Gateway:** http://localhost:8090
+- **Dashboard:** http://<SERVER_HOST>:3000
+- **API Gateway:** http://<SERVER_HOST>:8090
 
 **Default Credentials:** `admin` / `changeme123`
 ⚠️ **Security Warning:** Change these immediately in production. See [SECURITY.md](./docs/SECURITY.md) for setup instructions.
 
 ```bash
 ./faultmaven status   # Check service health
-./faultmaven logs     # View logs
+./faultmaven logs     # View logs (use --tail N to limit output)
 ./faultmaven stop     # Stop services (preserves data)
 ```
 
@@ -174,19 +177,17 @@ FaultMaven works with your preferred AI provider. You can start **completely fre
 
 ### Start Without an API Key
 
-You can use FaultMaven **completely free** with local LLMs:
+You can use FaultMaven **completely free** with local LLMs by configuring `faultmaven-deploy/.env`:
 
 ```bash
 # Install Ollama (one-time setup)
 curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3        # Download model (~4GB)
+ollama pull llama3.1      # Download model (~4-5GB)
 
-# Configure FaultMaven
-cat > .env <<EOF
-LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_MODEL=llama3
-EOF
+# In faultmaven-deploy/.env, set:
+#   LOCAL_LLM_API_KEY=not-needed
+#   LOCAL_LLM_URL=http://localhost:11434/v1
+#   LOCAL_LLM_MODEL=llama3.1
 
 ./faultmaven start
 ```
@@ -201,8 +202,8 @@ Get an API key from your preferred provider:
 
 Configure in `.env`:
 ```bash
-LLM_PROVIDER=openai          # or: anthropic, google, groq
 OPENAI_API_KEY=sk-...        # Your API key
+# (Or use ANTHROPIC_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / etc.)
 ```
 
 **Privacy & Security:**
@@ -276,7 +277,7 @@ git clone https://github.com/YOUR_USERNAME/fm-agent-service.git
 cd fm-agent-service
 
 # Run the full stack locally for testing
-cd ../faultmaven-deploy && docker compose up -d
+cd ../faultmaven-deploy && ./faultmaven start
 
 # Make changes, test, submit PR
 ```

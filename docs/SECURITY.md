@@ -65,7 +65,7 @@ Security advisories are published at:
 
 **MUST HAVE:**
 - ✅ HTTPS/TLS encryption (valid certificate)
-- ✅ Strong JWT secret (32+ random characters)
+- ✅ Strong auth secret (`SECRET_KEY`, 32+ random characters)
 - ✅ Firewall configured
 - ✅ Regular security updates
 - ✅ Automated backups
@@ -89,14 +89,14 @@ Security advisories are published at:
 openssl rand -hex 32
 
 # Add to .env
-JWT_SECRET=your_generated_secret_here
+SECRET_KEY=your_generated_secret_here
 ```
 
 **Token Configuration:**
 ```bash
 # .env
-JWT_SECRET=<strong-random-secret>
-JWT_EXPIRE_MINUTES=60          # Access token expiry
+SECRET_KEY=<strong-random-secret>
+ACCESS_TOKEN_EXPIRE_MINUTES=60  # Access token expiry
 REFRESH_TOKEN_EXPIRE_DAYS=7     # Refresh token expiry
 JWT_ALGORITHM=HS256              # Signing algorithm
 ```
@@ -498,7 +498,7 @@ chown root:root .env
 **DON'T:**
 ```bash
 # Never hardcode secrets
-JWT_SECRET=hardcoded_secret_bad  # ❌
+SECRET_KEY=hardcoded_secret_bad  # ❌
 
 # Never commit .env to git
 git add .env  # ❌
@@ -527,10 +527,10 @@ secrets:
 **For large deployments:**
 ```bash
 # Store secrets in Vault
-vault kv put secret/faultmaven/jwt jwt_secret="..."
+vault kv put secret/faultmaven/jwt secret_key="..."
 
 # Retrieve in startup script
-export JWT_SECRET=$(vault kv get -field=jwt_secret secret/faultmaven/jwt)
+export SECRET_KEY=$(vault kv get -field=secret_key secret/faultmaven/jwt)
 ```
 
 ---

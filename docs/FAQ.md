@@ -58,8 +58,10 @@ See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#archit
 git clone https://github.com/FaultMaven/faultmaven-deploy.git
 cd faultmaven-deploy
 cp .env.example .env
-# Add your LLM API key to .env
-docker compose up -d
+# Edit .env and set:
+#   SERVER_HOST=192.168.x.x   # required
+#   OPENAI_API_KEY=sk-...     # required: at least one LLM API key (or another provider)
+./faultmaven start
 ```
 
 See: [Quick Start Guide](https://github.com/FaultMaven/faultmaven-deploy#quick-start)
@@ -91,8 +93,9 @@ For experimentation, try on a Raspberry Pi 4 (8GB RAM) or Pi 5, but expect perfo
 
 ```bash
 cd faultmaven-deploy
+git pull
 docker compose pull
-docker compose up -d
+./faultmaven restart
 ```
 
 All data persists in Docker volumes, so updates are safe.
@@ -392,7 +395,7 @@ df -h
 free -h
 
 # .env file
-cat .env | grep -E "API_KEY|JWT_SECRET"
+cat .env | grep -E "SERVER_HOST|API_KEY|SECRET_KEY"
 ```
 
 See: [Troubleshooting Guide](TROUBLESHOOTING.md#service-startup-issues)

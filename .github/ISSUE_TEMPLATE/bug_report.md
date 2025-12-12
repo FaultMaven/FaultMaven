@@ -82,7 +82,8 @@ Please include relevant logs:
 
 ```
 # Docker logs
-docker-compose logs [service-name]
+./faultmaven logs [service-name] --tail 200
+# (or: docker compose logs [service-name])
 
 # Paste logs here
 ```

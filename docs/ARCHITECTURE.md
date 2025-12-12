@@ -267,7 +267,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - ChromaDB container
 - All services in docker-compose.yml
 
-**Command:** `docker-compose up -d`
+**Command (recommended):** `./faultmaven start` (from the `faultmaven-deploy` repo)
 
 ### Enterprise (Kubernetes)
 **Target:** Organizations, 100+ users
@@ -290,7 +290,7 @@ curl http://localhost:8001/health
 ### Logs
 - Structured JSON logging
 - Stdout/stderr captured by Docker
-- View with: `docker-compose logs -f service-name`
+- View with: `./faultmaven logs [service]` (supports `--tail N`)
 
 ### Metrics (Future)
 - Prometheus metrics endpoint (`/metrics`)
@@ -333,15 +333,15 @@ Resource-intensive services:
 
 ### Running Locally
 ```bash
-# Start all services
+# Start all services (recommended)
 cd faultmaven-deploy
-docker-compose up -d
+./faultmaven start
 
-# Check logs
-docker-compose logs -f agent-service
+# Check logs (example)
+./faultmaven logs fm-agent-service --tail 200
 
-# Rebuild after code changes
-docker-compose up -d --build agent-service
+# Restart a service
+./faultmaven restart fm-agent-service
 ```
 
 ### Testing a Service

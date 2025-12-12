@@ -60,7 +60,7 @@ Related to #
 **Testing:**
 - [ ] I have added tests that prove my fix is effective or that my feature works
 - [ ] New and existing unit tests pass locally with my changes
-- [ ] I have tested this with `docker-compose up` from `faultmaven-deploy`
+- [ ] I have tested this with `./faultmaven start` from `faultmaven-deploy`
 
 **Documentation:**
 - [ ] I have updated the documentation accordingly
