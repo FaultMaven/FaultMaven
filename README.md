@@ -39,7 +39,7 @@ cp .env.example .env                      # Configure your LLM provider (see bel
 - **[Product Overview](https://faultmaven.ai/product)** — See what FaultMaven can do
 - **[Use Cases](https://faultmaven.ai/use-cases)** — Real-world troubleshooting scenarios
 - **[Roadmap](https://faultmaven.ai/roadmap)** — What we're building next
-- **[Beta Founders Program](https://faultmaven.ai/founders)** — Get free Enterprise Cloud access
+- **[Beta Founders Program](https://faultmaven.ai/founders)** — Get free FaultMaven Enterprise access
 
 ---
 
@@ -67,11 +67,11 @@ Every resolved case becomes institutional knowledge. FaultMaven **automatically 
 
 ---
 
-## FaultMaven Core vs. FaultMaven Enterprise Cloud
+## FaultMaven Core vs. FaultMaven Enterprise
 
 FaultMaven is **open core**. Run it yourself for free, or let us manage it for you.
 
-| | **FaultMaven Core** | **Enterprise Cloud** |
+| | **FaultMaven Core** | **FaultMaven Enterprise** |
 |---|---|---|
 | **Best for** | Individual engineers, air-gapped environments, total data sovereignty | Teams needing HA, shared context, zero maintenance |
 | **Pricing** | Free Forever (Apache 2.0) | Managed SaaS (Private Beta) |
@@ -91,7 +91,7 @@ FaultMaven is **open core**. Run it yourself for free, or let us manage it for y
 - Knowledge base with semantic search (RAG)
 - Case tracking and evidence management
 
-**Want Enterprise Cloud?** [Join the Beta Founders Program](https://faultmaven.ai/founders) for free access during beta.
+**Want FaultMaven Enterprise?** [Join the Beta Founders Program](https://faultmaven.ai/founders) for free access during beta.
 
 ---
 
@@ -338,5 +338,5 @@ Same license as Kubernetes, TensorFlow, and Apache Kafka. We believe in open inf
 
 <p align="center">
   <strong>FaultMaven</strong> — Your AI copilot for troubleshooting.<br>
-  Built on the same core analysis engine. Use FaultMaven Core for personal context, or Enterprise for shared team intelligence.
+  Built on the same core analysis engine. Use FaultMaven Core for personal context, or FaultMaven Enterprise for shared team intelligence.
 </p>
