@@ -213,7 +213,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - Perfect for single-user or small team deployments
 - Excellent performance for < 100GB data
 
-**Enterprise uses PostgreSQL** for multi-tenancy and scale.
+**FaultMaven Enterprise uses PostgreSQL** for multi-tenancy and scale.
 
 ### Why Redis?
 

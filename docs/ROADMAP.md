@@ -14,7 +14,7 @@ may shift based on community feedback and what we learn.
 - [ ] Chrome Web Store publication for Copilot extension
 - [ ] Improved RAG accuracy for knowledge base queries
 - [ ] Expanded Global Knowledge Base coverage
-- [ ] Performance optimizations for self-hosted deployments
+- [ ] Performance optimizations for FaultMaven Core deployments
 
 ### 📅 Next (Planned)
 
