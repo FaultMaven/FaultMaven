@@ -205,7 +205,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - More complex deployment (mitigated by docker-compose)
 - Network latency between services (acceptable for our use case)
 
-### Why SQLite for Self-Hosted?
+### Why SQLite for FaultMaven Core?
 
 **Benefits:**
 - Zero configuration (no database server needed)
@@ -213,7 +213,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - Perfect for single-user or small team deployments
 - Excellent performance for < 100GB data
 
-**Enterprise uses PostgreSQL** for multi-tenancy and scale.
+**FaultMaven Enterprise uses PostgreSQL** for multi-tenancy and scale.
 
 ### Why Redis?
 
@@ -258,7 +258,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 
 ## Deployment Modes
 
-### Self-Hosted (Docker Compose)
+### FaultMaven Core (Docker Compose)
 **Target:** Individuals, small teams
 
 **Stack:**

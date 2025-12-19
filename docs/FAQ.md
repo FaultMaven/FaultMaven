@@ -10,7 +10,7 @@ Common questions about FaultMaven deployment, usage, and features.
 - [Features & Capabilities](#features--capabilities)
 - [Technical](#technical)
 - [Security & Privacy](#security--privacy)
-- [Enterprise vs Self-Hosted](#enterprise-vs-self-hosted)
+- [FaultMaven Core vs. FaultMaven Enterprise](#faultmaven-core-vs-faultmaven-enterprise)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -35,7 +35,7 @@ FaultMaven is an AI-powered troubleshooting copilot that helps you investigate a
 
 ### Is FaultMaven open source?
 
-**Partially.** The self-hosted version is Apache 2.0 licensed and open source. Enterprise features (multi-tenancy, SSO, teams) are proprietary.
+**Partially.** FaultMaven Core is Apache 2.0 licensed and open source. FaultMaven Enterprise features (multi-tenancy, SSO, teams) are proprietary.
 
 See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#architecture-philosophy-enterprise-superset-model)
 
@@ -53,7 +53,7 @@ See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#archit
 
 ### How do I install FaultMaven?
 
-**Self-Hosted (Docker Compose):**
+**FaultMaven Core (Docker Compose):**
 ```bash
 git clone https://github.com/FaultMaven/faultmaven-deploy.git
 cd faultmaven-deploy
@@ -112,8 +112,8 @@ Current recommendation: Use `kompose` to convert docker-compose.yml to Kubernete
 
 ### Is FaultMaven free?
 
-**Self-Hosted:** Free and open source (Apache 2.0).
-**Enterprise:** Paid subscription with additional features.
+**FaultMaven Core:** Free and open source (Apache 2.0).
+**FaultMaven Enterprise:** Paid subscription with additional features.
 
 However, you **must provide your own LLM API key**, which has usage costs.
 
@@ -149,11 +149,11 @@ Local LLMs keep all data on your machine. See the deployment guide for configura
 
 ### What about the infrastructure costs?
 
-**Self-Hosted:**
+**FaultMaven Core:**
 - VPS/Cloud VM: $10-50/month (DigitalOcean, Linode, etc.)
 - Or free if running on existing hardware
 
-**Enterprise:**
+**FaultMaven Enterprise:**
 - Starts at $99/user/month (includes infrastructure and support)
 
 ---
@@ -210,9 +210,9 @@ Yes. The case list shows all previous investigations. You can:
 
 ### Can multiple users share a knowledge base?
 
-**Self-Hosted:** No. Each user has their own knowledge base.
+**FaultMaven Core:** No. Each user has their own knowledge base.
 
-**Enterprise:** Yes. Organizations can share team knowledge bases with role-based access control.
+**FaultMaven Enterprise:** Yes. Organizations can share team knowledge bases with role-based access control.
 
 ---
 
@@ -220,12 +220,12 @@ Yes. The case list shows all previous investigations. You can:
 
 ### What databases does FaultMaven use?
 
-**Self-Hosted:**
+**FaultMaven Core:**
 - SQLite for cases, users, metadata
 - Redis for sessions and task queue
 - ChromaDB for knowledge base (vector embeddings)
 
-**Enterprise:**
+**FaultMaven Enterprise:**
 - PostgreSQL (replaces SQLite)
 - Redis Cluster
 - ChromaDB or Pinecone
@@ -292,15 +292,15 @@ See: [Deployment Guide - Backup](DEPLOYMENT.md#backup-strategy)
 - JWT-based authentication
 - HTTPS/TLS encryption in transit
 - Data isolation per user
-- No telemetry or tracking in self-hosted version
+- No telemetry or tracking in FaultMaven Core
 
 See: [Security Guide](SECURITY.md)
 
 ### Where is my data stored?
 
-**Self-Hosted:** On your server, in Docker volumes. You have full control.
+**FaultMaven Core:** On your server, in Docker volumes. You have full control.
 
-**Enterprise:** On FaultMaven's infrastructure (encrypted, SOC 2 compliant). Can be deployed in your VPC for additional security.
+**FaultMaven Enterprise:** On FaultMaven's infrastructure (encrypted, SOC 2 compliant). Can be deployed in your VPC for additional security.
 
 ### Is my data sent to OpenAI/Anthropic?
 
@@ -321,13 +321,13 @@ See: [Security Guide - Data Protection](SECURITY.md#data-protection)
 
 ### Can I use FaultMaven with HIPAA/GDPR data?
 
-**Self-Hosted:** Potentially, with proper configuration:
+**FaultMaven Core:** Potentially, with proper configuration:
 - Enable database encryption
 - Use HIPAA-compliant LLM provider (OpenAI BAA, Azure OpenAI)
 - Implement additional access controls
 - Consult legal counsel
 
-**Enterprise:** Supports HIPAA and GDPR compliance with BAA available.
+**FaultMaven Enterprise:** Supports HIPAA and GDPR compliance with BAA available.
 
 ### How do I report a security vulnerability?
 
@@ -337,11 +337,11 @@ See: [Security Guide - Responsible Disclosure](SECURITY.md#reporting-security-vu
 
 ---
 
-## Enterprise vs Self-Hosted
+## FaultMaven Core vs. FaultMaven Enterprise
 
 ### What's the difference?
 
-| Feature | Self-Hosted | Enterprise |
+| Feature | FaultMaven Core | FaultMaven Enterprise |
 |---------|-------------|------------|
 | **Core Features** |
 | AI troubleshooting | ✅ | ✅ |
@@ -369,13 +369,13 @@ See: [Security Guide - Responsible Disclosure](SECURITY.md#reporting-security-vu
 | **Pricing** |
 | Cost | Free + LLM API | $99/user/month |
 
-### Can I upgrade from self-hosted to enterprise?
+### Can I upgrade from FaultMaven Core to FaultMaven Enterprise?
 
-Yes. Contact sales@faultmaven.ai for migration assistance. Your data can be imported into the enterprise platform.
+Yes. Contact sales@faultmaven.ai for migration assistance. Your data can be imported into FaultMaven Enterprise.
 
-### Can I get enterprise features on self-hosted?
+### Can I get FaultMaven Enterprise features on FaultMaven Core?
 
-No. Enterprise features are proprietary. However, you can contribute to self-hosted features via GitHub.
+No. FaultMaven Enterprise features are proprietary. However, you can contribute to FaultMaven Core features via GitHub.
 
 ---
 

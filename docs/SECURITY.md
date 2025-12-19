@@ -142,7 +142,7 @@ LOCKOUT_DURATION_MINUTES=30
 - SMS verification
 - Hardware tokens (YubiKey)
 
-**Self-Hosted:**
+**FaultMaven Core:**
 Currently not supported. Planned for future release.
 
 ### API Key Security
@@ -370,7 +370,7 @@ sudo systemctl restart fail2ban
 - Bot protection
 - Analytics
 
-**Self-Hosted:**
+**FaultMaven Core:**
 ```nginx
 # Connection limiting
 limit_conn_zone $binary_remote_addr zone=addr:10m;
