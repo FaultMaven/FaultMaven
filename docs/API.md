@@ -343,7 +343,7 @@ Authorization: Bearer <access_token>
 **Response:**
 ```json
 {
-  "deploymentMode": "self-hosted",
+  "deploymentMode": "core",
   "version": "2.0.0",
   "features": {
     "chat": true,

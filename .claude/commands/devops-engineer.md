@@ -125,47 +125,44 @@ CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
 git clone https://github.com/FaultMaven/faultmaven-deploy
 cd faultmaven-deploy
 cp .env.example .env
-# Edit .env and set:
-#   SERVER_HOST=192.168.x.x   # required
-#   OPENAI_API_KEY=sk-...     # required: at least one LLM API key (or another provider)
+# Edit .env with your API keys
 
 # Start all services
-./faultmaven start
+docker-compose up -d
 
 # Check status
-./faultmaven status
+docker-compose ps
 
 # View logs
-./faultmaven logs fm-agent-service --tail 200
+docker-compose logs -f agent-service
 ```
 
 ### Rebuild Single Service
 ```bash
-# After code changes (dev mode only)
-./faultmaven build fm-knowledge-service
-./faultmaven restart fm-knowledge-service
+# After code changes
+docker-compose up -d --build knowledge-service
 
-# For no-cache rebuild (advanced)
-docker compose build --no-cache fm-knowledge-service
-./faultmaven restart fm-knowledge-service
+# Force rebuild without cache
+docker-compose build --no-cache knowledge-service
+docker-compose up -d knowledge-service
 ```
 
 ### Database Operations
 ```bash
 # SQLite backup
-docker compose exec fm-case-service sqlite3 /data/faultmaven.db ".backup /data/backup.db"
+docker-compose exec case-service sqlite3 /app/data/cases.db ".backup /app/data/backup.db"
 
 # Redis CLI
-docker compose exec redis redis-cli
+docker-compose exec redis redis-cli
 
 # ChromaDB data
-docker compose exec chromadb ls /chroma/chroma
+docker-compose exec chromadb ls /chroma/chroma
 ```
 
 ### Scaling
 ```bash
 # Scale job workers
-docker compose up -d --scale fm-job-worker=3
+docker-compose up -d --scale job-worker=3
 
 # Check resource usage
 docker stats

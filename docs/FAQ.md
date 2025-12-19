@@ -10,7 +10,7 @@ Common questions about FaultMaven deployment, usage, and features.
 - [Features & Capabilities](#features--capabilities)
 - [Technical](#technical)
 - [Security & Privacy](#security--privacy)
-- [Enterprise vs Self-Hosted](#enterprise-vs-self-hosted)
+- [FaultMaven Enterprise vs FaultMaven Core](#faultmaven-enterprise-vs-faultmaven-core)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -35,7 +35,7 @@ FaultMaven is an AI-powered troubleshooting copilot that helps you investigate a
 
 ### Is FaultMaven open source?
 
-**Partially.** The self-hosted version is Apache 2.0 licensed and open source. Enterprise features (multi-tenancy, SSO, teams) are proprietary.
+**Partially.** The FaultMaven Core is Apache 2.0 licensed and open source. Enterprise features (multi-tenancy, SSO, teams) are proprietary.
 
 See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#architecture-philosophy-enterprise-superset-model)
 
@@ -53,15 +53,13 @@ See: [Enterprise Superset Model](https://github.com/FaultMaven/faultmaven#archit
 
 ### How do I install FaultMaven?
 
-**Self-Hosted (Docker Compose):**
+**FaultMaven Core (Docker Compose):**
 ```bash
 git clone https://github.com/FaultMaven/faultmaven-deploy.git
 cd faultmaven-deploy
 cp .env.example .env
-# Edit .env and set:
-#   SERVER_HOST=192.168.x.x   # required
-#   OPENAI_API_KEY=sk-...     # required: at least one LLM API key (or another provider)
-./faultmaven start
+# Add your LLM API key to .env
+docker compose up -d
 ```
 
 See: [Quick Start Guide](https://github.com/FaultMaven/faultmaven-deploy#quick-start)
@@ -93,9 +91,8 @@ For experimentation, try on a Raspberry Pi 4 (8GB RAM) or Pi 5, but expect perfo
 
 ```bash
 cd faultmaven-deploy
-git pull
 docker compose pull
-./faultmaven restart
+docker compose up -d
 ```
 
 All data persists in Docker volumes, so updates are safe.
@@ -112,7 +109,7 @@ Current recommendation: Use `kompose` to convert docker-compose.yml to Kubernete
 
 ### Is FaultMaven free?
 
-**Self-Hosted:** Free and open source (Apache 2.0).
+**FaultMaven Core:** Free and open source (Apache 2.0).
 **Enterprise:** Paid subscription with additional features.
 
 However, you **must provide your own LLM API key**, which has usage costs.
@@ -149,11 +146,11 @@ Local LLMs keep all data on your machine. See the deployment guide for configura
 
 ### What about the infrastructure costs?
 
-**Self-Hosted:**
+**FaultMaven Core:**
 - VPS/Cloud VM: $10-50/month (DigitalOcean, Linode, etc.)
 - Or free if running on existing hardware
 
-**Enterprise:**
+**FaultMaven Enterprise:**
 - Starts at $99/user/month (includes infrastructure and support)
 
 ---
@@ -210,9 +207,9 @@ Yes. The case list shows all previous investigations. You can:
 
 ### Can multiple users share a knowledge base?
 
-**Self-Hosted:** No. Each user has their own knowledge base.
+**FaultMaven Core:** No. Each user has their own knowledge base.
 
-**Enterprise:** Yes. Organizations can share team knowledge bases with role-based access control.
+**FaultMaven Enterprise:** Yes. Organizations can share team knowledge bases with role-based access control.
 
 ---
 
@@ -220,12 +217,12 @@ Yes. The case list shows all previous investigations. You can:
 
 ### What databases does FaultMaven use?
 
-**Self-Hosted:**
+**FaultMaven Core:**
 - SQLite for cases, users, metadata
 - Redis for sessions and task queue
 - ChromaDB for knowledge base (vector embeddings)
 
-**Enterprise:**
+**FaultMaven Enterprise:**
 - PostgreSQL (replaces SQLite)
 - Redis Cluster
 - ChromaDB or Pinecone
@@ -292,15 +289,15 @@ See: [Deployment Guide - Backup](DEPLOYMENT.md#backup-strategy)
 - JWT-based authentication
 - HTTPS/TLS encryption in transit
 - Data isolation per user
-- No telemetry or tracking in self-hosted version
+- No telemetry or tracking in FaultMaven Core
 
 See: [Security Guide](SECURITY.md)
 
 ### Where is my data stored?
 
-**Self-Hosted:** On your server, in Docker volumes. You have full control.
+**FaultMaven Core:** On your server, in Docker volumes. You have full control.
 
-**Enterprise:** On FaultMaven's infrastructure (encrypted, SOC 2 compliant). Can be deployed in your VPC for additional security.
+**FaultMaven Enterprise:** On FaultMaven's infrastructure (encrypted, SOC 2 compliant). Can be deployed in your VPC for additional security.
 
 ### Is my data sent to OpenAI/Anthropic?
 
@@ -321,13 +318,13 @@ See: [Security Guide - Data Protection](SECURITY.md#data-protection)
 
 ### Can I use FaultMaven with HIPAA/GDPR data?
 
-**Self-Hosted:** Potentially, with proper configuration:
+**FaultMaven Core:** Potentially, with proper configuration:
 - Enable database encryption
 - Use HIPAA-compliant LLM provider (OpenAI BAA, Azure OpenAI)
 - Implement additional access controls
 - Consult legal counsel
 
-**Enterprise:** Supports HIPAA and GDPR compliance with BAA available.
+**FaultMaven Enterprise:** Supports HIPAA and GDPR compliance with BAA available.
 
 ### How do I report a security vulnerability?
 
@@ -337,11 +334,11 @@ See: [Security Guide - Responsible Disclosure](SECURITY.md#reporting-security-vu
 
 ---
 
-## Enterprise vs Self-Hosted
+## FaultMaven Enterprise vs FaultMaven Core
 
 ### What's the difference?
 
-| Feature | Self-Hosted | Enterprise |
+| Feature | FaultMaven Core | FaultMaven Enterprise |
 |---------|-------------|------------|
 | **Core Features** |
 | AI troubleshooting | ✅ | ✅ |
@@ -369,13 +366,13 @@ See: [Security Guide - Responsible Disclosure](SECURITY.md#reporting-security-vu
 | **Pricing** |
 | Cost | Free + LLM API | $99/user/month |
 
-### Can I upgrade from self-hosted to enterprise?
+### Can I upgrade from FaultMaven Core to FaultMaven Enterprise?
 
 Yes. Contact sales@faultmaven.ai for migration assistance. Your data can be imported into the enterprise platform.
 
-### Can I get enterprise features on self-hosted?
+### Can I get enterprise features on FaultMaven Core?
 
-No. Enterprise features are proprietary. However, you can contribute to self-hosted features via GitHub.
+No. Enterprise features are proprietary. However, you can contribute to FaultMaven Core features via GitHub.
 
 ---
 
@@ -395,7 +392,7 @@ df -h
 free -h
 
 # .env file
-cat .env | grep -E "SERVER_HOST|API_KEY|SECRET_KEY"
+cat .env | grep -E "API_KEY|JWT_SECRET"
 ```
 
 See: [Troubleshooting Guide](TROUBLESHOOTING.md#service-startup-issues)

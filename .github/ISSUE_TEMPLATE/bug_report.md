@@ -82,8 +82,7 @@ Please include relevant logs:
 
 ```
 # Docker logs
-./faultmaven logs [service-name] --tail 200
-# (or: docker compose logs [service-name])
+docker-compose logs [service-name]
 
 # Paste logs here
 ```
@@ -97,4 +96,4 @@ Add any other context about the problem here.
 - [ ] I have searched existing issues to avoid duplicates
 - [ ] I have included all relevant information above
 - [ ] I have redacted any sensitive information (API keys, tokens, etc.)
-- [ ] This bug affects the **public self-hosted version** (not enterprise features)
+- [ ] This bug affects the **public FaultMaven Core** (not enterprise features)

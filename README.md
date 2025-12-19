@@ -18,23 +18,20 @@ FaultMaven correlates your live telemetry with your runbooks, docs, and past fix
 
 ```bash
 git clone https://github.com/FaultMaven/faultmaven-deploy.git && cd faultmaven-deploy
-cp .env.example .env
-# Edit .env and set:
-#   SERVER_HOST=192.168.x.x   # Required (dashboard connects to API Gateway)
-#   OPENAI_API_KEY=sk-...     # Required: at least one LLM API key (or another provider)
-./faultmaven start           # Validates env, starts all services
+cp .env.example .env                      # Configure your LLM provider (see below)
+./faultmaven start                        # Validates env, starts all services
 ```
 
 **Access Points:**
-- **Dashboard:** http://<SERVER_HOST>:3000
-- **API Gateway:** http://<SERVER_HOST>:8090
+- **Dashboard:** http://localhost:3000
+- **API Gateway:** http://localhost:8090
 
 **Default Credentials:** `admin` / `changeme123`
 ⚠️ **Security Warning:** Change these immediately in production. See [SECURITY.md](./docs/SECURITY.md) for setup instructions.
 
 ```bash
 ./faultmaven status   # Check service health
-./faultmaven logs     # View logs (use --tail N to limit output)
+./faultmaven logs     # View logs
 ./faultmaven stop     # Stop services (preserves data)
 ```
 
@@ -70,11 +67,11 @@ Every resolved case becomes institutional knowledge. FaultMaven **automatically 
 
 ---
 
-## Self-Hosted vs. Enterprise Cloud
+## FaultMaven Core vs. FaultMaven Enterprise Cloud
 
 FaultMaven is **open core**. Run it yourself for free, or let us manage it for you.
 
-| | **Self-Hosted** | **Enterprise Cloud** |
+| | **FaultMaven Core** | **Enterprise Cloud** |
 |---|---|---|
 | **Best for** | Individual engineers, air-gapped environments, total data sovereignty | Teams needing HA, shared context, zero maintenance |
 | **Pricing** | Free Forever (Apache 2.0) | Managed SaaS (Private Beta) |
@@ -86,7 +83,7 @@ FaultMaven is **open core**. Run it yourself for free, or let us manage it for y
 | **Client Integrations** | Browser Extension Overlay | Browser Extension Overlay |
 | **Server Integrations** | — | Slack, PagerDuty, ServiceNow |
 
-**Self-Hosted includes:**
+**FaultMaven Core includes:**
 - All 7 core microservices (Apache 2.0 license)
 - Browser extension + web dashboard
 - Multi-provider LLM support (OpenAI, Anthropic, Google, Groq)
@@ -177,17 +174,19 @@ FaultMaven works with your preferred AI provider. You can start **completely fre
 
 ### Start Without an API Key
 
-You can use FaultMaven **completely free** with local LLMs by configuring `faultmaven-deploy/.env`:
+You can use FaultMaven **completely free** with local LLMs:
 
 ```bash
 # Install Ollama (one-time setup)
 curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3.1      # Download model (~4-5GB)
+ollama pull llama3        # Download model (~4GB)
 
-# In faultmaven-deploy/.env, set:
-#   LOCAL_LLM_API_KEY=not-needed
-#   LOCAL_LLM_URL=http://localhost:11434/v1
-#   LOCAL_LLM_MODEL=llama3.1
+# Configure FaultMaven
+cat > .env <<EOF
+LLM_PROVIDER=ollama
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=llama3
+EOF
 
 ./faultmaven start
 ```
@@ -202,8 +201,8 @@ Get an API key from your preferred provider:
 
 Configure in `.env`:
 ```bash
+LLM_PROVIDER=openai          # or: anthropic, google, groq
 OPENAI_API_KEY=sk-...        # Your API key
-# (Or use ANTHROPIC_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / etc.)
 ```
 
 **Privacy & Security:**
@@ -277,7 +276,7 @@ git clone https://github.com/YOUR_USERNAME/fm-agent-service.git
 cd fm-agent-service
 
 # Run the full stack locally for testing
-cd ../faultmaven-deploy && ./faultmaven start
+cd ../faultmaven-deploy && docker compose up -d
 
 # Make changes, test, submit PR
 ```
@@ -339,5 +338,5 @@ Same license as Kubernetes, TensorFlow, and Apache Kafka. We believe in open inf
 
 <p align="center">
   <strong>FaultMaven</strong> — Your AI copilot for troubleshooting.<br>
-  Built on the same core analysis engine. Use Self-Hosted for personal context, or Enterprise for shared team intelligence.
+  Built on the same core analysis engine. Use FaultMaven Core for personal context, or Enterprise for shared team intelligence.
 </p>

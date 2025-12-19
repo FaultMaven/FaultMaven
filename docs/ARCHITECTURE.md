@@ -205,7 +205,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - More complex deployment (mitigated by docker-compose)
 - Network latency between services (acceptable for our use case)
 
-### Why SQLite for Self-Hosted?
+### Why SQLite for FaultMaven Core?
 
 **Benefits:**
 - Zero configuration (no database server needed)
@@ -258,7 +258,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 
 ## Deployment Modes
 
-### Self-Hosted (Docker Compose)
+### FaultMaven Core (Docker Compose)
 **Target:** Individuals, small teams
 
 **Stack:**
@@ -267,7 +267,7 @@ FaultMaven uses a **microservices architecture** where each service handles a sp
 - ChromaDB container
 - All services in docker-compose.yml
 
-**Command (recommended):** `./faultmaven start` (from the `faultmaven-deploy` repo)
+**Command:** `docker-compose up -d`
 
 ### Enterprise (Kubernetes)
 **Target:** Organizations, 100+ users
@@ -290,7 +290,7 @@ curl http://localhost:8001/health
 ### Logs
 - Structured JSON logging
 - Stdout/stderr captured by Docker
-- View with: `./faultmaven logs [service]` (supports `--tail N`)
+- View with: `docker-compose logs -f service-name`
 
 ### Metrics (Future)
 - Prometheus metrics endpoint (`/metrics`)
@@ -333,15 +333,15 @@ Resource-intensive services:
 
 ### Running Locally
 ```bash
-# Start all services (recommended)
+# Start all services
 cd faultmaven-deploy
-./faultmaven start
+docker-compose up -d
 
-# Check logs (example)
-./faultmaven logs fm-agent-service --tail 200
+# Check logs
+docker-compose logs -f agent-service
 
-# Restart a service
-./faultmaven restart fm-agent-service
+# Rebuild after code changes
+docker-compose up -d --build agent-service
 ```
 
 ### Testing a Service

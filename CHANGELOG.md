@@ -27,7 +27,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Browser extension (FaultMaven Copilot)
 - Web dashboard for knowledge base management
 - Multi-LLM support (OpenAI, Anthropic, Google, Groq, Ollama)
-- Docker Compose self-hosted deployment
+- Docker Compose FaultMaven Core deployment
 - 3-tier knowledge base (Global, Team, Personal)
 - Case tracking and evidence management
 - Semantic search with ChromaDB

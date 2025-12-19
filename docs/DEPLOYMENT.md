@@ -6,7 +6,7 @@ This guide covers deploying FaultMaven in production environments, including clo
 
 ### System Requirements
 
-**Minimum (Self-Hosted, < 10 users):**
+**Minimum (FaultMaven Core, < 10 users):**
 - 2 CPU cores
 - 4GB RAM
 - 20GB storage
@@ -30,14 +30,12 @@ This guide covers deploying FaultMaven in production environments, including clo
 
 - Docker 24.0+
 - Docker Compose 2.20+
-- jq (for `faultmaven-deploy` CLI health checks)
-- curl (for `faultmaven-deploy` CLI health checks)
 - SSL/TLS certificate (Let's Encrypt recommended)
 - Reverse proxy (nginx, Caddy, or Traefik)
 
 ---
 
-## Quick Deployment (Self-Hosted)
+## Quick Deployment (FaultMaven Core)
 
 ### Step 1: Prepare Server
 
@@ -75,17 +73,16 @@ nano .env
 
 **Required settings:**
 ```bash
-# Network (required)
-SERVER_HOST=192.168.x.x
-
-# LLM provider (required: at least one)
+# LLM Provider (choose ONE)
 OPENAI_API_KEY=sk-your-key-here
-# (or ANTHROPIC_API_KEY / GROQ_API_KEY / GEMINI_API_KEY / etc.)
+# OR
+ANTHROPIC_API_KEY=sk-ant-your-key-here
 
-# Auth (required: change defaults)
-DASHBOARD_USERNAME=admin
-DASHBOARD_PASSWORD=use-a-strong-password
-SECRET_KEY=$(openssl rand -hex 32)
+# Security
+JWT_SECRET=$(openssl rand -hex 32)
+
+# Domain (for production)
+DOMAIN=faultmaven.yourdomain.com
 ```
 
 ### Step 4: Set Up SSL/TLS
@@ -196,15 +193,12 @@ sudo systemctl reload nginx
 
 ```bash
 cd /opt/faultmaven
-./faultmaven start
+docker compose up -d
 ```
 
 ### Step 7: Verify Deployment
 
 ```bash
-# Check status + health checks
-./faultmaven status
-
 # Check service health
 curl https://faultmaven.yourdomain.com/health
 
@@ -212,7 +206,7 @@ curl https://faultmaven.yourdomain.com/health
 curl https://faultmaven.yourdomain.com/v1/meta/capabilities
 
 # View logs
-./faultmaven logs --tail 200
+docker compose logs -f
 ```
 
 ---
@@ -303,18 +297,18 @@ sudo ufw deny 8000/tcp
 sudo ufw deny 3000/tcp
 ```
 
-### 2. Strong Auth Secret (`SECRET_KEY`)
+### 2. Strong JWT Secret
 
 ```bash
 # Generate cryptographically secure secret
-openssl rand -hex 32 > .secret_key
-SECRET_KEY=$(cat .secret_key)
+openssl rand -hex 32 > .jwt_secret
+JWT_SECRET=$(cat .jwt_secret)
 
 # Add to .env
-echo "SECRET_KEY=$SECRET_KEY" >> .env
+echo "JWT_SECRET=$JWT_SECRET" >> .env
 
 # Secure the file
-chmod 600 .env .secret_key
+chmod 600 .env .jwt_secret
 ```
 
 ### 3. Rate Limiting (nginx)

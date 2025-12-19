@@ -2,12 +2,6 @@
 
 This guide helps you diagnose and resolve common issues with FaultMaven deployment and operation.
 
-> **Tip (Self-Hosted):** If you deployed via [`faultmaven-deploy`](https://github.com/FaultMaven/faultmaven-deploy), prefer the `./faultmaven` wrapper for day-to-day operations:
-> - `./faultmaven start`, `./faultmaven status`, `./faultmaven logs [service] [--tail N]`, `./faultmaven restart [service]`, `./faultmaven stop`
-> - Destructive operations in scripts/CI require `--yes` (e.g. `./faultmaven clean --yes`)
->
-> The examples below may also show raw `docker compose` commands for advanced debugging.
-
 ## Table of Contents
 
 - [Installation Issues](#installation-issues)
@@ -90,8 +84,8 @@ sudo kill -9 <PID>
 API_PORT=8080
 
 # Restart
-./faultmaven stop
-./faultmaven start
+docker compose down
+docker compose up -d
 ```
 
 ---
@@ -106,11 +100,11 @@ Services exit immediately after starting
 **Diagnosis:**
 ```bash
 # Check service logs
-./faultmaven logs fm-api-gateway --tail 200
-./faultmaven logs fm-case-service --tail 200
+docker compose logs gateway
+docker compose logs case-service
 
 # Check service status
-./faultmaven status
+docker compose ps
 
 # Check resource usage
 docker stats
@@ -125,7 +119,7 @@ ls -la .env
 
 # Verify required variables
 grep -E "OPENAI_API_KEY|ANTHROPIC_API_KEY|FIREWORKS_API_KEY" .env
-grep -E "SERVER_HOST|SECRET_KEY" .env
+grep JWT_SECRET .env
 
 # If missing, add them
 cp .env.example .env
@@ -158,7 +152,7 @@ Gateway is running but returns 502 for all requests
 **Solution:**
 ```bash
 # Check if backend services are running
-./faultmaven status
+docker compose ps
 
 # Check backend service health
 curl http://localhost:8001/health  # Auth
@@ -166,10 +160,10 @@ curl http://localhost:8003/health  # Case
 curl http://localhost:8004/health  # Knowledge
 
 # Check gateway logs
-./faultmaven logs fm-api-gateway
+docker compose logs -f gateway
 
 # Restart services
-./faultmaven restart
+docker compose restart
 ```
 
 ---
@@ -305,14 +299,14 @@ docker compose up -d
 
 **Solution:**
 ```bash
-# Check ACCESS_TOKEN_EXPIRE_MINUTES in .env
-grep ACCESS_TOKEN_EXPIRE_MINUTES .env
+# Check JWT_EXPIRE_MINUTES in .env
+grep JWT_EXPIRE_MINUTES .env
 
 # Increase if too short (default: 60 minutes)
-ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
+JWT_EXPIRE_MINUTES=1440  # 24 hours
 
 # Restart services
-./faultmaven restart
+docker compose restart
 ```
 
 ### Invalid JWT Secret
@@ -322,16 +316,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
 
 **Solution:**
 ```bash
-# Ensure SECRET_KEY is set and consistent
-grep SECRET_KEY .env
+# Ensure JWT_SECRET is set and consistent
+grep JWT_SECRET .env
 
 # If missing or changed, set it
-SECRET_KEY=$(openssl rand -hex 32)
-echo "SECRET_KEY=$SECRET_KEY" >> .env
+JWT_SECRET=$(openssl rand -hex 32)
+echo "JWT_SECRET=$JWT_SECRET" >> .env
 
 # Restart all services
-./faultmaven stop
-./faultmaven start
+docker compose down
+docker compose up -d
 
 # NOTE: This invalidates all existing tokens
 # Users will need to log in again
