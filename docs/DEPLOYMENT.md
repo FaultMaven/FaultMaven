@@ -6,7 +6,7 @@ This guide covers deploying FaultMaven in production environments, including clo
 
 ### System Requirements
 
-**Minimum (Self-Hosted, < 10 users):**
+**Minimum (FaultMaven Core, < 10 users):**
 - 2 CPU cores
 - 4GB RAM
 - 20GB storage
@@ -37,7 +37,7 @@ This guide covers deploying FaultMaven in production environments, including clo
 
 ---
 
-## Quick Deployment (Self-Hosted)
+## Quick Deployment (FaultMaven Core)
 
 ### Step 1: Prepare Server
 

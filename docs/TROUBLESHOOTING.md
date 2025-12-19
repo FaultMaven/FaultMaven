@@ -2,7 +2,7 @@
 
 This guide helps you diagnose and resolve common issues with FaultMaven deployment and operation.
 
-> **Tip (Self-Hosted):** If you deployed via [`faultmaven-deploy`](https://github.com/FaultMaven/faultmaven-deploy), prefer the `./faultmaven` wrapper for day-to-day operations:
+> **Tip (FaultMaven Core):** If you deployed via [`faultmaven-deploy`](https://github.com/FaultMaven/faultmaven-deploy), prefer the `./faultmaven` wrapper for day-to-day operations:
 > - `./faultmaven start`, `./faultmaven status`, `./faultmaven logs [service] [--tail N]`, `./faultmaven restart [service]`, `./faultmaven stop`
 > - Destructive operations in scripts/CI require `--yes` (e.g. `./faultmaven clean --yes`)
 >
@@ -592,7 +592,7 @@ Extension shows "Disconnected" or "Cannot connect"
 **1. Check API URL**
 ```
 # In extension settings:
-# Self-hosted: http://localhost:8090
+# FaultMaven Core: http://localhost:8090
 # Production: https://faultmaven.yourdomain.com
 ```
 

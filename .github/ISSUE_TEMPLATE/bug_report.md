@@ -32,7 +32,7 @@ If applicable, add screenshots to help explain your problem.
 ## Environment
 
 **Deployment Type:**
-- [ ] Self-hosted (Docker Compose)
+- [ ] FaultMaven Core (Docker Compose)
 - [ ] Custom deployment
 
 **Version:**
@@ -97,4 +97,4 @@ Add any other context about the problem here.
 - [ ] I have searched existing issues to avoid duplicates
 - [ ] I have included all relevant information above
 - [ ] I have redacted any sensitive information (API keys, tokens, etc.)
-- [ ] This bug affects the **public self-hosted version** (not enterprise features)
+- [ ] This bug affects **FaultMaven Core** (not FaultMaven Enterprise features)

@@ -27,8 +27,8 @@ Have you considered any alternative solutions or workarounds?
 ## Feature Scope
 
 **Which version should this be in?**
-- [ ] **Public (Self-Hosted)** - This feature should be available to all users
-- [ ] **Enterprise Only** - This feature requires multi-tenancy/RBAC/SSO
+- [ ] **FaultMaven Core** - This feature should be available to all users
+- [ ] **FaultMaven Enterprise Only** - This feature requires multi-tenancy/RBAC/SSO
 - [ ] **Not Sure** - Please help me decide
 
 **Why this belongs in the public version:**
