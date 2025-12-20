@@ -24,7 +24,7 @@ fm-job-worker        → Separate container
 
 ### Target State (3 Deployable Units)
 ```
-faultmaven-core      → NEW: Modular monolith (consolidates 6 services)
+faultmaven           → CONSOLIDATED: Docs + Monolith code + Deploy configs
 fm-agent-service     → KEEP: Separate (LLM orchestration)
 fm-job-worker        → MODIFY: Add embedding generation from Knowledge Service
 ```
@@ -33,36 +33,61 @@ fm-job-worker        → MODIFY: Add embedding generation from Knowledge Service
 
 | Current Service | Target Destination | Action Required |
 |-----------------|-------------------|-----------------|
-| fm-api-gateway | faultmaven-core (middleware) | Fold into FastAPI middleware |
-| fm-auth-service | faultmaven-core/modules/auth | Migrate as module |
-| fm-session-service | faultmaven-core/modules/session | Migrate as module |
-| fm-case-service | faultmaven-core/modules/case | Migrate as module |
-| fm-evidence-service | faultmaven-core/modules/evidence | Migrate as module |
-| fm-knowledge-service | **SPLIT** | Query path → faultmaven-core/modules/knowledge |
+| fm-api-gateway | faultmaven/src (middleware) | Fold into FastAPI middleware |
+| fm-auth-service | faultmaven/src/faultmaven/modules/auth | Migrate as module |
+| fm-session-service | faultmaven/src/faultmaven/modules/session | Migrate as module |
+| fm-case-service | faultmaven/src/faultmaven/modules/case | Migrate as module |
+| fm-evidence-service | faultmaven/src/faultmaven/modules/evidence | Migrate as module |
+| fm-knowledge-service | **SPLIT** | Query path → faultmaven/src/faultmaven/modules/knowledge |
 | fm-knowledge-service | **SPLIT** | Ingestion path → fm-job-worker |
 | fm-agent-service | fm-agent-service | Keep separate, update to async queue |
 | fm-job-worker | fm-job-worker | Add embedding tasks from Knowledge Service |
 
 ---
 
+## Repository Consolidation Strategy
+
+### Key Decision: Combine Three Repos Into One
+
+The `faultmaven` repository will become the single source of truth containing:
+1. **Documentation** (existing) - `docs/`
+2. **Monolith application code** (new) - `src/faultmaven/`
+3. **Deployment configurations** (from `faultmaven-deploy`) - `deploy/`
+
+**Rationale**:
+- Deploy configs are tightly coupled to application version
+- Self-hosted users get everything with one `git clone`
+- Standard pattern (most projects include docker-compose.yml)
+- Reduces repo count from 12+ to 5
+
+---
+
 ## Repositories Involved
 
-### To Be Created
-- `faultmaven-core` - New modular monolith repository
+### Primary Repository (Consolidation Target)
+- **`faultmaven`** - Existing docs repo, will add:
+  - Monolith application code (`src/`)
+  - Deployment configs from `faultmaven-deploy` (`deploy/`)
+  - Dockerfile, pyproject.toml, etc.
+
+### To Be Merged Into `faultmaven`
+- `faultmaven-deploy` - Docker Compose, Helm charts → `faultmaven/deploy/`
 
 ### To Be Modified
 - `fm-agent-service` - Update to consume from Redis queue instead of REST
 - `fm-job-worker` - Add embedding generation tasks
-- `faultmaven-deploy` - Update Docker Compose / Helm charts
-- `fm-core-lib` - May need updates or deprecation
 
-### To Be Archived (after migration)
+### To Be Deprecated (may keep as shared lib temporarily)
+- `fm-core-lib` - Functionality absorbed into monolith; deprecate after migration
+
+### To Be Archived (after migration complete)
 - `fm-api-gateway`
 - `fm-auth-service`
 - `fm-session-service`
 - `fm-case-service`
 - `fm-evidence-service`
 - `fm-knowledge-service`
+- `faultmaven-deploy` (merged into `faultmaven`)
 
 ### Unchanged
 - `faultmaven-copilot` (browser extension) - API contracts preserved
