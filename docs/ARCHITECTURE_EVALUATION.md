@@ -226,40 +226,75 @@ Examining the actual domain boundaries:
 
 ### 5.1 Proposed Structure
 
+**Final Refined Architecture**:
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    FaultMaven Core Application                  │
-│                    (Modular Monolith)                           │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    API Layer (FastAPI)                    │  │
-│  │  /auth/*  │  /sessions/*  │  /cases/*  │  /evidence/*    │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │                   Module Boundaries                       │  │
-│  │  ┌────────┐  ┌─────────┐  ┌────────┐  ┌──────────┐       │  │
-│  │  │  Auth  │  │ Session │  │  Case  │  │ Evidence │       │  │
-│  │  │ Module │  │ Module  │  │ Module │  │  Module  │       │  │
-│  │  └────────┘  └─────────┘  └────────┘  └──────────┘       │  │
-│  └──────────────────────────────────────────────────────────┘  │
-│                              │                                  │
-│  ┌──────────────────────────────────────────────────────────┐  │
-│  │              Shared Infrastructure                        │  │
-│  │     Database (SQLite/PostgreSQL)  │  File Storage        │  │
-│  └──────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-              ┌────────────────┼────────────────┐
-              ▼                ▼                ▼
-┌──────────────────┐ ┌──────────────────┐ ┌──────────────┐
-│  Agent Service   │ │Knowledge Service │ │  Job Worker  │
-│  (Separate)      │ │   (Separate)     │ │  (Separate)  │
-│                  │ │                  │ │              │
-│ - LLM calls      │ │ - Embeddings     │ │ - Async jobs │
-│ - Scaling: High  │ │ - ChromaDB       │ │ - Celery     │
-│ - Stateless      │ │ - Scaling: High  │ │              │
-└──────────────────┘ └──────────────────┘ └──────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                        FaultMaven Core Application                        │
+│                         (Modular Monolith)                                │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                    Gateway Middleware Layer                          │ │
+│  │  (JWT validation, CORS, rate limiting, request logging)             │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                       API Layer (FastAPI)                            │ │
+│  │  /v1/auth/*  │  /v1/sessions/*  │  /v1/cases/*  │  /v1/evidence/*   │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │              Module Boundaries (No Cross-Module Joins)               │ │
+│  │  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌────────────┐          │ │
+│  │  │   Auth   │  │  Session  │  │   Case   │  │  Evidence  │          │ │
+│  │  │  Module  │  │  Module   │  │  Module  │  │   Module   │          │ │
+│  │  │          │  │           │  │          │  │            │          │ │
+│  │  │ service  │  │  service  │  │ service  │  │  service   │          │ │
+│  │  │ repo     │  │  repo     │  │ repo     │  │  repo      │          │ │
+│  │  │ models   │  │  models   │  │ models   │  │  models    │          │ │
+│  │  └──────────┘  └───────────┘  └──────────┘  └────────────┘          │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+│                                    │                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐ │
+│  │                   Provider Abstraction Layer                         │ │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌──────────────┐   │ │
+│  │  │  Identity  │  │    Data    │  │   Files    │  │    Vector    │   │ │
+│  │  │  Provider  │  │  Provider  │  │  Provider  │  │   Provider   │   │ │
+│  │  ├────────────┤  ├────────────┤  ├────────────┤  ├──────────────┤   │ │
+│  │  │JWT│Auth0   │  │SQLite│PG   │  │Local│S3    │  │Chroma│Pinecone│  │ │
+│  │  └────────────┘  └────────────┘  └────────────┘  └──────────────┘   │ │
+│  └─────────────────────────────────────────────────────────────────────┘ │
+└───────────────────────────────────────────────────────────────────────────┘
+                                    │
+                          Async (Redis Queue)
+                                    │
+              ┌─────────────────────┼─────────────────────┐
+              ▼                     ▼                     ▼
+┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐
+│   Agent Service     │ │  Knowledge Service  │ │     Job Worker      │
+│   (Queue Consumer)  │ │    (Embeddings)     │ │   (Async Tasks)     │
+│                     │ │                     │ │                     │
+│  - Consumes jobs    │ │  - Vector search    │ │  - Doc processing   │
+│  - Calls LLM APIs   │ │  - ChromaDB/Pinecone│ │  - Embedding gen    │
+│  - Stores results   │ │  - Semantic search  │ │  - Scheduled tasks  │
+│  - Scales horiz.    │ │  - Scales horiz.    │ │  - Cleanup jobs     │
+└─────────────────────┘ └─────────────────────┘ └─────────────────────┘
+
+              │                     │                     │
+              └─────────────────────┴─────────────────────┘
+                                    │
+                              ┌───────────┐
+                              │   Redis   │
+                              │  (Queue)  │
+                              └───────────┘
 ```
+
+**Container Count by Deployment**:
+
+| Deployment | Containers | Description |
+|------------|------------|-------------|
+| **Core (Minimal)** | 2 | faultmaven-core, redis |
+| **Core (Full)** | 3 | faultmaven-core, redis, chromadb |
+| **Enterprise** | 5+ | core, agent-workers, kb-workers, redis-cluster, managed-db |
 
 ### 5.2 Module Design Within Monolith
 
@@ -324,51 +359,681 @@ __all__ = ["AuthService", "User", "TokenPair"]
 | Aspect | Current (7 Microservices) | Proposed (Hybrid) |
 |--------|--------------------------|-------------------|
 | Repositories | 12+ | 5-6 |
-| Containers (Core) | 7+ | 3-4 |
+| Containers (Core) | 7+ | 2-3 |
 | Containers (Enterprise) | 7+ | 4-5 |
 | Network hops (typical request) | 3-4 | 1-2 |
-| Deployment complexity | High | Medium |
+| Deployment complexity | High | Low |
 | Development velocity | Lower | Higher |
 | Independent scaling | All services | Only where needed |
 | Transactional integrity | Distributed | Local (core) + Distributed (AI) |
 
 ---
 
-## 6. Migration Path
+## 6. Refined Design Principles
 
-### Phase 1: Consolidate Core Services (Low Risk)
+The following design principles are critical for a successful hybrid architecture implementation.
 
-1. Create `faultmaven-core` repository
-2. Merge Auth, Session, Case, Evidence into modules
-3. Maintain API compatibility (same routes)
-4. Update Docker Compose to use consolidated image
+### 6.1 Simplified API Layer (Eliminate Standalone Gateway)
 
-**Effort**: 2-3 weeks
-**Risk**: Low (internal refactoring)
+**Problem**: The current standalone API Gateway adds deployment complexity without providing value that couldn't be achieved at the application layer.
 
-### Phase 2: Optimize Communication (Medium Risk)
+**Recommendation**: Fold gateway functionality directly into the Core Monolith as FastAPI middleware.
 
-1. Convert Agent → Core communication to direct calls (in-process for Core deployment)
-2. Maintain REST interface for Enterprise scaling
-3. Add internal module APIs
+```
+BEFORE (Current):                    AFTER (Recommended):
+┌─────────────────────┐              ┌─────────────────────────────────┐
+│   API Gateway       │              │     FaultMaven Core             │
+│   (Container #1)    │              │  ┌───────────────────────────┐  │
+│  - JWT validation   │              │  │   Middleware Layer        │  │
+│  - Rate limiting    │              │  │  - JWT validation         │  │
+│  - CORS             │              │  │  - Rate limiting          │  │
+│  - Routing          │              │  │  - CORS                   │  │
+└────────┬────────────┘              │  │  - Request logging        │  │
+         │                           │  └───────────────────────────┘  │
+         ▼                           │              │                  │
+┌─────────────────────┐              │  ┌───────────────────────────┐  │
+│   Core Services     │              │  │   Application Layer       │  │
+│   (Containers 2-5)  │              │  │  - Auth, Session, Case,   │  │
+└─────────────────────┘              │  │    Evidence modules       │  │
+                                     │  └───────────────────────────┘  │
+                                     └─────────────────────────────────┘
+```
+
+**Implementation**:
+
+```python
+# src/middleware/gateway.py
+
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+
+limiter = Limiter(key_func=get_remote_address)
+
+def configure_gateway_middleware(app: FastAPI):
+    """Fold API Gateway functionality into the application layer."""
+
+    # CORS (previously in gateway)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Rate limiting (previously in gateway)
+    app.state.limiter = limiter
+
+    # JWT validation middleware (previously in gateway)
+    @app.middleware("http")
+    async def jwt_validation_middleware(request: Request, call_next):
+        # Skip auth for public endpoints
+        if request.url.path in PUBLIC_PATHS:
+            return await call_next(request)
+
+        token = request.headers.get("Authorization")
+        if not token:
+            raise HTTPException(status_code=401, detail="Missing token")
+
+        # Validate and attach user context
+        request.state.user = validate_jwt(token)
+        return await call_next(request)
+
+# src/main.py
+app = FastAPI(title="FaultMaven Core")
+configure_gateway_middleware(app)
+```
+
+**Deployment Impact**:
+
+| Deployment | Before | After |
+|------------|--------|-------|
+| FaultMaven Core | API Gateway + 4 services = 5+ containers | 1 Core container |
+| Enterprise SaaS | Can add Kong/AWS API Gateway in front | Same Core + managed gateway |
+
+**Enterprise Note**: For SaaS deployments requiring advanced features (API keys, usage metering, OAuth flows), place a managed gateway (Kong, AWS API Gateway, Cloudflare) in front of the cluster. The Core monolith handles basic auth; the managed gateway handles enterprise concerns.
+
+---
+
+### 6.2 Strict Data Isolation (No Cross-Module Joins)
+
+**Problem**: Without discipline, a modular monolith degrades into "Monolithic Hell" where modules become tangled through direct database access.
+
+**Recommendation**: Enforce a strict "No Cross-Module Joins" rule.
+
+**The Golden Rule**:
+> A module may NEVER directly query another module's database tables. All cross-module data access MUST go through the public service interface.
+
+```
+❌ FORBIDDEN: Direct cross-module database access
+
+# In case/repository.py
+def get_case_with_user(case_id: str):
+    # WRONG: Directly joining auth tables
+    return db.query(Case, User).join(User).filter(Case.id == case_id).first()
+
+✅ REQUIRED: Access through public interface
+
+# In case/service.py
+from modules.auth import AuthService  # Public interface only
+
+class CaseService:
+    def __init__(self, auth_service: AuthService):
+        self.auth_service = auth_service
+
+    def get_case_with_user(self, case_id: str) -> CaseWithUser:
+        case = self.case_repo.get(case_id)
+        user = self.auth_service.get_user(case.user_id)  # Through public API
+        return CaseWithUser(case=case, user=user)
+```
+
+**Module Boundary Contract**:
+
+```python
+# modules/auth/__init__.py - THE ONLY PUBLIC INTERFACE
+
+from .service import AuthService
+from .models import User, TokenPair, UserPublic  # Only expose DTOs, not ORM models
+
+__all__ = ["AuthService", "User", "TokenPair", "UserPublic"]
+
+# NEVER export: Base, UserORM, auth_tables, session, etc.
+```
+
+**Enforcement Mechanisms**:
+
+1. **Import Linting** (`import-linter`):
+
+```ini
+# pyproject.toml
+[tool.importlinter]
+root_package = "faultmaven"
+
+[[tool.importlinter.contracts]]
+name = "Modules cannot import each other's internals"
+type = "independence"
+modules = [
+    "faultmaven.modules.auth.repository",
+    "faultmaven.modules.auth.orm",
+    "faultmaven.modules.session.repository",
+    "faultmaven.modules.session.orm",
+    "faultmaven.modules.case.repository",
+    "faultmaven.modules.case.orm",
+    "faultmaven.modules.evidence.repository",
+    "faultmaven.modules.evidence.orm",
+]
+```
+
+2. **Architecture Tests** (`pytest`):
+
+```python
+# tests/test_architecture.py
+
+def test_no_cross_module_orm_imports():
+    """Ensure modules don't import each other's ORM models."""
+    import ast
+    from pathlib import Path
+
+    modules = ["auth", "session", "case", "evidence"]
+
+    for module in modules:
+        module_path = Path(f"src/modules/{module}")
+        for py_file in module_path.glob("**/*.py"):
+            tree = ast.parse(py_file.read_text())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
+                    # Check for forbidden cross-module imports
+                    for other in modules:
+                        if other != module:
+                            assert f"modules.{other}.repository" not in ast.dump(node)
+                            assert f"modules.{other}.orm" not in ast.dump(node)
+```
+
+3. **Database Schema Separation** (logical namespacing):
+
+```python
+# Each module owns its tables with clear prefixes
+class AuthBase(Base):
+    __table_args__ = {"schema": "auth"}  # PostgreSQL schema isolation
+
+class CaseBase(Base):
+    __table_args__ = {"schema": "cases"}
+
+# For SQLite (no schema support), use table prefixes:
+# auth_users, auth_tokens, case_cases, case_messages, etc.
+```
+
+**Benefit**: This guarantees that any module (e.g., Auth) can be extracted into a separate microservice later by simply:
+1. Moving the module to its own repository
+2. Replacing in-process service calls with HTTP/gRPC calls
+3. No database layer changes required
+
+---
+
+### 6.3 Async/Event-Driven AI Communication
+
+**Problem**: Synchronous HTTP calls between Core and Agent Service cause:
+- UI hangs while waiting for LLM responses (10-60+ seconds)
+- Poor handling of load spikes
+- Cascading failures when LLM providers are slow
+
+**Recommendation**: Use event-driven communication via job queue for AI operations.
+
+```
+BEFORE (Synchronous):
+┌──────────┐    HTTP (blocking)    ┌──────────────┐    HTTP     ┌─────────┐
+│  Client  │ ────────────────────▶ │ Core Monolith│ ──────────▶ │  Agent  │
+│          │ ◀──────────────────── │              │ ◀────────── │ Service │
+└──────────┘   (waits 10-60s)      └──────────────┘  (LLM call) └─────────┘
+
+AFTER (Event-Driven):
+┌──────────┐  POST /chat    ┌──────────────┐  Enqueue    ┌───────┐
+│  Client  │ ─────────────▶ │ Core Monolith│ ──────────▶ │ Redis │
+│          │ ◀───────────── │              │             │ Queue │
+└──────────┘  {job_id}      └──────────────┘             └───┬───┘
+     │                              ▲                        │
+     │ Poll /chat/{job_id}         │ Store result           ▼
+     │ or WebSocket                │                 ┌──────────────┐
+     └─────────────────────────────┴──────────────── │Agent Service │
+                                                     │ (Consumer)   │
+                                                     └──────────────┘
+```
+
+**Implementation**:
+
+```python
+# Core Monolith: Enqueue AI request
+# src/modules/agent/client.py
+
+from redis import Redis
+from rq import Queue
+import uuid
+
+class AgentClient:
+    """Async interface to Agent Service via job queue."""
+
+    def __init__(self, redis: Redis):
+        self.queue = Queue("agent_jobs", connection=redis)
+        self.redis = redis
+
+    async def submit_chat(self, case_id: str, message: str, context: dict) -> str:
+        """Submit chat request, return job ID immediately."""
+        job_id = str(uuid.uuid4())
+
+        self.queue.enqueue(
+            "agent_service.process_chat",  # Agent Service will consume this
+            job_id=job_id,
+            kwargs={
+                "job_id": job_id,
+                "case_id": case_id,
+                "message": message,
+                "context": context,
+            },
+            job_timeout="5m",
+        )
+
+        return job_id
+
+    async def get_result(self, job_id: str) -> Optional[ChatResult]:
+        """Poll for job result (or use WebSocket for push)."""
+        result = self.redis.get(f"chat_result:{job_id}")
+        if result:
+            return ChatResult.parse_raw(result)
+        return None
+
+# API endpoint
+@router.post("/v1/agent/chat")
+async def submit_chat(request: ChatRequest, agent: AgentClient = Depends()):
+    job_id = await agent.submit_chat(
+        case_id=request.case_id,
+        message=request.message,
+        context=request.context,
+    )
+    return {"job_id": job_id, "status": "queued"}
+
+@router.get("/v1/agent/chat/{job_id}")
+async def get_chat_result(job_id: str, agent: AgentClient = Depends()):
+    result = await agent.get_result(job_id)
+    if result:
+        return {"status": "completed", "result": result}
+    return {"status": "pending"}
+```
+
+```python
+# Agent Service: Consume from queue
+# agent_service/worker.py
+
+from rq import Worker
+from redis import Redis
+
+def process_chat(job_id: str, case_id: str, message: str, context: dict):
+    """Process chat request (runs in Agent Service worker)."""
+
+    # Call LLM (slow operation)
+    response = llm_client.chat(message, context)
+
+    # Search knowledge base
+    kb_results = knowledge_client.search(message)
+
+    # Combine and format response
+    result = ChatResult(
+        response=response,
+        sources=kb_results,
+        case_id=case_id,
+    )
+
+    # Store result for polling
+    redis.set(f"chat_result:{job_id}", result.json(), ex=3600)
+
+    # Optionally push via WebSocket
+    websocket_manager.broadcast(job_id, result)
+
+    return result
+
+if __name__ == "__main__":
+    worker = Worker(["agent_jobs"], connection=Redis())
+    worker.work()
+```
+
+**Benefits**:
+
+| Aspect | Synchronous | Event-Driven |
+|--------|-------------|--------------|
+| UI responsiveness | Blocks for 10-60s | Immediate acknowledgment |
+| Load handling | Overwhelms on spikes | Queue absorbs spikes |
+| Failure isolation | Timeout cascades | Failed jobs retry independently |
+| Scalability | Limited by slowest call | Workers scale independently |
+| User experience | Spinning loader, possible timeout | Progress indicator, reliable delivery |
+
+**Client-Side Pattern** (for extension/dashboard):
+
+```typescript
+// Browser extension: Poll or WebSocket
+async function sendMessage(message: string): Promise<ChatResponse> {
+  // 1. Submit (immediate response)
+  const { job_id } = await api.post('/v1/agent/chat', { message });
+
+  // 2. Poll for result (or connect WebSocket)
+  while (true) {
+    const { status, result } = await api.get(`/v1/agent/chat/${job_id}`);
+    if (status === 'completed') return result;
+    if (status === 'failed') throw new Error('Chat failed');
+    await sleep(1000); // Poll every second
+  }
+}
+```
+
+---
+
+### 6.4 Deployment Neutrality (Provider Abstraction Layer)
+
+**Problem**: The same codebase must run on:
+- A developer's laptop (SQLite, local files)
+- A small team's server (PostgreSQL, local files)
+- Enterprise SaaS (PostgreSQL cluster, S3, managed Redis)
+
+**Recommendation**: Implement a provider abstraction layer for all infrastructure dependencies.
+
+**Abstraction Boundaries**:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Application Layer                               │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │  Modules: Auth, Session, Case, Evidence                      │   │
+│  │  (Business logic uses abstract interfaces only)              │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│                              │                                      │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │              Provider Abstraction Layer                      │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────────┐  │   │
+│  │  │ Identity │  │   Data   │  │   Files  │  │   Vector    │  │   │
+│  │  │ Provider │  │ Provider │  │ Provider │  │  Provider   │  │   │
+│  │  └────┬─────┘  └────┬─────┘  └────┬─────┘  └──────┬──────┘  │   │
+│  └───────┼─────────────┼─────────────┼───────────────┼─────────┘   │
+│          │             │             │               │              │
+└──────────┼─────────────┼─────────────┼───────────────┼──────────────┘
+           │             │             │               │
+   ┌───────┴───────┐ ┌───┴────┐ ┌──────┴──────┐ ┌──────┴──────┐
+   │ JWT (Core)    │ │ SQLite │ │ Local Files │ │  ChromaDB   │
+   │ Auth0 (Ent)   │ │ Postgres│ │ S3/MinIO   │ │  Pinecone   │
+   │ Okta (Ent)    │ │        │ │            │ │             │
+   └───────────────┘ └────────┘ └─────────────┘ └─────────────┘
+```
+
+**Implementation**:
+
+```python
+# src/providers/base.py
+
+from abc import ABC, abstractmethod
+from typing import Protocol, TypeVar, Generic
+
+T = TypeVar("T")
+
+class DataProvider(Protocol[T]):
+    """Abstract interface for data persistence."""
+
+    async def get(self, id: str) -> Optional[T]: ...
+    async def save(self, entity: T) -> T: ...
+    async def delete(self, id: str) -> bool: ...
+    async def query(self, **filters) -> list[T]: ...
+
+class FileProvider(Protocol):
+    """Abstract interface for file storage."""
+
+    async def upload(self, key: str, data: bytes, content_type: str) -> str: ...
+    async def download(self, key: str) -> bytes: ...
+    async def delete(self, key: str) -> bool: ...
+    async def get_url(self, key: str, expires_in: int = 3600) -> str: ...
+
+class VectorProvider(Protocol):
+    """Abstract interface for vector storage."""
+
+    async def upsert(self, collection: str, id: str, vector: list[float], metadata: dict): ...
+    async def search(self, collection: str, vector: list[float], top_k: int) -> list[dict]: ...
+    async def delete(self, collection: str, id: str): ...
+
+class IdentityProvider(Protocol):
+    """Abstract interface for authentication."""
+
+    async def validate_token(self, token: str) -> Optional[User]: ...
+    async def create_token(self, user: User) -> TokenPair: ...
+    async def refresh_token(self, refresh_token: str) -> TokenPair: ...
+```
+
+```python
+# src/providers/data/sqlite.py
+
+class SQLiteDataProvider(DataProvider[T]):
+    """SQLite implementation for FaultMaven Core."""
+
+    def __init__(self, db_path: str):
+        self.engine = create_engine(f"sqlite:///{db_path}")
+
+    async def get(self, id: str) -> Optional[T]:
+        async with self.session() as session:
+            return await session.get(self.model, id)
+
+    # ... other implementations
+
+# src/providers/data/postgresql.py
+
+class PostgreSQLDataProvider(DataProvider[T]):
+    """PostgreSQL implementation for Enterprise."""
+
+    def __init__(self, connection_url: str):
+        self.engine = create_async_engine(connection_url)
+
+    async def get(self, id: str) -> Optional[T]:
+        async with self.session() as session:
+            return await session.get(self.model, id)
+```
+
+```python
+# src/providers/files/local.py
+
+class LocalFileProvider(FileProvider):
+    """Local filesystem for FaultMaven Core."""
+
+    def __init__(self, base_path: str):
+        self.base_path = Path(base_path)
+
+    async def upload(self, key: str, data: bytes, content_type: str) -> str:
+        path = self.base_path / key
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(data)
+        return str(path)
+
+# src/providers/files/s3.py
+
+class S3FileProvider(FileProvider):
+    """S3/MinIO for Enterprise."""
+
+    def __init__(self, bucket: str, client: S3Client):
+        self.bucket = bucket
+        self.client = client
+
+    async def upload(self, key: str, data: bytes, content_type: str) -> str:
+        await self.client.put_object(
+            Bucket=self.bucket,
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+        )
+        return f"s3://{self.bucket}/{key}"
+```
+
+**Configuration-Based Provider Selection**:
+
+```python
+# src/config.py
+
+from pydantic_settings import BaseSettings
+from enum import Enum
+
+class DeploymentProfile(str, Enum):
+    CORE = "core"           # Self-hosted, minimal dependencies
+    TEAM = "team"           # Self-hosted, PostgreSQL
+    ENTERPRISE = "enterprise"  # SaaS, full infrastructure
+
+class Settings(BaseSettings):
+    PROFILE: DeploymentProfile = DeploymentProfile.CORE
+
+    # Data provider
+    DATABASE_URL: str = "sqlite:///./faultmaven.db"
+
+    # File provider
+    FILE_STORAGE: str = "local"  # local, s3, minio
+    FILE_STORAGE_PATH: str = "./data/files"
+    S3_BUCKET: Optional[str] = None
+
+    # Vector provider
+    VECTOR_STORE: str = "chromadb"  # chromadb, pinecone
+    CHROMADB_PATH: str = "./data/chromadb"
+
+    # Identity provider
+    IDENTITY_PROVIDER: str = "jwt"  # jwt, auth0, okta
+
+# src/dependencies.py
+
+def get_providers(settings: Settings) -> Providers:
+    """Factory for creating providers based on deployment profile."""
+
+    # Data provider
+    if settings.DATABASE_URL.startswith("sqlite"):
+        data = SQLiteDataProvider(settings.DATABASE_URL)
+    else:
+        data = PostgreSQLDataProvider(settings.DATABASE_URL)
+
+    # File provider
+    if settings.FILE_STORAGE == "local":
+        files = LocalFileProvider(settings.FILE_STORAGE_PATH)
+    elif settings.FILE_STORAGE == "s3":
+        files = S3FileProvider(settings.S3_BUCKET, boto3.client("s3"))
+
+    # Vector provider
+    if settings.VECTOR_STORE == "chromadb":
+        vectors = ChromaDBProvider(settings.CHROMADB_PATH)
+    elif settings.VECTOR_STORE == "pinecone":
+        vectors = PineconeProvider(settings.PINECONE_API_KEY)
+
+    # Identity provider
+    if settings.IDENTITY_PROVIDER == "jwt":
+        identity = JWTIdentityProvider(settings.JWT_SECRET)
+    elif settings.IDENTITY_PROVIDER == "auth0":
+        identity = Auth0IdentityProvider(settings.AUTH0_DOMAIN)
+
+    return Providers(data=data, files=files, vectors=vectors, identity=identity)
+```
+
+**Deployment Examples**:
+
+```yaml
+# docker-compose.core.yml (Self-Hosted Minimal)
+services:
+  faultmaven:
+    image: faultmaven/core:latest
+    environment:
+      PROFILE: core
+      DATABASE_URL: sqlite:///data/faultmaven.db
+      FILE_STORAGE: local
+      FILE_STORAGE_PATH: /data/files
+      VECTOR_STORE: chromadb
+      CHROMADB_PATH: /data/chromadb
+    volumes:
+      - ./data:/data
+
+# docker-compose.enterprise.yml (SaaS)
+services:
+  faultmaven:
+    image: faultmaven/core:latest
+    environment:
+      PROFILE: enterprise
+      DATABASE_URL: postgresql://user:pass@rds.amazonaws.com:5432/faultmaven
+      FILE_STORAGE: s3
+      S3_BUCKET: faultmaven-files-prod
+      VECTOR_STORE: pinecone
+      PINECONE_API_KEY: ${PINECONE_API_KEY}
+      IDENTITY_PROVIDER: auth0
+      AUTH0_DOMAIN: faultmaven.auth0.com
+```
+
+**Benefit**: Exact same Docker image runs everywhere. Configuration determines infrastructure. This is the key enabler for the open-core business model.
+
+---
+
+## 7. Migration Path
+
+### Phase 1: Establish Provider Abstraction Layer
+
+**Goal**: Decouple business logic from infrastructure before consolidation.
+
+1. Define provider interfaces (Data, Files, Vector, Identity)
+2. Create SQLite/Local implementations for Core
+3. Create PostgreSQL/S3 implementations for Enterprise
+4. Add configuration-based provider selection
+5. Test both profiles end-to-end
 
 **Effort**: 1-2 weeks
-**Risk**: Medium (interface changes)
+**Risk**: Low (additive changes, no breaking modifications)
 
-### Phase 3: Simplify Deployment (Low Risk)
+### Phase 2: Consolidate Core Services into Monolith
 
-1. Single Docker image for Core
-2. Optional split deployment for Enterprise
-3. Update documentation
+**Goal**: Merge Auth, Session, Case, Evidence into a single application.
+
+1. Create `faultmaven-core` repository
+2. Migrate each service as a module with strict boundaries
+3. Fold API Gateway logic into FastAPI middleware
+4. Enforce "No Cross-Module Joins" rule with import linting
+5. Add architecture tests to CI pipeline
+6. Maintain API compatibility (same routes, same contracts)
+
+**Effort**: 2-3 weeks
+**Risk**: Low (internal refactoring, external APIs unchanged)
+
+### Phase 3: Implement Async AI Communication
+
+**Goal**: Replace synchronous Agent calls with event-driven pattern.
+
+1. Introduce job queue (Redis + RQ/Celery) for AI requests
+2. Update Core to enqueue requests and return job IDs
+3. Update Agent Service to consume from queue
+4. Add polling endpoint and optional WebSocket support
+5. Update browser extension for async flow
+
+**Effort**: 1-2 weeks
+**Risk**: Medium (client-side changes required)
+
+### Phase 4: Simplify Deployment
+
+**Goal**: Reduce Core deployment to 2-3 containers.
+
+1. Build single Docker image for Core monolith
+2. Update Docker Compose for Core (faultmaven + redis + chromadb)
+3. Update Kubernetes Helm charts for Enterprise
+4. Comprehensive documentation update
 
 **Effort**: 1 week
 **Risk**: Low (deployment changes only)
 
+### Migration Summary
+
+| Phase | Duration | Key Deliverable |
+|-------|----------|-----------------|
+| 1: Provider Abstraction | 1-2 weeks | Same code runs on SQLite or PostgreSQL |
+| 2: Consolidate Services | 2-3 weeks | 4 services → 1 modular monolith |
+| 3: Async AI Comms | 1-2 weeks | Non-blocking LLM interactions |
+| 4: Simplify Deployment | 1 week | 7 containers → 2-3 containers |
+| **Total** | **5-8 weeks** | **Production-ready hybrid architecture** |
+
 ---
 
-## 7. Decision Matrix
+## 8. Decision Matrix
 
-### 7.1 Scoring Criteria
+### 8.1 Scoring Criteria
 
 | Criterion | Weight | Microservices | Modular Monolith | Hybrid |
 |-----------|--------|---------------|------------------|--------|
@@ -379,7 +1044,7 @@ __all__ = ["AuthService", "User", "TokenPair"]
 | Fault isolation | 10% | 9/10 | 5/10 | 7/10 |
 | Future flexibility | 10% | 8/10 | 7/10 | 8/10 |
 
-### 7.2 Weighted Scores
+### 8.2 Weighted Scores
 
 | Architecture | Weighted Score |
 |--------------|---------------|
@@ -389,9 +1054,9 @@ __all__ = ["AuthService", "User", "TokenPair"]
 
 ---
 
-## 8. Recommendations
+## 9. Recommendations
 
-### 8.1 Primary Recommendation
+### 9.1 Primary Recommendation
 
 **Adopt a Hybrid Architecture:**
 
@@ -400,7 +1065,7 @@ __all__ = ["AuthService", "User", "TokenPair"]
 3. **Simplify** deployment for Core users (2-3 containers vs 7+)
 4. **Maintain** scalability for Enterprise (can still scale AI services independently)
 
-### 8.2 Rationale
+### 9.2 Rationale
 
 | Factor | Why Hybrid Wins |
 |--------|-----------------|
@@ -410,7 +1075,7 @@ __all__ = ["AuthService", "User", "TokenPair"]
 | Scaling reality | Only Agent/KB need independent scaling |
 | Operational cost | Reduces Core deployment from 7+ to 3-4 containers |
 
-### 8.3 What to Avoid
+### 9.3 What to Avoid
 
 1. **Don't go pure monolith**: Agent and Knowledge services have legitimately different scaling needs
 2. **Don't keep current state**: The overhead isn't justified by the benefits
@@ -418,7 +1083,7 @@ __all__ = ["AuthService", "User", "TokenPair"]
 
 ---
 
-## 9. Conclusion
+## 10. Conclusion
 
 FaultMaven's current microservices architecture represents **premature optimization** for the product's stage and business model. The overhead of 7+ services is not justified when:
 
