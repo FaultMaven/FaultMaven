@@ -1,8 +1,8 @@
-# FaultMaven Hybrid Architecture Implementation Task Brief
+# FaultMaven Modular Monolith Implementation Task Brief
 
 ## Overview
 
-This task requires creating a detailed implementation plan to migrate FaultMaven from its current microservices architecture (8 deployable units across 12+ repositories) to a **hybrid modular monolith** (3 deployable units).
+This task requires creating a detailed implementation plan to migrate FaultMaven from its current microservices architecture (8 deployable units across 12+ repositories) to a **modular monolith with background worker** (2 deployable units).
 
 **Reference Document**: `docs/ARCHITECTURE_EVALUATION.md` contains the complete architectural analysis, design principles, and rationale.
 
@@ -22,12 +22,13 @@ fm-agent-service     → Separate container
 fm-job-worker        → Separate container
 ```
 
-### Target State (3 Deployable Units)
+### Target State (2 Deployable Units)
 ```
-faultmaven           → CONSOLIDATED: Docs + Monolith code + Deploy configs
-fm-agent-service     → KEEP: Separate (LLM orchestration)
+faultmaven           → CONSOLIDATED: Docs + Monolith code + Deploy configs (includes Agent)
 fm-job-worker        → MODIFY: Add embedding generation from Knowledge Service
 ```
+
+**Key Insight**: Agent Service is now part of the monolith. LLM providers (OpenAI, Anthropic, Ollama) are external—Agent just orchestrates HTTP calls via `LLMProvider` abstraction. Same failure domain as other user-facing code.
 
 ### Service Mapping
 
@@ -40,7 +41,7 @@ fm-job-worker        → MODIFY: Add embedding generation from Knowledge Service
 | fm-evidence-service | faultmaven/src/faultmaven/modules/evidence | Migrate as module |
 | fm-knowledge-service | **SPLIT** | Query path → faultmaven/src/faultmaven/modules/knowledge |
 | fm-knowledge-service | **SPLIT** | Ingestion path → fm-job-worker |
-| fm-agent-service | fm-agent-service | Keep separate, update to async queue |
+| fm-agent-service | faultmaven/src/faultmaven/modules/agent | Migrate as module with LLMProvider |
 | fm-job-worker | fm-job-worker | Add embedding tasks from Knowledge Service |
 
 ---
@@ -58,7 +59,7 @@ The `faultmaven` repository will become the single source of truth containing:
 - Deploy configs are tightly coupled to application version
 - Self-hosted users get everything with one `git clone`
 - Standard pattern (most projects include docker-compose.yml)
-- Reduces repo count from 12+ to 5
+- Reduces repo count from 12+ to 4
 
 ---
 
@@ -66,7 +67,8 @@ The `faultmaven` repository will become the single source of truth containing:
 
 ### Primary Repository (Consolidation Target)
 - **`faultmaven`** - Existing docs repo, will add:
-  - Monolith application code (`src/`)
+  - Monolith application code (`src/faultmaven/`)
+  - Agent module with LLMProvider abstraction
   - Deployment configs from `faultmaven-deploy` (`deploy/`)
   - Dockerfile, pyproject.toml, etc.
 
@@ -74,8 +76,7 @@ The `faultmaven` repository will become the single source of truth containing:
 - `faultmaven-deploy` - Docker Compose, Helm charts → `faultmaven/deploy/`
 
 ### To Be Modified
-- `fm-agent-service` - Update to consume from Redis queue instead of REST
-- `fm-job-worker` - Add embedding generation tasks
+- `fm-job-worker` - Add embedding generation tasks from Knowledge Service
 
 ### To Be Deprecated (may keep as shared lib temporarily)
 - `fm-core-lib` - Functionality absorbed into monolith; deprecate after migration
@@ -87,6 +88,7 @@ The `faultmaven` repository will become the single source of truth containing:
 - `fm-case-service`
 - `fm-evidence-service`
 - `fm-knowledge-service`
+- `fm-agent-service` (absorbed into monolith)
 - `faultmaven-deploy` (merged into `faultmaven`)
 
 ### Unchanged
@@ -103,8 +105,8 @@ The `faultmaven` repository will become the single source of truth containing:
 
 Create provider interfaces and implementations:
 ```
-src/providers/
-├── interfaces.py      # DataProvider, FileProvider, VectorProvider, IdentityProvider
+src/faultmaven/providers/
+├── interfaces.py      # DataProvider, FileProvider, VectorProvider, IdentityProvider, LLMProvider
 ├── data/
 │   ├── sqlite.py      # SQLiteDataProvider
 │   └── postgresql.py  # PostgreSQLDataProvider
@@ -114,19 +116,25 @@ src/providers/
 ├── vectors/
 │   ├── chromadb.py    # ChromaDBProvider
 │   └── pinecone.py    # PineconeProvider
-└── identity/
-    ├── jwt.py         # JWTIdentityProvider
-    └── auth0.py       # Auth0IdentityProvider
+├── identity/
+│   ├── jwt.py         # JWTIdentityProvider
+│   └── auth0.py       # Auth0IdentityProvider
+└── llm/
+    ├── openai.py      # OpenAIProvider
+    ├── anthropic.py   # AnthropicProvider
+    └── ollama.py      # OllamaProvider (local LLM)
 ```
+
+**Note**: The `LLMProvider` abstraction is critical - it enables the Agent module to call OpenAI, Anthropic, or local Ollama via the same interface. Local vs cloud is configuration, not architecture.
 
 ### Phase 2: Monolith Consolidation
 
-**Goal**: Merge 6 services into modular monolith with strict boundaries
+**Goal**: Merge 7 services into modular monolith with strict boundaries (includes Agent)
 
 Target structure:
 ```
-faultmaven-core/
-├── src/
+faultmaven/
+├── src/faultmaven/
 │   ├── main.py                    # FastAPI app entry point
 │   ├── middleware/
 │   │   └── gateway.py             # JWT, CORS, rate limiting (from API Gateway)
@@ -135,7 +143,8 @@ faultmaven-core/
 │   │   ├── sessions.py            # /v1/sessions/* routes
 │   │   ├── cases.py               # /v1/cases/* routes
 │   │   ├── evidence.py            # /v1/evidence/* routes
-│   │   └── knowledge.py           # /v1/knowledge/* routes (query only)
+│   │   ├── knowledge.py           # /v1/knowledge/* routes (query only)
+│   │   └── agent.py               # /v1/agent/* routes (chat, etc.)
 │   ├── modules/
 │   │   ├── auth/
 │   │   │   ├── __init__.py        # Public interface ONLY
@@ -146,14 +155,22 @@ faultmaven-core/
 │   │   ├── session/
 │   │   ├── case/
 │   │   ├── evidence/
-│   │   └── knowledge/             # Query path only
+│   │   ├── knowledge/             # Query path only
+│   │   └── agent/                 # LLM orchestration
+│   │       ├── __init__.py        # Public interface
+│   │       ├── service.py         # Chat orchestration, async job handling
+│   │       ├── router.py          # Model selection logic
+│   │       └── models.py          # Request/response DTOs
 │   ├── infrastructure/
-│   │   ├── interfaces.py          # SessionStore, JobQueue, Cache protocols
+│   │   ├── interfaces.py          # SessionStore, JobQueue, Cache, ResultStore protocols
 │   │   └── redis_impl.py          # Redis implementations
-│   └── providers/                 # From Phase 1
+│   └── providers/                 # From Phase 1 (includes LLMProvider)
 ├── tests/
 │   ├── test_architecture.py       # Module boundary enforcement tests
 │   └── modules/
+├── deploy/                        # From faultmaven-deploy
+│   ├── docker-compose.yml
+│   └── kubernetes/helm/
 ├── pyproject.toml                 # With import-linter config
 └── Dockerfile
 ```
@@ -164,21 +181,22 @@ faultmaven-core/
 3. **DTOs at boundaries** - Only expose Pydantic models in `__init__.py`
 4. **Async-safe interfaces** - All public service methods must be async
 5. **Import linter enforcement** - CI must fail on cross-module internal imports
+6. **LLMProvider abstraction** - Agent module calls LLM via provider interface
 
-### Phase 3: Async AI Communication
+### Phase 3: Async Pattern for Long-Running LLM Calls
 
-**Goal**: Replace synchronous REST with Redis job queue
+**Goal**: Handle long-running LLM calls (10-60s) without blocking HTTP requests
 
-Changes to `faultmaven-core`:
-- Add `AgentClient` that enqueues to Redis instead of HTTP calls
-- Add `/v1/agent/chat` endpoint that returns job_id immediately
+The Agent module runs inside the monolith but uses async patterns for LLM calls:
+
+Changes to `faultmaven` monolith:
+- Add `AgentService` that spawns async background tasks for LLM calls
+- Add `/v1/agent/chat` endpoint that returns `job_id` immediately
 - Add `/v1/agent/chat/{job_id}` polling endpoint
-- Optional: WebSocket support for push notifications
+- Store results in Redis via `ResultStore` abstraction
+- Optional: SSE/WebSocket support for streaming responses
 
-Changes to `fm-agent-service`:
-- Replace REST API with Redis queue consumer (RQ or Celery worker)
-- Store results in Redis with TTL
-- Keep Knowledge search as HTTP call to Core (for RAG context)
+**Note**: Unlike inter-service async communication, this pattern runs entirely within the monolith process. The async pattern is for UX (non-blocking responses), not for service separation.
 
 ### Phase 4: Knowledge Service Split
 
@@ -199,9 +217,10 @@ Ingestion path → `fm-job-worker`:
 
 **Goal**: Simplify deployment configuration
 
-Update `faultmaven-deploy`:
+Deployment configs move from `faultmaven-deploy` into `faultmaven/deploy/`:
+
 ```yaml
-# docker-compose.core.yml (before)
+# deploy/docker-compose.yml (before - 8 app containers)
 services:
   api-gateway:
   auth-service:
@@ -214,14 +233,15 @@ services:
   redis:
   chromadb:
 
-# docker-compose.core.yml (after)
+# deploy/docker-compose.yml (after - 2 app containers)
 services:
-  faultmaven-core:     # Replaces 6 services
-  agent-service:       # Unchanged
+  faultmaven:          # Replaces 7 services (includes Agent)
   job-worker:          # Now includes embeddings
   redis:
   chromadb:
 ```
+
+**75% reduction in application containers** (8 → 2)
 
 ---
 
@@ -262,11 +282,12 @@ services:
 
 | Metric | Target |
 |--------|--------|
-| Deployable units | 8 → 3 |
-| Containers (Core deployment) | 8 → 3 |
+| Deployable units | 8 → 2 |
+| Containers (Core deployment) | 8 → 2 |
 | API compatibility | 100% preserved |
 | Test coverage | Maintained or improved |
 | Module extraction test | Each module runs standalone with mocks |
+| LLM provider flexibility | Same code works with OpenAI, Anthropic, or Ollama |
 
 ---
 
@@ -275,10 +296,11 @@ services:
 The implementation plan must respect these non-negotiable principles from the architecture evaluation:
 
 1. **No Cross-Module Joins** - Enforce via import-linter
-2. **Infrastructure as Abstraction** - Redis accessed via `SessionStore`, `JobQueue`, `Cache` interfaces
-3. **Event Contract Versioning** - AsyncAPI schemas for queue messages
+2. **Infrastructure as Abstraction** - Redis accessed via `SessionStore`, `JobQueue`, `Cache`, `ResultStore` interfaces
+3. **Event Contract Versioning** - AsyncAPI schemas for Job Worker queue messages
 4. **Extraction-Ready Modules** - Can run any module as standalone service with mocked deps
 5. **Provider Abstraction** - Same code runs on SQLite or PostgreSQL via config
+6. **LLM Provider Abstraction** - Agent module calls LLM via `LLMProvider` interface (OpenAI, Anthropic, Ollama)
 
 ---
 
@@ -293,8 +315,8 @@ The implementation plan must respect these non-negotiable principles from the ar
 
 ## Questions for Planning Agent
 
-1. Should we create `faultmaven-core` as a fresh repo or fork from an existing service?
-2. What's the recommended order for migrating modules (Auth first? Case first?)?
+1. Should we build on the existing `faultmaven` repo or create a fresh structure?
+2. What's the recommended order for migrating modules (Auth first? Case first? Agent last?)?
 3. How do we handle the Knowledge Service split atomically?
-4. Should Agent Service changes happen before or after Core consolidation?
-5. What's the testing strategy during the transition period (running both old and new)?
+4. What's the testing strategy during the transition period (running both old and new)?
+5. How do we migrate fm-agent-service code into the monolith while preserving git history?
