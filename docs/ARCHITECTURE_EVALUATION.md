@@ -8,9 +8,9 @@ This document evaluates FaultMaven's current microservices architecture against 
 
 FaultMaven adopts a **monolith-first, service-ready** architecture:
 
-- **Consolidated to match current scale** - 6 services → 1 modular monolith
+- **Consolidated to match current scale** - 7 services → 1 modular monolith
 - **Preserved extraction paths for enterprise growth** - strict module boundaries enable future decomposition
-- **Kept genuinely independent services separate** - Agent Service and Job Worker remain isolated
+- **Only genuinely independent background processing separate** - Job Worker handles async tasks
 
 This is not "moving away from microservices" — it's **right-sizing architecture to business reality** while maintaining the option to scale components independently when justified.
 
@@ -18,13 +18,14 @@ This is not "moving away from microservices" — it's **right-sizing architectur
 
 | Destination | Services | Rationale |
 |-------------|----------|-----------|
-| **Monolith** | API Gateway (middleware), Auth, Session, Case, Evidence, Knowledge (query path) | Same failure domain, same scaling profile |
-| **Separate** | Agent Service | External LLM dependency, long-running, different failure mode |
-| **Separate** | Job Worker | CPU-intensive embeddings, background processing |
+| **Monolith** | API Gateway (middleware), Auth, Session, Case, Evidence, Knowledge (query path), Agent | Same failure domain, critical path, LLM is external |
+| **Separate** | Job Worker | CPU-intensive embeddings, background processing, async |
 
-**Key Insight**: The Knowledge Service must be **split** - its vector search (query path) belongs in the monolith, while embedding generation (ingestion path) belongs in the Job Worker. This split aligns with the fundamentally different operational characteristics of these two functions.
+**Key Insights**:
+1. **Agent Service belongs in monolith** - LLM providers (OpenAI, Anthropic) are external. Agent just orchestrates HTTP calls—no different from calling Stripe or any external API. If Agent fails, the app is broken anyway (same failure domain).
+2. **Knowledge Service must be split** - Vector search (query path) belongs in the monolith; embedding generation (ingestion path) belongs in the Job Worker.
 
-**Result**: 8 deployable units → 3 (62% reduction)
+**Result**: 8 deployable units → 2 (75% reduction)
 
 ---
 
@@ -258,7 +259,7 @@ The most important architectural decision is determining which services belong i
 | **Case Service** | Core | Medium, CRUD | Active | → Monolith |
 | **Evidence Service** | Core | I/O bound (files) | Moderate | → Monolith |
 | **Knowledge Service** | Core | **SPLIT** (see below) | Active | → **SPLIT** |
-| **Agent Service** | Differentiator | High, LLM-bound | Very Active | → Separate |
+| **Agent Service** | Differentiator | Network I/O (LLM external) | Very Active | → **Monolith** |
 | **Job Worker** | Support | Background, CPU-bound | Moderate | → Separate |
 
 #### 5.0.2 The Knowledge Service Must Be Split
@@ -288,7 +289,38 @@ The most important architectural decision is determining which services belong i
 - Query path is just a database call (like SQL) - no reason to be separate
 - Ingestion is genuinely async - belongs with other background tasks
 
-#### 5.0.3 Domain Coupling Analysis
+#### 5.0.3 Why Agent Service Belongs in the Monolith
+
+**Original reasoning for separation** (now rejected):
+- Resource isolation (GPU/memory spikes)
+- Independent scaling
+- Different failure mode
+
+**Why that reasoning is flawed**:
+
+| Factor | Reality |
+|--------|---------|
+| **Heavy compute** | Done by OpenAI/Anthropic/external LLM providers, not by us |
+| **Agent Service work** | HTTP orchestration, prompt construction, response parsing |
+| **Resource profile** | Network I/O bound, not CPU/GPU bound |
+| **Scaling trigger** | If Agent needs scaling, whole app does too (critical path) |
+| **Failure impact** | Agent down = app down anyway (not an isolated failure domain) |
+
+The Agent Service is essentially an **orchestration module** making external API calls—no different from a module calling Stripe, Twilio, or any other external service.
+
+**What about local LLMs (Ollama, vLLM)?**
+
+The separation is in the **design** (LLMProvider abstraction), not in the **deployment**:
+
+```
+Monolith → LLMProvider interface → OpenAI API
+                                 → Anthropic API
+                                 → Local Ollama (HTTP to localhost:11434)
+```
+
+Local vs cloud is **configuration**, not architecture. The monolith makes HTTP calls either way. Ollama runs as infrastructure (like Postgres or Redis), not as an application service we'd extract.
+
+#### 5.0.5 Domain Coupling Analysis
 
 ```
 TIGHT COUPLING (should be together):
@@ -296,65 +328,68 @@ TIGHT COUPLING (should be together):
 │                    Core Platform Domain                         │
 │                                                                 │
 │  User Journey: Register → Login → Create Case → Upload Evidence │
-│                                                                 │
+│                                     ↓                           │
 │  Auth ←──→ Session ←──→ Case ←──→ Evidence                     │
-│    │                      │                                     │
-│    └──── all require ─────┴──── transactional consistency ────→│
+│    │                      │           │                         │
+│    └──── all require ─────┴───────────┴── transactional ───────│
 │                                                                 │
 │  + Knowledge (Query) - just another data source for cases       │
+│  + Agent - orchestrates external LLM calls on critical path     │
 └─────────────────────────────────────────────────────────────────┘
 
 LOOSE COUPLING (can be separate):
 ┌─────────────────────────────────────────────────────────────────┐
-│                     AI/ML Domain                                │
+│                   Background Processing Domain                   │
 │                                                                 │
-│  Agent Service: Orchestrates LLM calls, external API dependent  │
-│  Job Worker: Background processing, embedding generation        │
+│  Job Worker: Embedding generation, document extraction,         │
+│              scheduled tasks, post-mortem generation            │
 │                                                                 │
-│  Different team, different scaling, different failure modes     │
+│  No user-facing latency, CPU-intensive, different scaling       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-#### 5.0.4 Operational Characteristics Matrix
+#### 5.0.6 Operational Characteristics Matrix
 
-| Characteristic | Auth | Session | Case | Evidence | KB Query | KB Ingest | Agent | Job Worker |
-|---------------|------|---------|------|----------|----------|-----------|-------|------------|
-| **Latency Sensitivity** | High | High | High | Medium | High | Low | Low | Low |
-| **Compute Intensity** | Low | Low | Low | Low | Low | **HIGH** | **HIGH** | **HIGH** |
-| **External Dependencies** | None | Redis | DB | Files | VectorDB | VectorDB | **LLM APIs** | VectorDB |
-| **Failure Impact** | Total | Total | Total | Degraded | Degraded | None | Degraded | None |
-| **Scaling Trigger** | Users | Sessions | Cases | Uploads | Searches | Documents | Chats | Queue |
+| Characteristic | Auth | Session | Case | Evidence | KB Query | Agent | KB Ingest | Job Worker |
+|---------------|------|---------|------|----------|----------|-------|-----------|------------|
+| **Latency Sensitivity** | High | High | High | Medium | High | High | Low | Low |
+| **Compute Intensity** | Low | Low | Low | Low | Low | Low* | **HIGH** | **HIGH** |
+| **External Dependencies** | None | Redis | DB | Files | VectorDB | LLM APIs | VectorDB | VectorDB |
+| **Failure Impact** | Total | Total | Total | Degraded | Degraded | Total | None | None |
+| **Scaling Trigger** | Users | Sessions | Cases | Uploads | Searches | Chats | Documents | Queue |
+
+*Agent compute is **low** because LLM inference happens externally (OpenAI/Anthropic). Agent just orchestrates HTTP calls.
 
 **Key Observations**:
-1. Auth/Session/Case/Evidence/KB-Query all have similar profiles (low compute, high latency sensitivity)
-2. KB-Ingest/Agent/Job-Worker all have high compute needs and tolerate latency
-3. Only Agent has external API dependencies (LLM providers)
+1. Auth/Session/Case/Evidence/KB-Query/Agent all have similar profiles (low local compute, high latency sensitivity, critical path)
+2. KB-Ingest/Job-Worker have high compute needs and tolerate latency (background processing)
+3. Agent's external LLM dependency is no different from any external API call (like payments or email)
 
-#### 5.0.5 Failure Domain Analysis
+#### 5.0.7 Failure Domain Analysis
 
 ```
 If Service Fails...     What Happens?                   Acceptable?
 ─────────────────────────────────────────────────────────────────────
-Auth                    → Can't login, total outage      NO
-Session                 → Can't use app, total outage    NO
-Case                    → Can't create/view cases        NO   ─┐
-Evidence                → Can't upload files             NO   ─┼─ Same failure domain
-KB Query                → Can't search KB                NO   ─┘  = should be together
+Auth                    → Can't login, total outage      NO   ─┐
+Session                 → Can't use app, total outage    NO   │
+Case                    → Can't create/view cases        NO   │
+Evidence                → Can't upload files             NO   ├─ Same failure domain
+KB Query                → Can't search KB                NO   │   = should be together
+Agent                   → Can't get AI responses         NO   ─┘
 
-Agent                   → Can't get AI responses         DEGRADED (show message)
 Job Worker              → Documents queue up             DEGRADED (process later)
 KB Ingest               → Embeddings queue up            DEGRADED (process later)
 ```
 
-**Conclusion**: Services that cause "total outage" together should be deployed together.
+**Conclusion**: Services that cause "total outage" together should be deployed together. Agent is on the critical path—if it fails, users can't get AI responses, which is the core value proposition.
 
-#### 5.0.6 Final Grouping Decision
+#### 5.0.8 Final Grouping Decision
 
 Based on the analysis above:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        MONOLITH (6 Services → 1)                        │
+│                        MONOLITH (7 Services → 1)                        │
 │                                                                         │
 │  ┌─────────┐  ┌─────────┐  ┌────────┐  ┌──────────┐  ┌──────────────┐  │
 │  │   API   │  │  Auth   │  │Session │  │   Case   │  │   Evidence   │  │
@@ -363,29 +398,19 @@ Based on the analysis above:
 │  │  ware)  │  │         │  │        │  │          │  │              │  │
 │  └─────────┘  └─────────┘  └────────┘  └──────────┘  └──────────────┘  │
 │                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                    Knowledge Module                              │   │
-│  │    (Vector Search ONLY - query path, not embedding generation)  │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
+│  ┌───────────────────────────────┐  ┌───────────────────────────────┐  │
+│  │       Knowledge Module        │  │         Agent Module          │  │
+│  │  (Vector Search ONLY - query  │  │  (LLM orchestration - calls   │  │
+│  │   path, not embedding gen)    │  │   external providers via      │  │
+│  │                               │  │   LLMProvider abstraction)    │  │
+│  └───────────────────────────────┘  └───────────────────────────────┘  │
 │                                                                         │
 │  Rationale:                                                             │
 │  • Same failure domain (if one fails, app is broken)                   │
-│  • Same scaling characteristics (request-driven, low compute)          │
-│  • Same team ownership (core platform)                                 │
+│  • Same scaling characteristics (request-driven, low local compute)    │
+│  • Agent compute is external (LLM providers do the heavy lifting)      │
 │  • Transactional consistency possible                                  │
-│  • Eliminates 5+ network hops per request                              │
-└─────────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      SEPARATE SERVICE: Agent Service                    │
-│                                                                         │
-│  Rationale:                                                             │
-│  • External LLM API dependency (OpenAI, Anthropic, etc.)               │
-│  • Long-running operations (10-60+ seconds per request)                │
-│  • Different failure mode (can degrade gracefully)                     │
-│  • Different scaling (scales with chat volume, not user count)         │
-│  • High compute (prompt construction, response parsing)                │
-│  • AI/ML team ownership (different expertise)                          │
+│  • Eliminates 6+ network hops per request                              │
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -399,14 +424,14 @@ Based on the analysis above:
 │                                                                         │
 │  Rationale:                                                             │
 │  • Background processing (no user-facing latency)                      │
-│  • CPU-intensive (embedding models)                                    │
+│  • CPU-intensive (embedding models run locally)                        │
 │  • Different scaling model (workers scale with queue depth)            │
 │  • Can run on cheaper compute (no need for fast networking)            │
 │  • Failure = delayed processing, not outage                            │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 5.0.7 Grouping Summary
+#### 5.0.9 Grouping Summary
 
 | Before (Current) | After (Recommended) | Rationale |
 |------------------|---------------------|-----------|
@@ -416,12 +441,12 @@ Based on the analysis above:
 | Case Service | → Monolith Module | Core platform, same failure domain |
 | Evidence Service | → Monolith Module | Core platform, same failure domain |
 | Knowledge Service | → **SPLIT** | Query → Monolith, Ingest → Job Worker |
-| Agent Service | → Separate Service | LLM dependency, different scaling |
+| Agent Service | → **Monolith Module** | LLM is external, just HTTP orchestration |
 | Job Worker | → Separate Service | Background processing, CPU-intensive |
 
 **Final Count**:
 - **Before**: 7 microservices + 1 worker = 8 deployable units
-- **After**: 1 monolith + 2 services = 3 deployable units (62% reduction)
+- **After**: 1 monolith + 1 worker = 2 deployable units (75% reduction)
 
 ---
 
@@ -432,7 +457,7 @@ Based on the analysis above:
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                        FaultMaven Core Application                        │
-│                    (Modular Monolith - 6 Services → 1)                    │
+│                    (Modular Monolith - 7 Services → 1)                    │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                    Gateway Middleware Layer                          │ │
 │  │  (JWT validation, CORS, rate limiting, request logging)             │ │
@@ -440,54 +465,57 @@ Based on the analysis above:
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                       API Layer (FastAPI)                            │ │
-│  │  /auth/*  │  /sessions/*  │  /cases/*  │  /evidence/*  │ /knowledge/*│ │
+│  │  /auth/*  │  /sessions/*  │  /cases/*  │  /evidence/*  │  /agent/*  │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │              Module Boundaries (No Cross-Module Joins)               │ │
-│  │  ┌────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐ ┌─────────────────┐ │ │
-│  │  │  Auth  │ │ Session │ │  Case  │ │ Evidence │ │   Knowledge     │ │ │
-│  │  │ Module │ │ Module  │ │ Module │ │  Module  │ │    Module       │ │ │
-│  │  │        │ │         │ │        │ │          │ │ (QUERY PATH     │ │ │
-│  │  │service │ │ service │ │service │ │ service  │ │  ONLY - vector  │ │ │
-│  │  │repo    │ │ repo    │ │repo    │ │ repo     │ │  search, not    │ │ │
-│  │  │models  │ │ models  │ │models  │ │ models   │ │  embedding gen) │ │ │
-│  │  └────────┘ └─────────┘ └────────┘ └──────────┘ └─────────────────┘ │ │
+│  │  ┌────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐ ┌──────────────┐    │ │
+│  │  │  Auth  │ │ Session │ │  Case  │ │ Evidence │ │  Knowledge   │    │ │
+│  │  │ Module │ │ Module  │ │ Module │ │  Module  │ │   Module     │    │ │
+│  │  └────────┘ └─────────┘ └────────┘ └──────────┘ │ (query only) │    │ │
+│  │                                                  └──────────────┘    │ │
+│  │  ┌──────────────────────────────────────────────────────────────┐   │ │
+│  │  │                      Agent Module                             │   │ │
+│  │  │  • LLM orchestration via LLMProvider abstraction             │   │ │
+│  │  │  • Prompt construction, response parsing                     │   │ │
+│  │  │  • Calls external providers (OpenAI, Anthropic, Ollama)      │   │ │
+│  │  └──────────────────────────────────────────────────────────────┘   │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                   Provider Abstraction Layer                         │ │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌──────────────┐   │ │
-│  │  │  Identity  │  │    Data    │  │   Files    │  │    Vector    │   │ │
-│  │  │  Provider  │  │  Provider  │  │  Provider  │  │   Provider   │   │ │
-│  │  ├────────────┤  ├────────────┤  ├────────────┤  ├──────────────┤   │ │
-│  │  │JWT│Auth0   │  │SQLite│PG   │  │Local│S3    │  │Chroma│Pinecone│  │ │
-│  │  └────────────┘  └────────────┘  └────────────┘  └──────────────┘   │ │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │ │
+│  │  │ Identity │ │   Data   │ │  Files   │ │  Vector  │ │    LLM    │  │ │
+│  │  │ Provider │ │ Provider │ │ Provider │ │ Provider │ │  Provider │  │ │
+│  │  ├──────────┤ ├──────────┤ ├──────────┤ ├──────────┤ ├───────────┤  │ │
+│  │  │JWT│Auth0 │ │SQLite│PG │ │Local│S3  │ │Chroma│   │ │OpenAI│    │  │ │
+│  │  │          │ │          │ │          │ │Pinecone  │ │Anthropic│ │  │ │
+│  │  │          │ │          │ │          │ │          │ │Ollama    │  │ │
+│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └───────────┘  │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 └───────────────────────────────────────────────────────────────────────────┘
                                     │
                           Async (Redis Queue)
                                     │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-┌───────────────────────────────────┐ ┌───────────────────────────────────┐
-│         Agent Service             │ │           Job Worker              │
-│        (Queue Consumer)           │ │    (Background Processing)        │
-│                                   │ │                                   │
-│  • Consumes chat jobs from queue  │ │  • EMBEDDING GENERATION           │
-│  • Calls LLM APIs (OpenAI, etc.)  │ │    (moved from Knowledge Service) │
-│  • Calls Knowledge Module for RAG │ │  • Document text extraction       │
-│  • Stores responses in Case       │ │  • Scheduled cleanup tasks        │
-│  • Scales with chat volume        │ │  • Post-mortem generation         │
-│                                   │ │  • Scales with queue depth        │
-│  Why separate:                    │ │                                   │
-│  • External LLM API dependency    │ │  Why separate:                    │
-│  • 10-60s response times          │ │  • CPU-intensive (embeddings)     │
-│  • Different failure mode         │ │  • No user-facing latency         │
-│  • AI/ML team ownership           │ │  • Different scaling model        │
-└───────────────────────────────────┘ └───────────────────────────────────┘
-                    │                               │
-                    └───────────────┬───────────────┘
+                                    ▼
+              ┌───────────────────────────────────────────┐
+              │              Job Worker                    │
+              │        (Background Processing)             │
+              │                                            │
+              │  • EMBEDDING GENERATION                    │
+              │    (moved from Knowledge Service)          │
+              │  • Document text extraction                │
+              │  • Scheduled cleanup tasks                 │
+              │  • Post-mortem generation                  │
+              │  • Scales with queue depth                 │
+              │                                            │
+              │  Why separate:                             │
+              │  • CPU-intensive (embedding models)        │
+              │  • No user-facing latency requirements     │
+              │  • Different scaling model (queue-based)   │
+              │  • Failure = delayed processing, not outage│
+              └───────────────────────────────────────────┘
                                     │
                               ┌───────────┐
                               │   Redis   │
@@ -499,27 +527,27 @@ Based on the analysis above:
 
 | Deployment | Containers | Components |
 |------------|------------|------------|
-| **Core (Minimal)** | 2 | faultmaven-core + redis |
-| **Core (Full)** | 3 | faultmaven-core + redis + chromadb |
-| **Core (with AI)** | 4 | core + redis + chromadb + agent-worker |
-| **Enterprise** | 5+ | core + agent-workers + job-workers + redis-cluster + managed-db |
+| **Core (Minimal)** | 2 | faultmaven + redis |
+| **Core (Full)** | 3 | faultmaven + redis + chromadb |
+| **Enterprise** | 4+ | faultmaven + job-workers + redis-cluster + managed-db |
 
 **Deployment Unit Reduction**:
 - **Before**: 8 deployable units (7 microservices + 1 worker)
-- **After**: 3 deployable units (1 monolith + 2 services)
-- **Reduction**: 62% fewer containers to manage
+- **After**: 2 deployable units (1 monolith + 1 worker)
+- **Reduction**: 75% fewer containers to manage
 
 ### 5.2 Module Design Within Monolith
 
 ```python
-# faultmaven-core/
-├── src/
+# faultmaven/
+├── src/faultmaven/
 │   ├── main.py                 # FastAPI application entry
 │   ├── api/
 │   │   ├── auth.py             # Auth routes
 │   │   ├── sessions.py         # Session routes
 │   │   ├── cases.py            # Case routes
-│   │   └── evidence.py         # Evidence routes
+│   │   ├── evidence.py         # Evidence routes
+│   │   └── agent.py            # Agent/chat routes
 │   │
 │   ├── modules/
 │   │   ├── auth/
@@ -529,22 +557,38 @@ Based on the analysis above:
 │   │   │   └── models.py       # Domain models
 │   │   │
 │   │   ├── session/
-│   │   │   ├── __init__.py
-│   │   │   ├── service.py
 │   │   │   └── ...
 │   │   │
 │   │   ├── case/
 │   │   │   └── ...
 │   │   │
-│   │   └── evidence/
-│   │       └── ...
+│   │   ├── evidence/
+│   │   │   └── ...
+│   │   │
+│   │   ├── knowledge/          # Query path only
+│   │   │   └── ...
+│   │   │
+│   │   └── agent/              # LLM orchestration
+│   │       ├── __init__.py     # Public interface
+│   │       ├── service.py      # Chat orchestration
+│   │       ├── router.py       # Model selection
+│   │       └── models.py       # Request/response DTOs
 │   │
-│   └── shared/
+│   ├── providers/
+│   │   ├── llm/                # LLMProvider implementations
+│   │   │   ├── base.py         # Abstract interface
+│   │   │   ├── openai.py       # OpenAI implementation
+│   │   │   ├── anthropic.py    # Anthropic implementation
+│   │   │   └── ollama.py       # Local Ollama implementation
+│   │   └── ...
+│   │
+│   └── infrastructure/
 │       ├── database.py         # DB connection
 │       ├── config.py           # Settings
 │       └── middleware.py       # Auth middleware
 │
 ├── tests/
+├── deploy/                     # Docker Compose, Helm charts
 ├── Dockerfile
 └── pyproject.toml
 ```
@@ -571,14 +615,14 @@ __all__ = ["AuthService", "User", "TokenPair"]
 
 | Aspect | Current (7 Microservices) | Proposed (Hybrid) |
 |--------|--------------------------|-------------------|
-| Repositories | 12+ | 5-6 |
-| Containers (Core) | 7+ | 2-3 |
-| Containers (Enterprise) | 7+ | 4-5 |
-| Network hops (typical request) | 3-4 | 1-2 |
+| Repositories | 12+ | 5 |
+| Containers (Core) | 7+ | 2 |
+| Containers (Enterprise) | 7+ | 3-4 |
+| Network hops (typical request) | 3-4 | 0-1 |
 | Deployment complexity | High | Low |
 | Development velocity | Lower | Higher |
-| Independent scaling | All services | Only where needed |
-| Transactional integrity | Distributed | Local (core) + Distributed (AI) |
+| Independent scaling | All services | Only background processing |
+| Transactional integrity | Distributed | Local (all user-facing) |
 
 ---
 
@@ -785,150 +829,133 @@ class CaseBase(Base):
 
 ---
 
-### 6.3 Async/Event-Driven AI Communication
+### 6.3 Async Pattern for Long-Running LLM Calls
 
-**Problem**: Synchronous HTTP calls between Core and Agent Service cause:
-- UI hangs while waiting for LLM responses (10-60+ seconds)
-- Poor handling of load spikes
-- Cascading failures when LLM providers are slow
+**Problem**: LLM calls take 10-60+ seconds. Even with Agent as a module inside the monolith, synchronous HTTP handling causes:
+- UI hangs while waiting for LLM responses
+- HTTP timeouts on long responses
+- Poor user experience
 
-**Recommendation**: Use event-driven communication via job queue for AI operations.
+**Recommendation**: Use async request/response pattern with job tracking for LLM operations.
 
 ```
-BEFORE (Synchronous):
-┌──────────┐    HTTP (blocking)    ┌──────────────┐    HTTP     ┌─────────┐
-│  Client  │ ────────────────────▶ │ Core Monolith│ ──────────▶ │  Agent  │
-│          │ ◀──────────────────── │              │ ◀────────── │ Service │
-└──────────┘   (waits 10-60s)      └──────────────┘  (LLM call) └─────────┘
-
-AFTER (Event-Driven):
-┌──────────┐  POST /chat    ┌──────────────┐  Enqueue    ┌───────┐
-│  Client  │ ─────────────▶ │ Core Monolith│ ──────────▶ │ Redis │
-│          │ ◀───────────── │              │             │ Queue │
-└──────────┘  {job_id}      └──────────────┘             └───┬───┘
-     │                              ▲                        │
-     │ Poll /chat/{job_id}         │ Store result           ▼
-     │ or WebSocket                │                 ┌──────────────┐
-     └─────────────────────────────┴──────────────── │Agent Service │
-                                                     │ (Consumer)   │
-                                                     └──────────────┘
+┌──────────┐  POST /chat    ┌─────────────────────────────────────────────┐
+│  Client  │ ─────────────▶ │              FaultMaven Monolith            │
+│          │ ◀───────────── │  ┌─────────┐      ┌─────────────────────┐  │
+└──────────┘  {job_id}      │  │   API   │─────▶│    Agent Module     │  │
+     │                      │  └─────────┘      │  • Start async task │  │
+     │ Poll /chat/{job_id}  │                   │  • Call LLMProvider │  │
+     │ or WebSocket/SSE     │                   │  • Store result     │  │
+     └──────────────────────│                   └─────────────────────┘  │
+                            └─────────────────────────────────────────────┘
 ```
 
 **Implementation**:
 
 ```python
-# Core Monolith: Enqueue AI request
-# src/modules/agent/client.py
+# src/modules/agent/service.py
 
-from redis import Redis
-from rq import Queue
-import uuid
+import asyncio
+from uuid import uuid4
 
-class AgentClient:
-    """Async interface to Agent Service via job queue."""
+class AgentService:
+    """LLM orchestration - runs inside the monolith."""
 
-    def __init__(self, redis: Redis):
-        self.queue = Queue("agent_jobs", connection=redis)
-        self.redis = redis
+    def __init__(
+        self,
+        llm_provider: LLMProvider,
+        knowledge: KnowledgeService,
+        result_store: ResultStore,  # Redis-backed
+    ):
+        self.llm = llm_provider
+        self.knowledge = knowledge
+        self.results = result_store
 
     async def submit_chat(self, case_id: str, message: str, context: dict) -> str:
         """Submit chat request, return job ID immediately."""
-        job_id = str(uuid.uuid4())
+        job_id = str(uuid4())
 
-        self.queue.enqueue(
-            "agent_service.process_chat",  # Agent Service will consume this
-            job_id=job_id,
-            kwargs={
-                "job_id": job_id,
-                "case_id": case_id,
-                "message": message,
-                "context": context,
-            },
-            job_timeout="5m",
+        # Start background task (runs in same process)
+        asyncio.create_task(
+            self._process_chat(job_id, case_id, message, context)
         )
 
         return job_id
 
+    async def _process_chat(
+        self, job_id: str, case_id: str, message: str, context: dict
+    ):
+        """Background task for LLM processing."""
+        try:
+            # Search knowledge base (fast, local)
+            kb_results = await self.knowledge.search(message)
+
+            # Call LLM (slow, external)
+            response = await self.llm.chat(
+                message=message,
+                context=context,
+                sources=kb_results,
+            )
+
+            # Store result
+            await self.results.set(job_id, ChatResult(
+                status="completed",
+                response=response,
+                sources=kb_results,
+            ))
+
+        except Exception as e:
+            await self.results.set(job_id, ChatResult(
+                status="failed",
+                error=str(e),
+            ))
+
     async def get_result(self, job_id: str) -> Optional[ChatResult]:
-        """Poll for job result (or use WebSocket for push)."""
-        result = self.redis.get(f"chat_result:{job_id}")
-        if result:
-            return ChatResult.parse_raw(result)
-        return None
+        """Poll for job result."""
+        return await self.results.get(job_id)
 
 # API endpoint
 @router.post("/v1/agent/chat")
-async def submit_chat(request: ChatRequest, agent: AgentClient = Depends()):
+async def submit_chat(
+    request: ChatRequest,
+    agent: AgentService = Depends(get_agent_service),
+):
     job_id = await agent.submit_chat(
         case_id=request.case_id,
         message=request.message,
         context=request.context,
     )
-    return {"job_id": job_id, "status": "queued"}
+    return {"job_id": job_id, "status": "processing"}
 
 @router.get("/v1/agent/chat/{job_id}")
-async def get_chat_result(job_id: str, agent: AgentClient = Depends()):
+async def get_chat_result(
+    job_id: str,
+    agent: AgentService = Depends(get_agent_service),
+):
     result = await agent.get_result(job_id)
     if result:
-        return {"status": "completed", "result": result}
-    return {"status": "pending"}
-```
-
-```python
-# Agent Service: Consume from queue
-# agent_service/worker.py
-
-from rq import Worker
-from redis import Redis
-
-def process_chat(job_id: str, case_id: str, message: str, context: dict):
-    """Process chat request (runs in Agent Service worker)."""
-
-    # Call LLM (slow operation)
-    response = llm_client.chat(message, context)
-
-    # Search knowledge base
-    kb_results = knowledge_client.search(message)
-
-    # Combine and format response
-    result = ChatResult(
-        response=response,
-        sources=kb_results,
-        case_id=case_id,
-    )
-
-    # Store result for polling
-    redis.set(f"chat_result:{job_id}", result.json(), ex=3600)
-
-    # Optionally push via WebSocket
-    websocket_manager.broadcast(job_id, result)
-
-    return result
-
-if __name__ == "__main__":
-    worker = Worker(["agent_jobs"], connection=Redis())
-    worker.work()
+        return {"status": result.status, "result": result}
+    return {"status": "processing"}
 ```
 
 **Benefits**:
 
-| Aspect | Synchronous | Event-Driven |
-|--------|-------------|--------------|
+| Aspect | Synchronous | Async Pattern |
+|--------|-------------|---------------|
 | UI responsiveness | Blocks for 10-60s | Immediate acknowledgment |
-| Load handling | Overwhelms on spikes | Queue absorbs spikes |
-| Failure isolation | Timeout cascades | Failed jobs retry independently |
-| Scalability | Limited by slowest call | Workers scale independently |
-| User experience | Spinning loader, possible timeout | Progress indicator, reliable delivery |
+| HTTP timeouts | Risk of 504 | No timeout issues |
+| User experience | Spinning loader | Progress indicator, SSE streaming |
+| Implementation | Simple but blocking | Slightly more complex, better UX |
 
 **Client-Side Pattern** (for extension/dashboard):
 
 ```typescript
-// Browser extension: Poll or WebSocket
+// Browser extension: Poll or SSE
 async function sendMessage(message: string): Promise<ChatResponse> {
   // 1. Submit (immediate response)
   const { job_id } = await api.post('/v1/agent/chat', { message });
 
-  // 2. Poll for result (or connect WebSocket)
+  // 2. Poll for result (or use SSE for streaming)
   while (true) {
     const { status, result } = await api.get(`/v1/agent/chat/${job_id}`);
     if (status === 'completed') return result;
@@ -937,6 +964,8 @@ async function sendMessage(message: string): Promise<ChatResponse> {
   }
 }
 ```
+
+**Note**: This async pattern runs inside the monolith process. For extreme scale, the background task processing could be moved to the Job Worker, but for most deployments the in-process async approach is sufficient and simpler.
 
 ---
 
@@ -1421,26 +1450,24 @@ def process_chat_request(payload: dict):
 
 ---
 
-### 6.8 Agent Service Evolution Path
+### 6.8 Agent Module Evolution Path
 
-**Problem**: The Agent Service is correctly kept separate today, but may need internal decomposition as AI capabilities grow.
+**Context**: The Agent Module lives inside the monolith but may need internal decomposition as AI capabilities grow. Design for future complexity without premature extraction.
 
-**Recommendation**: Design Agent Service internals to allow future splitting without external API changes.
-
-**Potential Future Components**:
+**Current State**: Agent is a module with clear internal structure:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Agent Service (Current: Monolithic)                  │
+│                    Agent Module (Inside Monolith)                        │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                     Today: Single Service                        │   │
+│  │                     Today: Single Module                         │   │
 │  │                                                                   │   │
-│  │  Request → Prompt Build → Model Call → Response Parse → Store    │   │
+│  │  Request → Prompt Build → LLMProvider Call → Response Parse      │   │
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │               Tomorrow: Internal Boundaries                      │   │
+│  │               Tomorrow: Internal Sub-components                  │   │
 │  │                                                                   │   │
 │  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐ │   │
 │  │  │   Router     │  │   Executor   │  │      Optimizer         │ │   │
@@ -1456,31 +1483,33 @@ def process_chat_request(payload: dict):
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Future Split Triggers** (when to decompose Agent internally):
+**Extraction Triggers** (when to consider extracting Agent to separate service):
 
 | Signal | Threshold | Action |
 |--------|-----------|--------|
-| Multi-model routing | 3+ LLM providers | Extract Router |
-| Cost > $X/month | Significant cost | Extract Optimizer |
-| Latency SLA pressure | P99 > 30s | Extract Caching layer |
-| Team size | 3+ Agent engineers | Consider service split |
+| CPU contention | Agent async tasks starving other modules | Consider extraction |
+| Team size | 3+ dedicated AI engineers | Consider extraction |
+| Deployment cadence | Agent needs daily deploys, rest is stable | Consider extraction |
+| Extreme scale | 1000+ concurrent LLM calls | Consider extraction |
 
-**Design for Future Split**:
+**Note**: These thresholds are unlikely for most deployments. The LLMProvider abstraction means extraction is straightforward if ever needed—just move the module to its own service and change internal calls to HTTP calls.
+
+**Design for Future Flexibility**:
 
 ```python
-# agent_service/core.py - Today's implementation with internal boundaries
+# src/modules/agent/service.py - Today's implementation with internal boundaries
 
-class AgentOrchestrator:
-    """Main entry point - stable external interface."""
+class AgentService:
+    """Main entry point - stable interface whether module or service."""
 
     def __init__(
         self,
-        router: ModelRouter,      # Internal boundary
-        executor: LLMExecutor,    # Internal boundary
+        router: ModelRouter,           # Internal boundary
+        llm_provider: LLMProvider,     # Provider abstraction
         optimizer: ResponseOptimizer,  # Internal boundary
     ):
         self.router = router
-        self.executor = executor
+        self.llm = llm_provider
         self.optimizer = optimizer
 
     async def process_chat(self, request: ChatRequest) -> ChatResponse:
@@ -1492,8 +1521,8 @@ class AgentOrchestrator:
         # Select model (Router)
         model = await self.router.select_model(request)
 
-        # Execute LLM call (Executor)
-        response = await self.executor.call(model, request)
+        # Execute LLM call via provider (could be OpenAI, Anthropic, Ollama)
+        response = await self.llm.chat(model, request)
 
         # Cache and optimize (Optimizer)
         await self.optimizer.cache_response(request, response)
@@ -1501,7 +1530,7 @@ class AgentOrchestrator:
         return response
 ```
 
-**The key insight**: Keep the external interface (`AgentOrchestrator.process_chat`) stable. Internal decomposition doesn't require API changes.
+**The key insight**: The `AgentService` interface remains stable whether it's a module or a service. Internal decomposition and potential extraction don't require API changes.
 
 ---
 
@@ -1564,9 +1593,9 @@ class AgentOrchestrator:
 | Phase | Duration | Key Deliverable |
 |-------|----------|-----------------|
 | 1: Provider Abstraction | 1-2 weeks | Same code runs on SQLite or PostgreSQL |
-| 2: Consolidate Services | 2-3 weeks | 6 services → 1 modular monolith (includes KB query path) |
-| 3: Async AI Comms | 1-2 weeks | Non-blocking LLM interactions |
-| 4: Simplify Deployment | 1 week | 8 containers → 3 containers |
+| 2: Consolidate Services | 2-3 weeks | 7 services → 1 modular monolith (includes Agent + KB query path) |
+| 3: Async LLM Pattern | 1-2 weeks | Non-blocking LLM interactions within monolith |
+| 4: Simplify Deployment | 1 week | 8 containers → 2 containers |
 | **Total** | **5-8 weeks** | **Production-ready hybrid architecture** |
 
 ---
@@ -1598,31 +1627,32 @@ class AgentOrchestrator:
 
 ### 9.1 Primary Recommendation
 
-**Adopt a Hybrid Architecture:**
+**Adopt a Modular Monolith with Background Worker:**
 
-1. **Consolidate 6 services → 1 Monolith**: API Gateway (as middleware), Auth, Session, Case, Evidence, Knowledge (query path only)
+1. **Consolidate 7 services → 1 Monolith**: API Gateway (as middleware), Auth, Session, Case, Evidence, Knowledge (query path), Agent
 2. **Split Knowledge Service**: Vector search → Monolith module, Embedding generation → Job Worker
-3. **Keep 2 services separate**: Agent Service (LLM orchestration), Job Worker (background processing + embeddings)
-4. **Simplify** deployment for Core users (3 containers vs 8)
-5. **Maintain** scalability for Enterprise (Agent and Job Worker scale independently)
+3. **Keep 1 service separate**: Job Worker (background processing + embeddings)
+4. **Simplify** deployment for Core users (2 containers vs 8)
+5. **Maintain** extraction paths via strict module boundaries and provider abstractions
 
 ### 9.2 Rationale
 
-| Factor | Why Hybrid Wins |
-|--------|-----------------|
-| **Business model** | Core users need simplicity; Enterprise needs scale for AI only |
-| **Team structure** | Small team more productive with unified codebase; AI team can own Agent separately |
-| **Domain coupling** | Auth→Session→Case→Evidence→KB-Query share failure domain |
-| **Scaling reality** | Only Agent (LLM calls) and Job Worker (embeddings) need independent scaling |
-| **Operational cost** | Reduces Core deployment from 8 to 3 containers (62% reduction) |
-| **KB Service split** | Query path is fast (monolith); Ingestion is slow (worker) - different characteristics |
+| Factor | Why This Wins |
+|--------|---------------|
+| **Business model** | Core users need simplicity; Enterprise scales via replicas |
+| **Team structure** | Small team more productive with unified codebase |
+| **Domain coupling** | Auth→Session→Case→Evidence→KB-Query→Agent all share failure domain |
+| **Agent reality** | LLM is external—Agent just orchestrates HTTP calls like any external API |
+| **Scaling reality** | Only Job Worker (CPU-intensive embeddings) needs independent scaling |
+| **Operational cost** | Reduces Core deployment from 8 to 2 containers (75% reduction) |
+| **KB Service split** | Query path is fast (monolith); Ingestion is slow (worker) |
 
 ### 9.3 What to Avoid
 
-1. **Don't go pure monolith**: Agent Service has external LLM dependency and different failure mode
+1. **Don't keep Agent separate**: LLM compute is external; Agent is just orchestration code on the critical path
 2. **Don't keep Knowledge Service whole**: Query and Ingestion paths have fundamentally different operational profiles
 3. **Don't keep current state**: 8 microservices overhead isn't justified by actual independence
-4. **Don't over-engineer modules**: Keep boundaries simple; only extract if team grows significantly
+4. **Don't over-engineer modules**: Keep boundaries simple; only extract if concrete triggers are hit
 
 ---
 
@@ -1632,41 +1662,43 @@ FaultMaven's current microservices architecture represents **premature optimizat
 
 - The target includes self-hosted users who need simplicity
 - A small team maintains all services
-- Only 2 services (Agent, Job Worker) genuinely need independent scaling
-- 6 services share the same failure domain and operational characteristics
+- Only 1 service (Job Worker for embeddings) genuinely needs independent scaling
+- 7 services share the same failure domain and operational characteristics
 - The Knowledge Service conflates two distinct functions (query vs. ingestion)
+- Agent's "heavy compute" is actually external (LLM providers do the work)
 
-A **Hybrid Modular Monolith** approach provides:
-- Simpler deployment for Core users (adoption advantage)
-- Maintained scalability for Enterprise AI workloads
-- Faster development velocity
-- Lower operational overhead
-- Clear path to extract services if future needs require it
+A **Modular Monolith with Background Worker** approach provides:
+- Simpler deployment for Core users (2 containers vs 8 = adoption advantage)
+- Maintained scalability via horizontal scaling of the monolith
+- Faster development velocity (single codebase, single deploy)
+- Lower operational overhead (75% reduction in deployable units)
+- Clear path to extract services if future needs require it (via provider abstractions)
 
-**The best architecture is the simplest one that meets current requirements while allowing for future growth.** For FaultMaven today, that's the hybrid approach.
+**The best architecture is the simplest one that meets current requirements while allowing for future growth.** For FaultMaven today, that's a modular monolith with a background worker for CPU-intensive tasks.
 
 ---
 
 ## Appendix A: Architecture Decision Record (ADR)
 
-### ADR-001: Adopt Hybrid Modular Monolith Architecture
+### ADR-001: Adopt Modular Monolith with Background Worker
 
 **Status**: Proposed
 
-**Context**: FaultMaven currently uses a microservices architecture with 8 deployable units. This creates operational overhead for self-hosted users and development friction for the small team. Analysis shows that 6 services share the same failure domain and operational characteristics.
+**Context**: FaultMaven currently uses a microservices architecture with 8 deployable units. This creates operational overhead for self-hosted users and development friction for the small team. Analysis shows that 7 services share the same failure domain and operational characteristics. The Agent Service, originally thought to need separation for "heavy compute," actually just orchestrates calls to external LLM providers.
 
 **Decision**:
-1. Consolidate 6 services into a single Modular Monolith: API Gateway (as middleware), Auth, Session, Case, Evidence, and Knowledge (query path only)
+1. Consolidate 7 services into a single Modular Monolith: API Gateway (as middleware), Auth, Session, Case, Evidence, Knowledge (query path only), and Agent
 2. Split Knowledge Service: Vector search → Monolith module, Embedding generation → Job Worker
-3. Keep Agent Service and Job Worker as separate services
+3. Keep Job Worker as the only separate service for CPU-intensive background tasks
 
 **Consequences**:
-- (+) Simpler deployment for Core users (8 → 3 containers)
-- (+) Faster development for core platform features
-- (+) Maintained scalability for AI workloads (Agent, Job Worker independent)
+- (+) Simpler deployment for Core users (8 → 2 containers, 75% reduction)
+- (+) Faster development for all platform features including AI
+- (+) LLMProvider abstraction handles local vs cloud LLMs via configuration
 - (+) Knowledge Service split aligns with actual operational characteristics
+- (+) Agent in monolith eliminates unnecessary network hop on critical path
 - (-) Migration effort required (~5-8 weeks)
-- (-) Less granular scaling for CRUD operations (acceptable - same failure domain anyway)
+- (-) Less granular scaling for all user-facing operations (acceptable - same failure domain anyway)
 
 ---
 
