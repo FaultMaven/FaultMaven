@@ -4,9 +4,27 @@
 
 This document evaluates FaultMaven's current microservices architecture against a Modular Monolith pattern, considering the product's business model, development context, and operational requirements.
 
-**Conclusion**: The current microservices architecture introduces **significant overhead that may not be justified** by the actual business and development requirements. A **hybrid approach** consolidating 6 services into 1 modular monolith while keeping Agent Service and Job Worker separate would better serve FaultMaven's goals.
+### Strategic Position: Monolith-First, Service-Ready
+
+FaultMaven adopts a **monolith-first, service-ready** architecture:
+
+- **Consolidated to match current scale** - 6 services → 1 modular monolith
+- **Preserved extraction paths for enterprise growth** - strict module boundaries enable future decomposition
+- **Kept genuinely independent services separate** - Agent Service and Job Worker remain isolated
+
+This is not "moving away from microservices" — it's **right-sizing architecture to business reality** while maintaining the option to scale components independently when justified.
+
+### Recommended Grouping
+
+| Destination | Services | Rationale |
+|-------------|----------|-----------|
+| **Monolith** | API Gateway (middleware), Auth, Session, Case, Evidence, Knowledge (query path) | Same failure domain, same scaling profile |
+| **Separate** | Agent Service | External LLM dependency, long-running, different failure mode |
+| **Separate** | Job Worker | CPU-intensive embeddings, background processing |
 
 **Key Insight**: The Knowledge Service must be **split** - its vector search (query path) belongs in the monolith, while embedding generation (ingestion path) belongs in the Job Worker. This split aligns with the fundamentally different operational characteristics of these two functions.
+
+**Result**: 8 deployable units → 3 (62% reduction)
 
 ---
 
@@ -1157,6 +1175,333 @@ services:
 ```
 
 **Benefit**: Exact same Docker image runs everywhere. Configuration determines infrastructure. This is the key enabler for the open-core business model.
+
+---
+
+### 6.5 Extraction-Ready Module Design
+
+**Problem**: "Modules can be extracted later" is only true if boundaries are enforced aggressively from day one. Without explicit safeguards, future extraction becomes theoretically possible but practically painful.
+
+**Recommendation**: Enforce these non-negotiable rules to preserve extractability:
+
+**The Extraction Readiness Checklist**:
+
+| Rule | Enforcement | Why It Matters |
+|------|-------------|----------------|
+| No shared ORM models across modules | Import linter | Prevents tight DB coupling |
+| No shared SQLAlchemy sessions | Code review, tests | Each module owns its connection |
+| Explicit DTOs at module boundaries | Type checker, linter | Clear contracts, no ORM leakage |
+| Service interfaces async-safe | All public methods async | Ready for HTTP/gRPC extraction |
+| No direct cross-module imports | `import-linter` CI check | Only public interfaces exposed |
+
+**Implementation**:
+
+```python
+# ❌ WRONG: Shared ORM models leak implementation details
+# modules/case/service.py
+from modules.auth.orm import UserORM  # FORBIDDEN - internal ORM model
+
+# ✅ CORRECT: Use DTOs at boundaries
+# modules/case/service.py
+from modules.auth import AuthService, UserDTO  # Public interface only
+
+class CaseService:
+    def __init__(self, auth_service: AuthService):
+        self.auth = auth_service
+
+    async def get_case_with_owner(self, case_id: str) -> CaseWithOwner:
+        case = await self.case_repo.get(case_id)
+        # Call through public async interface - extraction-ready
+        owner: UserDTO = await self.auth.get_user(case.owner_id)
+        return CaseWithOwner(case=case, owner=owner)
+```
+
+```python
+# ❌ WRONG: Shared database session
+# modules/case/repository.py
+from shared.database import get_session  # Shared session = extraction blocker
+
+# ✅ CORRECT: Module owns its session
+# modules/case/repository.py
+from modules.case.database import CaseSession  # Module-scoped session
+
+class CaseRepository:
+    def __init__(self, session_factory: Callable[[], CaseSession]):
+        self._session_factory = session_factory
+```
+
+**Extraction Test**: Before every major release, verify you can run any single module as a standalone service with mocked dependencies. If you can't, you've accumulated extraction debt.
+
+---
+
+### 6.6 Infrastructure as Abstraction (Redis is Not a Service)
+
+**Problem**: Redis appears in multiple conceptual roles (session backing, job queue, result cache, rate limiting). If modules depend on Redis directly, it becomes the next `fm-core-lib` - a hidden coupling point.
+
+**Recommendation**: Treat all infrastructure as abstract interfaces. Modules depend on capabilities, not implementations.
+
+**Infrastructure Abstraction Map**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       Module Layer                                      │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │  Modules depend on INTERFACES, not implementations              │   │
+│  │                                                                 │   │
+│  │  SessionStore    JobQueue    Cache    RateLimiter               │   │
+│  │       │             │          │           │                    │   │
+│  └───────┼─────────────┼──────────┼───────────┼────────────────────┘   │
+│          │             │          │           │                        │
+└──────────┼─────────────┼──────────┼───────────┼────────────────────────┘
+           │             │          │           │
+┌──────────┼─────────────┼──────────┼───────────┼────────────────────────┐
+│          ▼             ▼          ▼           ▼                        │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                Infrastructure Layer                             │   │
+│  │                                                                 │   │
+│  │  RedisSessionStore  RedisQueue  RedisCache  RedisRateLimiter    │   │
+│  │  MemorySessionStore InMemQueue  NoOpCache   NoOpRateLimiter     │   │
+│  │  (for testing)      (testing)   (testing)   (dev mode)          │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                        │
+│                              Redis                                     │
+│                          (single instance)                             │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Implementation**:
+
+```python
+# src/infrastructure/interfaces.py
+
+from typing import Protocol, Optional, Any
+from datetime import timedelta
+
+class SessionStore(Protocol):
+    """Abstract session storage - NOT Redis-specific."""
+    async def get(self, session_id: str) -> Optional[dict]: ...
+    async def set(self, session_id: str, data: dict, ttl: timedelta) -> None: ...
+    async def delete(self, session_id: str) -> None: ...
+
+class JobQueue(Protocol):
+    """Abstract job queue - NOT Redis/Celery-specific."""
+    async def enqueue(self, job_type: str, payload: dict, **options) -> str: ...
+    async def get_result(self, job_id: str) -> Optional[Any]: ...
+
+class Cache(Protocol):
+    """Abstract cache - NOT Redis-specific."""
+    async def get(self, key: str) -> Optional[bytes]: ...
+    async def set(self, key: str, value: bytes, ttl: timedelta) -> None: ...
+    async def invalidate(self, pattern: str) -> None: ...
+
+# src/infrastructure/redis_impl.py
+
+class RedisSessionStore(SessionStore):
+    def __init__(self, redis: Redis):
+        self._redis = redis
+
+    async def get(self, session_id: str) -> Optional[dict]:
+        data = await self._redis.get(f"session:{session_id}")
+        return json.loads(data) if data else None
+
+# Modules use the interface, not Redis directly:
+# modules/session/service.py
+class SessionService:
+    def __init__(self, store: SessionStore):  # Interface, not Redis
+        self._store = store
+```
+
+**Benefit**:
+- Modules are testable without Redis
+- Can swap implementations (Redis → Memcached, Redis → DynamoDB)
+- Clear separation prevents "Redis is our database" antipattern
+
+---
+
+### 6.7 Event Contract Versioning
+
+**Problem**: With async Agent communication, Job Worker, and background ingestion, event schemas become more important than REST schemas. Unversioned events lead to silent failures and deployment nightmares.
+
+**Recommendation**: Treat event contracts as first-class API boundaries with explicit versioning.
+
+**Event Schema Strategy**:
+
+```yaml
+# events/schemas/chat_request.v1.yaml (AsyncAPI format)
+asyncapi: 2.6.0
+info:
+  title: FaultMaven Agent Events
+  version: 1.0.0
+
+channels:
+  agent.chat.request:
+    publish:
+      message:
+        name: ChatRequest
+        schemaFormat: application/vnd.aai.asyncapi+json;version=2.6.0
+        payload:
+          type: object
+          required: [job_id, case_id, message, version]
+          properties:
+            version:
+              type: string
+              enum: ["1.0"]  # Explicit version in payload
+            job_id:
+              type: string
+              format: uuid
+            case_id:
+              type: string
+            message:
+              type: string
+            context:
+              type: object
+              additionalProperties: true
+```
+
+**Versioning Rules**:
+
+| Change Type | Action Required | Example |
+|-------------|-----------------|---------|
+| Add optional field | Minor bump, backward compatible | Add `priority` field |
+| Add required field | Major bump, migration needed | Add `tenant_id` required |
+| Remove field | Major bump, deprecation period | Remove `legacy_context` |
+| Change field type | Major bump, new schema version | `case_id: int` → `string` |
+
+**Implementation**:
+
+```python
+# events/models.py
+
+from pydantic import BaseModel, Field
+from typing import Literal
+
+class ChatRequestV1(BaseModel):
+    """Chat request event - Version 1.0"""
+    version: Literal["1.0"] = "1.0"
+    job_id: str
+    case_id: str
+    message: str
+    context: dict = Field(default_factory=dict)
+
+class ChatRequestV2(BaseModel):
+    """Chat request event - Version 2.0 (adds required tenant_id)"""
+    version: Literal["2.0"] = "2.0"
+    job_id: str
+    case_id: str
+    tenant_id: str  # NEW: Required in v2
+    message: str
+    context: dict = Field(default_factory=dict)
+
+# Consumer handles multiple versions
+def process_chat_request(payload: dict):
+    version = payload.get("version", "1.0")
+    if version == "1.0":
+        request = ChatRequestV1(**payload)
+        tenant_id = infer_tenant_from_case(request.case_id)  # Backward compat
+    elif version == "2.0":
+        request = ChatRequestV2(**payload)
+        tenant_id = request.tenant_id
+    else:
+        raise UnsupportedVersionError(version)
+```
+
+**CI Enforcement**:
+
+```yaml
+# .github/workflows/event-contracts.yml
+- name: Validate event schemas
+  run: |
+    asyncapi validate events/schemas/*.yaml
+
+- name: Check backward compatibility
+  run: |
+    # Compare against main branch schemas
+    asyncapi diff events/schemas/ origin/main:events/schemas/ --breaking
+```
+
+---
+
+### 6.8 Agent Service Evolution Path
+
+**Problem**: The Agent Service is correctly kept separate today, but may need internal decomposition as AI capabilities grow.
+
+**Recommendation**: Design Agent Service internals to allow future splitting without external API changes.
+
+**Potential Future Components**:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Agent Service (Current: Monolithic)                  │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                     Today: Single Service                        │   │
+│  │                                                                   │   │
+│  │  Request → Prompt Build → Model Call → Response Parse → Store    │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │               Tomorrow: Internal Boundaries                      │   │
+│  │                                                                   │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐ │   │
+│  │  │   Router     │  │   Executor   │  │      Optimizer         │ │   │
+│  │  │              │  │              │  │                        │ │   │
+│  │  │ • Model      │  │ • LLM calls  │  │ • Response caching     │ │   │
+│  │  │   selection  │  │ • Retry      │  │ • Cost optimization    │ │   │
+│  │  │ • Load       │  │   logic      │  │ • Semantic dedup       │ │   │
+│  │  │   balancing  │  │ • Streaming  │  │ • Prompt compression   │ │   │
+│  │  │ • Fallback   │  │              │  │                        │ │   │
+│  │  │   chains     │  │              │  │                        │ │   │
+│  │  └──────────────┘  └──────────────┘  └────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Future Split Triggers** (when to decompose Agent internally):
+
+| Signal | Threshold | Action |
+|--------|-----------|--------|
+| Multi-model routing | 3+ LLM providers | Extract Router |
+| Cost > $X/month | Significant cost | Extract Optimizer |
+| Latency SLA pressure | P99 > 30s | Extract Caching layer |
+| Team size | 3+ Agent engineers | Consider service split |
+
+**Design for Future Split**:
+
+```python
+# agent_service/core.py - Today's implementation with internal boundaries
+
+class AgentOrchestrator:
+    """Main entry point - stable external interface."""
+
+    def __init__(
+        self,
+        router: ModelRouter,      # Internal boundary
+        executor: LLMExecutor,    # Internal boundary
+        optimizer: ResponseOptimizer,  # Internal boundary
+    ):
+        self.router = router
+        self.executor = executor
+        self.optimizer = optimizer
+
+    async def process_chat(self, request: ChatRequest) -> ChatResponse:
+        # Check cache first (Optimizer)
+        cached = await self.optimizer.get_cached(request)
+        if cached:
+            return cached
+
+        # Select model (Router)
+        model = await self.router.select_model(request)
+
+        # Execute LLM call (Executor)
+        response = await self.executor.call(model, request)
+
+        # Cache and optimize (Optimizer)
+        await self.optimizer.cache_response(request, response)
+
+        return response
+```
+
+**The key insight**: Keep the external interface (`AgentOrchestrator.process_chat`) stable. Internal decomposition doesn't require API changes.
 
 ---
 
