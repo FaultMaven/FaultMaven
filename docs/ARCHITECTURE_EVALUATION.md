@@ -4,7 +4,9 @@
 
 This document evaluates FaultMaven's current microservices architecture against a Modular Monolith pattern, considering the product's business model, development context, and operational requirements.
 
-**Conclusion**: The current microservices architecture introduces **significant overhead that may not be justified** by the actual business and development requirements. A **hybrid approach** - Modular Monolith for core CRUD services with separate services only for compute-intensive workloads - would better serve FaultMaven's goals.
+**Conclusion**: The current microservices architecture introduces **significant overhead that may not be justified** by the actual business and development requirements. A **hybrid approach** consolidating 6 services into 1 modular monolith while keeping Agent Service and Job Worker separate would better serve FaultMaven's goals.
+
+**Key Insight**: The Knowledge Service must be **split** - its vector search (query path) belongs in the monolith, while embedding generation (ingestion path) belongs in the Job Worker. This split aligns with the fundamentally different operational characteristics of these two functions.
 
 ---
 
@@ -224,6 +226,187 @@ Examining the actual domain boundaries:
 
 ## 5. Recommended Architecture: Hybrid Modular Monolith
 
+### 5.0 Critical Decision: Service Grouping Analysis
+
+The most important architectural decision is determining which services belong in the monolith vs. remain separate. This analysis evaluates each service against three dimensions: **Business**, **Operational**, and **Development** requirements.
+
+#### 5.0.1 Service-by-Service Analysis
+
+| Service | Business Criticality | Operational Profile | Development Velocity | Verdict |
+|---------|---------------------|---------------------|---------------------|---------|
+| **API Gateway** | Cross-cutting | Stateless, low compute | Stable | → Middleware |
+| **Auth Service** | Core | Low frequency, bursty | Stable | → Monolith |
+| **Session Service** | Core | Medium, Redis-backed | Stable | → Monolith |
+| **Case Service** | Core | Medium, CRUD | Active | → Monolith |
+| **Evidence Service** | Core | I/O bound (files) | Moderate | → Monolith |
+| **Knowledge Service** | Core | **SPLIT** (see below) | Active | → **SPLIT** |
+| **Agent Service** | Differentiator | High, LLM-bound | Very Active | → Separate |
+| **Job Worker** | Support | Background, CPU-bound | Moderate | → Separate |
+
+#### 5.0.2 The Knowledge Service Must Be Split
+
+**Critical Insight**: The Knowledge Service performs two fundamentally different operations:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Knowledge Service (Current)                       │
+├─────────────────────────────────┬───────────────────────────────────────┤
+│      QUERY PATH                 │         INGESTION PATH                │
+│  (Vector Search)                │      (Embedding Generation)           │
+├─────────────────────────────────┼───────────────────────────────────────┤
+│ • Fast (10-50ms)                │ • Slow (seconds to minutes)           │
+│ • Synchronous                   │ • Asynchronous                        │
+│ • Read-heavy                    │ • Write-heavy, CPU-intensive          │
+│ • Scales with query load        │ • Scales with document volume         │
+│ • User-facing latency           │ • Background processing               │
+├─────────────────────────────────┼───────────────────────────────────────┤
+│ → MONOLITH MODULE               │ → JOB WORKER                          │
+│   (direct vector DB access)     │   (async embedding tasks)             │
+└─────────────────────────────────┴───────────────────────────────────────┘
+```
+
+**Why This Matters**:
+- Keeping them together forces unnecessary complexity (async handling in a sync service)
+- Query path is just a database call (like SQL) - no reason to be separate
+- Ingestion is genuinely async - belongs with other background tasks
+
+#### 5.0.3 Domain Coupling Analysis
+
+```
+TIGHT COUPLING (should be together):
+┌─────────────────────────────────────────────────────────────────┐
+│                    Core Platform Domain                         │
+│                                                                 │
+│  User Journey: Register → Login → Create Case → Upload Evidence │
+│                                                                 │
+│  Auth ←──→ Session ←──→ Case ←──→ Evidence                     │
+│    │                      │                                     │
+│    └──── all require ─────┴──── transactional consistency ────→│
+│                                                                 │
+│  + Knowledge (Query) - just another data source for cases       │
+└─────────────────────────────────────────────────────────────────┘
+
+LOOSE COUPLING (can be separate):
+┌─────────────────────────────────────────────────────────────────┐
+│                     AI/ML Domain                                │
+│                                                                 │
+│  Agent Service: Orchestrates LLM calls, external API dependent  │
+│  Job Worker: Background processing, embedding generation        │
+│                                                                 │
+│  Different team, different scaling, different failure modes     │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.0.4 Operational Characteristics Matrix
+
+| Characteristic | Auth | Session | Case | Evidence | KB Query | KB Ingest | Agent | Job Worker |
+|---------------|------|---------|------|----------|----------|-----------|-------|------------|
+| **Latency Sensitivity** | High | High | High | Medium | High | Low | Low | Low |
+| **Compute Intensity** | Low | Low | Low | Low | Low | **HIGH** | **HIGH** | **HIGH** |
+| **External Dependencies** | None | Redis | DB | Files | VectorDB | VectorDB | **LLM APIs** | VectorDB |
+| **Failure Impact** | Total | Total | Total | Degraded | Degraded | None | Degraded | None |
+| **Scaling Trigger** | Users | Sessions | Cases | Uploads | Searches | Documents | Chats | Queue |
+
+**Key Observations**:
+1. Auth/Session/Case/Evidence/KB-Query all have similar profiles (low compute, high latency sensitivity)
+2. KB-Ingest/Agent/Job-Worker all have high compute needs and tolerate latency
+3. Only Agent has external API dependencies (LLM providers)
+
+#### 5.0.5 Failure Domain Analysis
+
+```
+If Service Fails...     What Happens?                   Acceptable?
+─────────────────────────────────────────────────────────────────────
+Auth                    → Can't login, total outage      NO
+Session                 → Can't use app, total outage    NO
+Case                    → Can't create/view cases        NO   ─┐
+Evidence                → Can't upload files             NO   ─┼─ Same failure domain
+KB Query                → Can't search KB                NO   ─┘  = should be together
+
+Agent                   → Can't get AI responses         DEGRADED (show message)
+Job Worker              → Documents queue up             DEGRADED (process later)
+KB Ingest               → Embeddings queue up            DEGRADED (process later)
+```
+
+**Conclusion**: Services that cause "total outage" together should be deployed together.
+
+#### 5.0.6 Final Grouping Decision
+
+Based on the analysis above:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        MONOLITH (6 Services → 1)                        │
+│                                                                         │
+│  ┌─────────┐  ┌─────────┐  ┌────────┐  ┌──────────┐  ┌──────────────┐  │
+│  │   API   │  │  Auth   │  │Session │  │   Case   │  │   Evidence   │  │
+│  │Gateway  │  │ Module  │  │ Module │  │  Module  │  │    Module    │  │
+│  │(middle- │  │         │  │        │  │          │  │              │  │
+│  │  ware)  │  │         │  │        │  │          │  │              │  │
+│  └─────────┘  └─────────┘  └────────┘  └──────────┘  └──────────────┘  │
+│                                                                         │
+│  ┌─────────────────────────────────────────────────────────────────┐   │
+│  │                    Knowledge Module                              │   │
+│  │    (Vector Search ONLY - query path, not embedding generation)  │   │
+│  └─────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+│  Rationale:                                                             │
+│  • Same failure domain (if one fails, app is broken)                   │
+│  • Same scaling characteristics (request-driven, low compute)          │
+│  • Same team ownership (core platform)                                 │
+│  • Transactional consistency possible                                  │
+│  • Eliminates 5+ network hops per request                              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      SEPARATE SERVICE: Agent Service                    │
+│                                                                         │
+│  Rationale:                                                             │
+│  • External LLM API dependency (OpenAI, Anthropic, etc.)               │
+│  • Long-running operations (10-60+ seconds per request)                │
+│  • Different failure mode (can degrade gracefully)                     │
+│  • Different scaling (scales with chat volume, not user count)         │
+│  • High compute (prompt construction, response parsing)                │
+│  • AI/ML team ownership (different expertise)                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      SEPARATE SERVICE: Job Worker                       │
+│                                                                         │
+│  Responsibilities (consolidated):                                       │
+│  • Embedding generation (from KB Ingest path)                          │
+│  • Document text extraction                                            │
+│  • Scheduled cleanup tasks                                             │
+│  • Post-mortem generation                                              │
+│                                                                         │
+│  Rationale:                                                             │
+│  • Background processing (no user-facing latency)                      │
+│  • CPU-intensive (embedding models)                                    │
+│  • Different scaling model (workers scale with queue depth)            │
+│  • Can run on cheaper compute (no need for fast networking)            │
+│  • Failure = delayed processing, not outage                            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.0.7 Grouping Summary
+
+| Before (Current) | After (Recommended) | Rationale |
+|------------------|---------------------|-----------|
+| API Gateway | → Middleware in Monolith | No value as separate container |
+| Auth Service | → Monolith Module | Core platform, same failure domain |
+| Session Service | → Monolith Module | Core platform, same failure domain |
+| Case Service | → Monolith Module | Core platform, same failure domain |
+| Evidence Service | → Monolith Module | Core platform, same failure domain |
+| Knowledge Service | → **SPLIT** | Query → Monolith, Ingest → Job Worker |
+| Agent Service | → Separate Service | LLM dependency, different scaling |
+| Job Worker | → Separate Service | Background processing, CPU-intensive |
+
+**Final Count**:
+- **Before**: 7 microservices + 1 worker = 8 deployable units
+- **After**: 1 monolith + 2 services = 3 deployable units (62% reduction)
+
+---
+
 ### 5.1 Proposed Structure
 
 **Final Refined Architecture**:
@@ -231,7 +414,7 @@ Examining the actual domain boundaries:
 ```
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                        FaultMaven Core Application                        │
-│                         (Modular Monolith)                                │
+│                    (Modular Monolith - 6 Services → 1)                    │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                    Gateway Middleware Layer                          │ │
 │  │  (JWT validation, CORS, rate limiting, request logging)             │ │
@@ -239,19 +422,19 @@ Examining the actual domain boundaries:
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │                       API Layer (FastAPI)                            │ │
-│  │  /v1/auth/*  │  /v1/sessions/*  │  /v1/cases/*  │  /v1/evidence/*   │ │
+│  │  /auth/*  │  /sessions/*  │  /cases/*  │  /evidence/*  │ /knowledge/*│ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
 │  │              Module Boundaries (No Cross-Module Joins)               │ │
-│  │  ┌──────────┐  ┌───────────┐  ┌──────────┐  ┌────────────┐          │ │
-│  │  │   Auth   │  │  Session  │  │   Case   │  │  Evidence  │          │ │
-│  │  │  Module  │  │  Module   │  │  Module  │  │   Module   │          │ │
-│  │  │          │  │           │  │          │  │            │          │ │
-│  │  │ service  │  │  service  │  │ service  │  │  service   │          │ │
-│  │  │ repo     │  │  repo     │  │ repo     │  │  repo      │          │ │
-│  │  │ models   │  │  models   │  │ models   │  │  models    │          │ │
-│  │  └──────────┘  └───────────┘  └──────────┘  └────────────┘          │ │
+│  │  ┌────────┐ ┌─────────┐ ┌────────┐ ┌──────────┐ ┌─────────────────┐ │ │
+│  │  │  Auth  │ │ Session │ │  Case  │ │ Evidence │ │   Knowledge     │ │ │
+│  │  │ Module │ │ Module  │ │ Module │ │  Module  │ │    Module       │ │ │
+│  │  │        │ │         │ │        │ │          │ │ (QUERY PATH     │ │ │
+│  │  │service │ │ service │ │service │ │ service  │ │  ONLY - vector  │ │ │
+│  │  │repo    │ │ repo    │ │repo    │ │ repo     │ │  search, not    │ │ │
+│  │  │models  │ │ models  │ │models  │ │ models   │ │  embedding gen) │ │ │
+│  │  └────────┘ └─────────┘ └────────┘ └──────────┘ └─────────────────┘ │ │
 │  └─────────────────────────────────────────────────────────────────────┘ │
 │                                    │                                      │
 │  ┌─────────────────────────────────────────────────────────────────────┐ │
@@ -267,20 +450,26 @@ Examining the actual domain boundaries:
                                     │
                           Async (Redis Queue)
                                     │
-              ┌─────────────────────┼─────────────────────┐
-              ▼                     ▼                     ▼
-┌─────────────────────┐ ┌─────────────────────┐ ┌─────────────────────┐
-│   Agent Service     │ │  Knowledge Service  │ │     Job Worker      │
-│   (Queue Consumer)  │ │    (Embeddings)     │ │   (Async Tasks)     │
-│                     │ │                     │ │                     │
-│  - Consumes jobs    │ │  - Vector search    │ │  - Doc processing   │
-│  - Calls LLM APIs   │ │  - ChromaDB/Pinecone│ │  - Embedding gen    │
-│  - Stores results   │ │  - Semantic search  │ │  - Scheduled tasks  │
-│  - Scales horiz.    │ │  - Scales horiz.    │ │  - Cleanup jobs     │
-└─────────────────────┘ └─────────────────────┘ └─────────────────────┘
-
-              │                     │                     │
-              └─────────────────────┴─────────────────────┘
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌───────────────────────────────────┐ ┌───────────────────────────────────┐
+│         Agent Service             │ │           Job Worker              │
+│        (Queue Consumer)           │ │    (Background Processing)        │
+│                                   │ │                                   │
+│  • Consumes chat jobs from queue  │ │  • EMBEDDING GENERATION           │
+│  • Calls LLM APIs (OpenAI, etc.)  │ │    (moved from Knowledge Service) │
+│  • Calls Knowledge Module for RAG │ │  • Document text extraction       │
+│  • Stores responses in Case       │ │  • Scheduled cleanup tasks        │
+│  • Scales with chat volume        │ │  • Post-mortem generation         │
+│                                   │ │  • Scales with queue depth        │
+│  Why separate:                    │ │                                   │
+│  • External LLM API dependency    │ │  Why separate:                    │
+│  • 10-60s response times          │ │  • CPU-intensive (embeddings)     │
+│  • Different failure mode         │ │  • No user-facing latency         │
+│  • AI/ML team ownership           │ │  • Different scaling model        │
+└───────────────────────────────────┘ └───────────────────────────────────┘
+                    │                               │
+                    └───────────────┬───────────────┘
                                     │
                               ┌───────────┐
                               │   Redis   │
@@ -290,11 +479,17 @@ Examining the actual domain boundaries:
 
 **Container Count by Deployment**:
 
-| Deployment | Containers | Description |
-|------------|------------|-------------|
-| **Core (Minimal)** | 2 | faultmaven-core, redis |
-| **Core (Full)** | 3 | faultmaven-core, redis, chromadb |
-| **Enterprise** | 5+ | core, agent-workers, kb-workers, redis-cluster, managed-db |
+| Deployment | Containers | Components |
+|------------|------------|------------|
+| **Core (Minimal)** | 2 | faultmaven-core + redis |
+| **Core (Full)** | 3 | faultmaven-core + redis + chromadb |
+| **Core (with AI)** | 4 | core + redis + chromadb + agent-worker |
+| **Enterprise** | 5+ | core + agent-workers + job-workers + redis-cluster + managed-db |
+
+**Deployment Unit Reduction**:
+- **Before**: 8 deployable units (7 microservices + 1 worker)
+- **After**: 3 deployable units (1 monolith + 2 services)
+- **Reduction**: 62% fewer containers to manage
 
 ### 5.2 Module Design Within Monolith
 
@@ -1024,9 +1219,9 @@ services:
 | Phase | Duration | Key Deliverable |
 |-------|----------|-----------------|
 | 1: Provider Abstraction | 1-2 weeks | Same code runs on SQLite or PostgreSQL |
-| 2: Consolidate Services | 2-3 weeks | 4 services → 1 modular monolith |
+| 2: Consolidate Services | 2-3 weeks | 6 services → 1 modular monolith (includes KB query path) |
 | 3: Async AI Comms | 1-2 weeks | Non-blocking LLM interactions |
-| 4: Simplify Deployment | 1 week | 7 containers → 2-3 containers |
+| 4: Simplify Deployment | 1 week | 8 containers → 3 containers |
 | **Total** | **5-8 weeks** | **Production-ready hybrid architecture** |
 
 ---
@@ -1060,37 +1255,41 @@ services:
 
 **Adopt a Hybrid Architecture:**
 
-1. **Consolidate** Auth, Session, Case, Evidence into a single Modular Monolith
-2. **Keep separate** Agent Service, Knowledge Service, Job Worker
-3. **Simplify** deployment for Core users (2-3 containers vs 7+)
-4. **Maintain** scalability for Enterprise (can still scale AI services independently)
+1. **Consolidate 6 services → 1 Monolith**: API Gateway (as middleware), Auth, Session, Case, Evidence, Knowledge (query path only)
+2. **Split Knowledge Service**: Vector search → Monolith module, Embedding generation → Job Worker
+3. **Keep 2 services separate**: Agent Service (LLM orchestration), Job Worker (background processing + embeddings)
+4. **Simplify** deployment for Core users (3 containers vs 8)
+5. **Maintain** scalability for Enterprise (Agent and Job Worker scale independently)
 
 ### 9.2 Rationale
 
 | Factor | Why Hybrid Wins |
 |--------|-----------------|
-| Business model | Core users need simplicity; Enterprise needs scale for AI only |
-| Team size | Small team is more productive with unified codebase |
-| Domain nature | CRUD services are tightly coupled; AI services are genuinely independent |
-| Scaling reality | Only Agent/KB need independent scaling |
-| Operational cost | Reduces Core deployment from 7+ to 3-4 containers |
+| **Business model** | Core users need simplicity; Enterprise needs scale for AI only |
+| **Team structure** | Small team more productive with unified codebase; AI team can own Agent separately |
+| **Domain coupling** | Auth→Session→Case→Evidence→KB-Query share failure domain |
+| **Scaling reality** | Only Agent (LLM calls) and Job Worker (embeddings) need independent scaling |
+| **Operational cost** | Reduces Core deployment from 8 to 3 containers (62% reduction) |
+| **KB Service split** | Query path is fast (monolith); Ingestion is slow (worker) - different characteristics |
 
 ### 9.3 What to Avoid
 
-1. **Don't go pure monolith**: Agent and Knowledge services have legitimately different scaling needs
-2. **Don't keep current state**: The overhead isn't justified by the benefits
-3. **Don't over-engineer modules**: Keep module boundaries simple; extract only if team grows
+1. **Don't go pure monolith**: Agent Service has external LLM dependency and different failure mode
+2. **Don't keep Knowledge Service whole**: Query and Ingestion paths have fundamentally different operational profiles
+3. **Don't keep current state**: 8 microservices overhead isn't justified by actual independence
+4. **Don't over-engineer modules**: Keep boundaries simple; only extract if team grows significantly
 
 ---
 
 ## 10. Conclusion
 
-FaultMaven's current microservices architecture represents **premature optimization** for the product's stage and business model. The overhead of 7+ services is not justified when:
+FaultMaven's current microservices architecture represents **premature optimization** for the product's stage and business model. The overhead of 8 deployable units is not justified when:
 
 - The target includes self-hosted users who need simplicity
 - A small team maintains all services
-- Most services don't require independent scaling
-- Services are tightly coupled via shared library
+- Only 2 services (Agent, Job Worker) genuinely need independent scaling
+- 6 services share the same failure domain and operational characteristics
+- The Knowledge Service conflates two distinct functions (query vs. ingestion)
 
 A **Hybrid Modular Monolith** approach provides:
 - Simpler deployment for Core users (adoption advantage)
@@ -1109,16 +1308,20 @@ A **Hybrid Modular Monolith** approach provides:
 
 **Status**: Proposed
 
-**Context**: FaultMaven currently uses a microservices architecture with 7 separate services. This creates operational overhead for self-hosted users and development friction for the small team.
+**Context**: FaultMaven currently uses a microservices architecture with 8 deployable units. This creates operational overhead for self-hosted users and development friction for the small team. Analysis shows that 6 services share the same failure domain and operational characteristics.
 
-**Decision**: Consolidate Auth, Session, Case, and Evidence services into a single Modular Monolith while keeping Agent, Knowledge, and Job Worker as separate services.
+**Decision**:
+1. Consolidate 6 services into a single Modular Monolith: API Gateway (as middleware), Auth, Session, Case, Evidence, and Knowledge (query path only)
+2. Split Knowledge Service: Vector search → Monolith module, Embedding generation → Job Worker
+3. Keep Agent Service and Job Worker as separate services
 
 **Consequences**:
-- (+) Simpler deployment for Core users
-- (+) Faster development for CRUD features
-- (+) Maintained scalability for AI workloads
-- (-) Migration effort required
-- (-) Less granular scaling for CRUD operations (acceptable trade-off)
+- (+) Simpler deployment for Core users (8 → 3 containers)
+- (+) Faster development for core platform features
+- (+) Maintained scalability for AI workloads (Agent, Job Worker independent)
+- (+) Knowledge Service split aligns with actual operational characteristics
+- (-) Migration effort required (~5-8 weeks)
+- (-) Less granular scaling for CRUD operations (acceptable - same failure domain anyway)
 
 ---
 
