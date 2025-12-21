@@ -2,17 +2,16 @@
 
 ## Overview
 
-This task requires creating a detailed implementation plan to migrate FaultMaven from its current microservices architecture to a **modular monolith with background worker**.
+This task requires creating a detailed implementation plan to migrate FaultMaven from its current microservices architecture to a **true modular monolith**.
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Deployable units | 8 | 2 |
-| Repositories | 12+ | 4 |
-| Containers (Core) | 8+ | 2 |
+| Repositories | 12+ | 2 |
+| Deployable Units | 8 | 1 |
+| Containers | 8+ | 1 |
+| Processes | 8+ | 1 |
 
-**Reference Documents**:
-- `docs/MODULAR_MONOLITH_DESIGN.md` - Target architecture specification
-- `docs/ARCHITECTURE_EVALUATION.md` - Migration rationale and evaluation
+**Reference Document**: `docs/MODULAR_MONOLITH_DESIGN.md` - Target architecture specification
 
 ---
 
@@ -22,26 +21,26 @@ This task requires creating a detailed implementation plan to migrate FaultMaven
 
 | Current Service | Target | Action |
 |-----------------|--------|--------|
-| fm-api-gateway | Monolith middleware | Fold into FastAPI middleware |
+| fm-api-gateway | Middleware | Fold into FastAPI middleware |
 | fm-auth-service | `modules/auth` | Migrate as module |
 | fm-session-service | `modules/session` | Migrate as module |
 | fm-case-service | `modules/case` | Migrate as module |
 | fm-evidence-service | `modules/evidence` | Migrate as module |
-| fm-knowledge-service | **SPLIT** | Query → `modules/knowledge`, Ingest → Job Worker |
+| fm-knowledge-service | `modules/knowledge` | Migrate as module (query + ingestion) |
 | fm-agent-service | `modules/agent` | Migrate as module with LLMProvider |
-| fm-job-worker | fm-job-worker | Add embedding tasks |
+| fm-job-worker | In-process tasks | Absorb into modules (asyncio.create_task) |
 
 ### Repository Changes
 
 | Repository | Action |
 |------------|--------|
-| `faultmaven` | **Primary target** - Add `src/faultmaven/` and `deploy/` |
-| `faultmaven-deploy` | Merge into `faultmaven/deploy/`, then archive |
-| `fm-job-worker` | Modify to add embedding generation |
-| `fm-core-lib` | Deprecate after migration |
+| `faultmaven` | **Primary target** - Add `src/faultmaven/`, `dashboard/`, `deploy/` |
+| `faultmaven-dashboard` | Merge into `faultmaven/dashboard/` |
+| `faultmaven-deploy` | Merge into `faultmaven/deploy/` |
 | `fm-*-service` (7 repos) | Archive after migration |
-| `faultmaven-copilot` | Unchanged (API contracts preserved) |
-| `faultmaven-dashboard` | Unchanged (API contracts preserved) |
+| `fm-job-worker` | Archive (functionality absorbed) |
+| `fm-core-lib` | Deprecate (absorbed into monolith) |
+| `faultmaven-copilot` | Unchanged (separate distribution) |
 
 ---
 
@@ -56,8 +55,9 @@ This task requires creating a detailed implementation plan to migrate FaultMaven
 2. Implement Core providers (SQLite, Local Files, ChromaDB, JWT)
 3. Implement Enterprise providers (PostgreSQL, S3, Pinecone, Auth0)
 4. Create LLMProvider implementations (OpenAI, Anthropic, Ollama)
-5. Add configuration-based provider selection
-6. Test both Core and Enterprise profiles
+5. Create EmbeddingProvider implementations (OpenAI, Cohere, local)
+6. Add configuration-based provider selection
+7. Test all profiles
 
 **Outputs**:
 ```
@@ -67,36 +67,20 @@ src/faultmaven/providers/
 ├── files/{local.py, s3.py}
 ├── vectors/{chromadb.py, pinecone.py}
 ├── identity/{jwt.py, auth0.py}
-└── llm/{openai.py, anthropic.py, ollama.py}
+├── llm/{openai.py, anthropic.py, ollama.py}
+└── embedding/{openai.py, cohere.py, local.py}
 ```
 
-### Phase 2: Infrastructure Abstractions
-
-**Goal**: Abstract Redis access through interfaces
-
-**Tasks**:
-1. Create `infrastructure/interfaces.py` with SessionStore, JobQueue, Cache, ResultStore
-2. Create `infrastructure/redis_impl.py` with Redis implementations
-3. Create in-memory implementations for testing
-
-**Outputs**:
-```
-src/faultmaven/infrastructure/
-├── interfaces.py
-├── redis_impl.py
-└── memory_impl.py  # For testing
-```
-
-### Phase 3: Module Migration
+### Phase 2: Module Migration
 
 **Goal**: Migrate each service as a module with strict boundaries
 
-**Order** (suggested - dependencies flow down):
+**Order** (dependencies flow down):
 1. Auth module (no module dependencies)
 2. Session module (depends on Auth)
 3. Case module (depends on Session)
 4. Evidence module (depends on Case)
-5. Knowledge module (query path only)
+5. Knowledge module (query + ingestion, uses EmbeddingProvider)
 6. Agent module (depends on Knowledge, uses LLMProvider)
 
 **Per-Module Tasks**:
@@ -118,7 +102,7 @@ modules/{name}/
 └── orm.py          # Internal ORM models
 ```
 
-### Phase 4: API Layer & Middleware
+### Phase 3: API Layer & Middleware
 
 **Goal**: Create unified API layer with gateway middleware
 
@@ -136,38 +120,79 @@ src/faultmaven/
 └── api/{auth.py, sessions.py, cases.py, evidence.py, knowledge.py, agent.py}
 ```
 
-### Phase 5: Knowledge Service Split
+### Phase 4: Async Task Patterns
 
-**Goal**: Separate query path from ingestion path
-
-**Tasks**:
-1. Identify all ingestion-related code in fm-knowledge-service
-2. Move embedding generation to fm-job-worker
-3. Move text extraction to fm-job-worker
-4. Keep vector search in monolith's knowledge module
-5. Define job queue event schemas (AsyncAPI)
-
-### Phase 6: Job Worker Updates
-
-**Goal**: Add embedding generation to Job Worker
+**Goal**: Implement in-process async patterns for long-running operations
 
 **Tasks**:
-1. Add embedding generation tasks (from Knowledge Service)
-2. Add text extraction tasks
-3. Define event contracts with versioning
-4. Test queue communication with monolith
+1. Implement async pattern for Agent chat (submit → poll)
+2. Implement async pattern for Knowledge ingestion (upload → status)
+3. Add in-process scheduler for cleanup tasks (APScheduler)
+4. Store job status in memory or Redis
 
-### Phase 7: Deployment Consolidation
+**Patterns**:
+```python
+# Long-running task
+@router.post("/v1/agent/chat")
+async def submit_chat(request: ChatRequest):
+    job_id = str(uuid4())
+    asyncio.create_task(process_chat(job_id, request))
+    return {"job_id": job_id, "status": "processing"}
 
-**Goal**: Merge faultmaven-deploy into faultmaven
+@router.get("/v1/agent/chat/{job_id}")
+async def get_result(job_id: str):
+    return await get_job_result(job_id)
+```
+
+### Phase 5: Dashboard Integration
+
+**Goal**: Bundle dashboard into monolith
+
+**Tasks**:
+1. Copy `faultmaven-dashboard` source to `faultmaven/dashboard/`
+2. Create multi-stage Dockerfile (build dashboard, then Python)
+3. Configure FastAPI to serve static files at `/`
+4. Verify dashboard works with bundled API
+
+**Dockerfile**:
+```dockerfile
+FROM node:20 AS dashboard
+WORKDIR /app/dashboard
+COPY dashboard/ .
+RUN npm ci && npm run build
+
+FROM python:3.12-slim
+COPY --from=dashboard /app/dashboard/dist /app/static/dashboard
+COPY src/ /app/src/
+RUN pip install .
+CMD ["uvicorn", "faultmaven.main:app", "--host", "0.0.0.0"]
+```
+
+### Phase 6: Deployment Consolidation
+
+**Goal**: Merge deploy configs and simplify
 
 **Tasks**:
 1. Copy Docker Compose files to `faultmaven/deploy/`
-2. Update to reference new monolith image
+2. Update to single container deployment
 3. Copy Helm charts to `faultmaven/deploy/kubernetes/`
-4. Update chart values for 2-container deployment
-5. Test Core deployment profile
-6. Test Enterprise deployment profile
+4. Update chart values for single container
+5. Test all deployment profiles
+
+**docker-compose.yml**:
+```yaml
+services:
+  faultmaven:
+    image: faultmaven:latest
+    environment:
+      DATABASE_URL: sqlite:///data/faultmaven.db
+      LLM_PROVIDER: openai
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+```
 
 ---
 
@@ -187,7 +212,7 @@ src/faultmaven/
 - All existing REST endpoints must work unchanged
 - Same request/response schemas
 - Same authentication flow
-- Client apps (copilot, dashboard) must not require changes
+- Copilot must not require changes
 
 ### Testing Requirements
 
@@ -230,13 +255,14 @@ src/faultmaven/
 
 | Metric | Target |
 |--------|--------|
-| Deployable units | 8 → 2 |
-| Repositories | 12+ → 4 |
+| Repositories | 12+ → 2 |
+| Deployable units | 8 → 1 |
+| Containers | 8+ → 1 |
 | API compatibility | 100% preserved |
 | Test coverage | Maintained or improved |
 | Module extraction test | Each module runs standalone with mocks |
-| LLM provider flexibility | Works with OpenAI, Anthropic, Ollama |
-| import-linter | Passes in CI |
+| Run from source | `pip install . && uvicorn faultmaven.main:app` works |
+| Single docker run | `docker run faultmaven:latest` works |
 
 ---
 
@@ -244,7 +270,6 @@ src/faultmaven/
 
 1. Should we build incrementally on `faultmaven` or scaffold fresh then migrate?
 2. What's the optimal order for migrating modules given their dependencies?
-3. How do we handle the Knowledge Service split atomically?
+3. How do we preserve git history when absorbing multiple repos?
 4. What's the testing strategy during transition (parallel running)?
-5. How do we preserve git history when absorbing fm-agent-service?
-6. Should we use feature flags during migration for gradual rollout?
+5. Should we use feature flags during migration for gradual rollout?
