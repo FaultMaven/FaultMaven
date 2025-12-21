@@ -2,37 +2,64 @@
 
 ## Overview
 
-FaultMaven is an AI-powered troubleshooting platform built as a **modular monolith with a background worker**. This architecture consolidates 7 logical services into a single deployable application while keeping CPU-intensive background processing separate.
+FaultMaven is an AI-powered troubleshooting platform built as a **true modular monolith**. All functionality runs in a single process - no microservices required.
 
 ### Architecture Summary
 
-| Component | Description |
-|-----------|-------------|
-| **FaultMaven Monolith** | Single application containing all user-facing functionality |
-| **Job Worker** | Separate service for CPU-intensive background tasks |
-| **Deployable Units** | 2 (monolith + worker) |
+| Aspect | Value |
+|--------|-------|
+| **Repositories** | 2 (faultmaven + faultmaven-copilot) |
+| **Deployable Units** | 1 |
+| **Processes** | 1 |
+| **Containers** | 1 |
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        FaultMaven Monolith                              │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Modules: Auth │ Session │ Case │ Evidence │ Knowledge │ Agent   │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │  Providers: Data │ Files │ Vector │ Identity │ LLM                │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────┘
-                                    │
-                          Redis (Queue/Cache)
-                                    │
-                                    ▼
-              ┌───────────────────────────────────────────┐
-              │              Job Worker                    │
-              │  • Embedding generation                    │
-              │  • Document extraction                     │
-              │  • Scheduled tasks                         │
-              └───────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                    FaultMaven (One Monolith)                    │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Middleware: JWT, CORS, Rate Limiting                     │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  API: /auth │ /sessions │ /cases │ /evidence │ /knowledge │  │
+│  │       /agent                                              │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Modules: Auth │ Session │ Case │ Evidence │ Knowledge │  │  │
+│  │           Agent                                           │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Providers: Data │ Files │ Vector │ Identity │ LLM │     │  │
+│  │             Embedding                                     │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                 │
+│  ┌───────────────────────────────────────────────────────────┐  │
+│  │  Dashboard: Static files served at /                      │  │
+│  └───────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+### Why No Microservices?
+
+Every component was evaluated against the microservice checklist:
+
+| Criterion | Must Pass to Justify Microservice |
+|-----------|-----------------------------------|
+| Distinct scaling profile | Different CPU/memory/QPS needs |
+| Independent deployment reduces risk | Can deploy without affecting others |
+| Failure can be isolated | Blast radius is contained |
+| Owns its data | No shared DB tables |
+| Security/compliance boundary | Isolation required |
+| Different rate of change | Evolves independently |
+| Clear API boundary | Stable contract |
+| Different operational profile | Different monitoring needs |
+| Latency tolerance | Can tolerate network calls |
+| Clear domain boundary | DDD bounded context |
+
+**No component scored above 3/10.** All share the same failure domain, same scaling profile, and same operational characteristics.
 
 ---
 
@@ -58,46 +85,50 @@ faultmaven/
 │   │   ├── session/
 │   │   ├── case/
 │   │   ├── evidence/
-│   │   ├── knowledge/             # Query path only
-│   │   └── agent/                 # LLM orchestration
+│   │   ├── knowledge/
+│   │   └── agent/
 │   ├── providers/
 │   │   ├── data/                  # SQLite, PostgreSQL
 │   │   ├── files/                 # Local, S3
 │   │   ├── vectors/               # ChromaDB, Pinecone
 │   │   ├── identity/              # JWT, Auth0
-│   │   └── llm/                   # OpenAI, Anthropic, Ollama
+│   │   ├── llm/                   # OpenAI, Anthropic, Ollama
+│   │   └── embedding/             # OpenAI, Cohere, local
 │   └── infrastructure/
-│       ├── interfaces.py          # SessionStore, JobQueue, Cache, ResultStore
-│       └── redis_impl.py
+│       ├── config.py
+│       └── scheduler.py           # In-process scheduled tasks
+├── dashboard/                     # React frontend source
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.ts
 ├── tests/
 ├── deploy/
 │   ├── docker-compose.yml
 │   └── kubernetes/helm/
-├── Dockerfile
+├── Dockerfile                     # Multi-stage: dashboard + backend
 └── pyproject.toml
 ```
 
 ### 1.2 Module Inventory
 
-| Module | Responsibility | Key Dependencies |
-|--------|----------------|------------------|
-| **Auth** | User registration, login, JWT | IdentityProvider |
-| **Session** | Session lifecycle management | SessionStore (Redis) |
-| **Case** | Case CRUD, message history | DataProvider |
-| **Evidence** | File uploads, attachments | FileProvider |
-| **Knowledge** | Vector search (query path only) | VectorProvider |
-| **Agent** | LLM orchestration, chat | LLMProvider, KnowledgeService |
+| Module | Responsibility | Sync/Async |
+|--------|----------------|------------|
+| **Auth** | User registration, login, JWT | Sync |
+| **Session** | Session lifecycle management | Sync |
+| **Case** | Case CRUD, message history | Sync |
+| **Evidence** | File uploads, attachments | Sync |
+| **Knowledge** | Vector search AND ingestion | Both |
+| **Agent** | LLM orchestration, chat | Async (long-running) |
 
-### 1.3 Background Worker
+### 1.3 Request Patterns
 
-The Job Worker handles CPU-intensive tasks that don't require user-facing latency:
+| Pattern | Example | Implementation |
+|---------|---------|----------------|
+| **Sync** | GET /cases, POST /auth/login | Await and return |
+| **Async (user waiting)** | POST /agent/chat | Return job_id, poll for result |
+| **Async (background)** | POST /knowledge/documents | Return immediately, process in background |
 
-| Task | Description | Trigger |
-|------|-------------|---------|
-| **Embedding Generation** | Generate vectors for documents | Document upload |
-| **Text Extraction** | Extract text from PDFs, images | Document upload |
-| **Scheduled Cleanup** | Remove expired sessions, orphaned files | Cron |
-| **Post-Mortem Generation** | Generate case summaries | Case close |
+All async work runs **in-process** using `asyncio.create_task()`.
 
 ---
 
@@ -136,8 +167,8 @@ __all__ = ["AuthService", "UserDTO", "TokenPair", "CreateUserRequest"]
 
 ```python
 # FORBIDDEN: Cross-module database access
-from modules.auth.orm import UserORM  # Don't import ORM models
-db.query(Case, UserORM).join(...)     # Don't join across modules
+from modules.auth.orm import UserORM
+db.query(Case, UserORM).join(...)
 
 # REQUIRED: Access through public interface
 from modules.auth import AuthService, UserDTO
@@ -191,41 +222,32 @@ The provider layer enables the same codebase to run on:
 ```python
 # providers/interfaces.py
 
-from typing import Protocol, TypeVar, Optional
-from datetime import timedelta
+from typing import Protocol
 
-T = TypeVar("T")
-
-class DataProvider(Protocol[T]):
-    """Abstract interface for data persistence."""
+class DataProvider(Protocol):
     async def get(self, id: str) -> Optional[T]: ...
     async def save(self, entity: T) -> T: ...
     async def delete(self, id: str) -> bool: ...
-    async def query(self, **filters) -> list[T]: ...
 
 class FileProvider(Protocol):
-    """Abstract interface for file storage."""
-    async def upload(self, key: str, data: bytes, content_type: str) -> str: ...
+    async def upload(self, key: str, data: bytes) -> str: ...
     async def download(self, key: str) -> bytes: ...
-    async def delete(self, key: str) -> bool: ...
     async def get_url(self, key: str, expires_in: int = 3600) -> str: ...
 
 class VectorProvider(Protocol):
-    """Abstract interface for vector storage."""
-    async def upsert(self, collection: str, id: str, vector: list[float], metadata: dict): ...
-    async def search(self, collection: str, vector: list[float], top_k: int) -> list[dict]: ...
-    async def delete(self, collection: str, id: str): ...
+    async def upsert(self, id: str, vector: list[float], metadata: dict): ...
+    async def search(self, vector: list[float], top_k: int) -> list[dict]: ...
 
 class IdentityProvider(Protocol):
-    """Abstract interface for authentication."""
     async def validate_token(self, token: str) -> Optional[User]: ...
     async def create_token(self, user: User) -> TokenPair: ...
-    async def refresh_token(self, refresh_token: str) -> TokenPair: ...
 
 class LLMProvider(Protocol):
-    """Abstract interface for LLM calls."""
     async def chat(self, messages: list[Message], model: str = None) -> ChatResponse: ...
+
+class EmbeddingProvider(Protocol):
     async def embed(self, text: str) -> list[float]: ...
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]: ...
 ```
 
 ### 3.3 Provider Implementations
@@ -233,21 +255,25 @@ class LLMProvider(Protocol):
 ```
 providers/
 ├── data/
-│   ├── sqlite.py          # SQLiteDataProvider (Core)
-│   └── postgresql.py      # PostgreSQLDataProvider (Team/Enterprise)
+│   ├── sqlite.py          # Core
+│   └── postgresql.py      # Team/Enterprise
 ├── files/
-│   ├── local.py           # LocalFileProvider (Core)
-│   └── s3.py              # S3FileProvider (Enterprise)
+│   ├── local.py           # Core
+│   └── s3.py              # Enterprise
 ├── vectors/
-│   ├── chromadb.py        # ChromaDBProvider (Core)
-│   └── pinecone.py        # PineconeProvider (Enterprise)
+│   ├── chromadb.py        # Core
+│   └── pinecone.py        # Enterprise
 ├── identity/
-│   ├── jwt.py             # JWTIdentityProvider (Core)
-│   └── auth0.py           # Auth0IdentityProvider (Enterprise)
-└── llm/
-    ├── openai.py          # OpenAIProvider
-    ├── anthropic.py       # AnthropicProvider
-    └── ollama.py          # OllamaProvider (local LLM)
+│   ├── jwt.py             # Core
+│   └── auth0.py           # Enterprise
+├── llm/
+│   ├── openai.py
+│   ├── anthropic.py
+│   └── ollama.py          # Local LLM
+└── embedding/
+    ├── openai.py          # Cloud embeddings
+    ├── cohere.py          # Cloud embeddings
+    └── local.py           # Local (sentence-transformers via HTTP)
 ```
 
 ### 3.4 Configuration-Based Selection
@@ -255,155 +281,127 @@ providers/
 ```python
 # config.py
 from pydantic_settings import BaseSettings
-from enum import Enum
-
-class DeploymentProfile(str, Enum):
-    CORE = "core"           # Self-hosted minimal
-    TEAM = "team"           # Self-hosted with PostgreSQL
-    ENTERPRISE = "enterprise"  # SaaS
 
 class Settings(BaseSettings):
-    PROFILE: DeploymentProfile = DeploymentProfile.CORE
-
     # Data
     DATABASE_URL: str = "sqlite:///./data/faultmaven.db"
 
     # Files
     FILE_STORAGE: str = "local"  # local, s3
     FILE_STORAGE_PATH: str = "./data/files"
-    S3_BUCKET: Optional[str] = None
 
     # Vectors
     VECTOR_STORE: str = "chromadb"  # chromadb, pinecone
-    CHROMADB_PATH: str = "./data/chromadb"
 
     # Identity
     IDENTITY_PROVIDER: str = "jwt"  # jwt, auth0
-    JWT_SECRET: str = "change-me-in-production"
 
     # LLM
     LLM_PROVIDER: str = "openai"  # openai, anthropic, ollama
-    OPENAI_API_KEY: Optional[str] = None
-    OLLAMA_HOST: str = "http://localhost:11434"
+
+    # Embeddings
+    EMBEDDING_PROVIDER: str = "openai"  # openai, cohere, local
 ```
 
 ---
 
-## 4. Infrastructure Abstractions
+## 4. Knowledge Module
 
-### 4.1 Purpose
+### 4.1 Overview
 
-Infrastructure services (Redis) are accessed through abstract interfaces, not directly:
+The Knowledge module handles both **query** (vector search) and **ingestion** (embedding generation). Both operations are in the same module, same process.
 
-```
-Module Layer
-    │
-    ▼
-┌────────────────────────────────────────────────────────┐
-│  SessionStore │ JobQueue │ Cache │ ResultStore        │
-└────────────────────────────────────────────────────────┘
-    │
-    ▼
-┌────────────────────────────────────────────────────────┐
-│                     Redis                               │
-└────────────────────────────────────────────────────────┘
-```
-
-### 4.2 Infrastructure Interfaces
+### 4.2 Endpoints
 
 ```python
-# infrastructure/interfaces.py
+# api/knowledge.py
 
-class SessionStore(Protocol):
-    """Abstract session storage."""
-    async def get(self, session_id: str) -> Optional[dict]: ...
-    async def set(self, session_id: str, data: dict, ttl: timedelta) -> None: ...
-    async def delete(self, session_id: str) -> None: ...
+@router.get("/v1/knowledge/search")
+async def search(query: str, knowledge: KnowledgeService = Depends()):
+    """Sync - user waiting for results"""
+    return await knowledge.search(query)
 
-class JobQueue(Protocol):
-    """Abstract job queue."""
-    async def enqueue(self, job_type: str, payload: dict, **options) -> str: ...
-    async def get_status(self, job_id: str) -> JobStatus: ...
+@router.post("/v1/knowledge/documents")
+async def upload_document(file: UploadFile, knowledge: KnowledgeService = Depends()):
+    """Async - return immediately, process in background"""
+    doc_id = await knowledge.start_ingestion(file)
+    return {"id": doc_id, "status": "processing"}
 
-class Cache(Protocol):
-    """Abstract cache."""
-    async def get(self, key: str) -> Optional[bytes]: ...
-    async def set(self, key: str, value: bytes, ttl: timedelta) -> None: ...
-    async def invalidate(self, pattern: str) -> None: ...
+@router.get("/v1/knowledge/documents/{doc_id}")
+async def get_document_status(doc_id: str, knowledge: KnowledgeService = Depends()):
+    """Check ingestion status"""
+    return await knowledge.get_status(doc_id)
+```
 
-class ResultStore(Protocol):
-    """Abstract result storage for async operations."""
-    async def get(self, job_id: str) -> Optional[Any]: ...
-    async def set(self, job_id: str, result: Any, ttl: timedelta = None) -> None: ...
+### 4.3 Implementation
+
+```python
+# modules/knowledge/service.py
+
+class KnowledgeService:
+    def __init__(
+        self,
+        vector_provider: VectorProvider,
+        embedding_provider: EmbeddingProvider,
+        file_provider: FileProvider,
+    ):
+        self.vectors = vector_provider
+        self.embeddings = embedding_provider
+        self.files = file_provider
+
+    async def search(self, query: str) -> list[Document]:
+        """Query path - sync, fast"""
+        query_vector = await self.embeddings.embed(query)
+        return await self.vectors.search(query_vector, top_k=10)
+
+    async def start_ingestion(self, file: UploadFile) -> str:
+        """Start background ingestion, return immediately"""
+        doc_id = str(uuid4())
+
+        # Save file
+        await self.files.upload(f"docs/{doc_id}", await file.read())
+
+        # Start background processing
+        asyncio.create_task(self._process_ingestion(doc_id, file))
+
+        return doc_id
+
+    async def _process_ingestion(self, doc_id: str, file: UploadFile):
+        """Background task - runs in same process"""
+        try:
+            # Extract text
+            text = await extract_text(file)
+
+            # Chunk
+            chunks = chunk_text(text, chunk_size=512, overlap=50)
+
+            # Embed (calls cloud API like OpenAI)
+            vectors = await self.embeddings.embed_batch(chunks)
+
+            # Store
+            for i, (chunk, vector) in enumerate(zip(chunks, vectors)):
+                await self.vectors.upsert(
+                    id=f"{doc_id}_{i}",
+                    vector=vector,
+                    metadata={"doc_id": doc_id, "text": chunk}
+                )
+
+            await self._set_status(doc_id, "completed")
+        except Exception as e:
+            await self._set_status(doc_id, "failed", error=str(e))
 ```
 
 ---
 
-## 5. Agent Module Design
+## 5. Agent Module
 
 ### 5.1 Overview
 
-The Agent module orchestrates LLM calls for the chat functionality. LLM inference happens externally (OpenAI, Anthropic, or local Ollama)—the Agent just orchestrates HTTP calls.
+The Agent module orchestrates LLM calls. All LLM inference is **external** (OpenAI, Anthropic, or Ollama running as infrastructure). The Agent just makes HTTP calls.
 
-### 5.2 Module Structure
+### 5.2 Async Pattern
 
-```python
-modules/agent/
-├── __init__.py        # Public interface
-├── service.py         # Chat orchestration
-├── router.py          # Model selection logic
-├── models.py          # Request/response DTOs
-└── prompts/           # Prompt templates
-```
-
-### 5.3 LLMProvider Abstraction
-
-The Agent module calls LLM providers through a common interface:
-
-```python
-# providers/llm/base.py
-
-class LLMProvider(Protocol):
-    async def chat(
-        self,
-        messages: list[Message],
-        model: str = None,
-        temperature: float = 0.7,
-        max_tokens: int = None,
-    ) -> ChatResponse: ...
-
-# providers/llm/openai.py
-class OpenAIProvider(LLMProvider):
-    def __init__(self, api_key: str):
-        self.client = AsyncOpenAI(api_key=api_key)
-
-    async def chat(self, messages, model="gpt-4", **kwargs):
-        response = await self.client.chat.completions.create(
-            model=model,
-            messages=messages,
-            **kwargs
-        )
-        return ChatResponse(content=response.choices[0].message.content)
-
-# providers/llm/ollama.py
-class OllamaProvider(LLMProvider):
-    def __init__(self, host: str = "http://localhost:11434"):
-        self.host = host
-
-    async def chat(self, messages, model="llama2", **kwargs):
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{self.host}/api/chat",
-                json={"model": model, "messages": messages}
-            )
-        return ChatResponse(content=response.json()["message"]["content"])
-```
-
-**Key Point**: Local vs cloud LLM is configuration, not architecture. The monolith makes HTTP calls either way.
-
-### 5.4 Async Pattern for Long-Running Calls
-
-LLM calls take 10-60+ seconds. Use async pattern to avoid blocking:
+LLM calls take 10-60+ seconds. Use async pattern:
 
 ```python
 # modules/agent/service.py
@@ -413,160 +411,147 @@ class AgentService:
         self,
         llm_provider: LLMProvider,
         knowledge: KnowledgeService,
-        result_store: ResultStore,
     ):
         self.llm = llm_provider
         self.knowledge = knowledge
-        self.results = result_store
+        self.results: dict[str, ChatResult] = {}  # Or Redis-backed
 
-    async def submit_chat(self, case_id: str, message: str, context: dict) -> str:
-        """Submit chat request, return job ID immediately."""
+    async def submit_chat(self, case_id: str, message: str) -> str:
+        """Return job_id immediately, process in background"""
         job_id = str(uuid4())
-
-        # Start background task
-        asyncio.create_task(
-            self._process_chat(job_id, case_id, message, context)
-        )
-
+        asyncio.create_task(self._process_chat(job_id, case_id, message))
         return job_id
 
-    async def _process_chat(self, job_id: str, case_id: str, message: str, context: dict):
-        """Background task for LLM processing."""
+    async def _process_chat(self, job_id: str, case_id: str, message: str):
+        """Background task"""
         try:
-            # RAG: Search knowledge base
-            kb_results = await self.knowledge.search(message)
+            # RAG: search knowledge base
+            sources = await self.knowledge.search(message)
 
-            # Call LLM
+            # Call LLM (external API)
             response = await self.llm.chat(
-                messages=self._build_messages(message, context, kb_results)
+                messages=self._build_messages(message, sources)
             )
 
-            await self.results.set(job_id, ChatResult(
-                status="completed",
-                response=response,
-                sources=kb_results,
-            ))
+            self.results[job_id] = ChatResult(status="completed", response=response)
         except Exception as e:
-            await self.results.set(job_id, ChatResult(
-                status="failed",
-                error=str(e),
-            ))
+            self.results[job_id] = ChatResult(status="failed", error=str(e))
 
     async def get_result(self, job_id: str) -> Optional[ChatResult]:
-        return await self.results.get(job_id)
+        return self.results.get(job_id)
 ```
 
-### 5.5 API Endpoints
+### 5.3 API Endpoints
 
 ```python
 # api/agent.py
 
 @router.post("/v1/agent/chat")
-async def submit_chat(
-    request: ChatRequest,
-    agent: AgentService = Depends(get_agent_service),
-):
-    job_id = await agent.submit_chat(
-        case_id=request.case_id,
-        message=request.message,
-        context=request.context,
-    )
+async def submit_chat(request: ChatRequest, agent: AgentService = Depends()):
+    job_id = await agent.submit_chat(request.case_id, request.message)
     return {"job_id": job_id, "status": "processing"}
 
 @router.get("/v1/agent/chat/{job_id}")
-async def get_chat_result(
-    job_id: str,
-    agent: AgentService = Depends(get_agent_service),
-):
+async def get_result(job_id: str, agent: AgentService = Depends()):
     result = await agent.get_result(job_id)
     if result:
         return {"status": result.status, "result": result}
     return {"status": "processing"}
 ```
 
-### 5.6 Agent Evolution Path
+---
 
-The Agent module has internal boundaries for future complexity:
+## 6. Dashboard
 
+### 6.1 Overview
+
+Dashboard is a React SPA that:
+- Is built into static files (HTML/JS/CSS)
+- Is bundled into the Docker image
+- Is served by the monolith at `/`
+
+### 6.2 Build Process
+
+```dockerfile
+# Dockerfile
+
+# Stage 1: Build dashboard
+FROM node:20 AS dashboard
+WORKDIR /app/dashboard
+COPY dashboard/ .
+RUN npm ci && npm run build
+
+# Stage 2: Python app
+FROM python:3.12-slim
+WORKDIR /app
+COPY --from=dashboard /app/dashboard/dist /app/static/dashboard
+COPY src/ /app/src/
+RUN pip install .
+CMD ["uvicorn", "faultmaven.main:app", "--host", "0.0.0.0"]
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Agent Module                                │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐ │
-│  │   Router     │  │   Executor   │  │      Optimizer         │ │
-│  │              │  │              │  │                        │ │
-│  │ • Model      │  │ • LLM calls  │  │ • Response caching     │ │
-│  │   selection  │  │ • Retry      │  │ • Cost optimization    │ │
-│  │ • Fallback   │  │   logic      │  │ • Prompt compression   │ │
-│  └──────────────┘  └──────────────┘  └────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
 
-**Extraction triggers** (unlikely for most deployments):
-- CPU contention with other modules
-- 3+ dedicated AI engineers
-- Agent needs independent deployment cadence
+### 6.3 Serving Static Files
+
+```python
+# main.py
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI()
+
+# API routes
+app.include_router(auth_router, prefix="/v1")
+app.include_router(cases_router, prefix="/v1")
+# ... other routers
+
+# Dashboard static files (must be last)
+app.mount("/", StaticFiles(directory="static/dashboard", html=True), name="dashboard")
+```
 
 ---
 
-## 6. Event Contracts
+## 7. Scheduled Tasks
 
-### 6.1 Job Queue Events
+### 7.1 In-Process Scheduler
 
-Events between monolith and Job Worker use versioned schemas:
+Background tasks like cleanup run in-process using APScheduler or similar:
 
-```yaml
-# events/schemas/embedding_request.v1.yaml (AsyncAPI)
-asyncapi: 2.6.0
-info:
-  title: FaultMaven Job Events
-  version: 1.0.0
+```python
+# infrastructure/scheduler.py
 
-channels:
-  jobs.embedding:
-    publish:
-      message:
-        name: EmbeddingRequest
-        payload:
-          type: object
-          required: [version, job_id, document_id, content]
-          properties:
-            version:
-              type: string
-              enum: ["1.0"]
-            job_id:
-              type: string
-              format: uuid
-            document_id:
-              type: string
-            content:
-              type: string
-            metadata:
-              type: object
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+scheduler = AsyncIOScheduler()
+
+@scheduler.scheduled_job('cron', hour=3)  # 3 AM daily
+async def cleanup_expired_sessions():
+    """Delete expired sessions"""
+    await session_service.cleanup_expired()
+
+@scheduler.scheduled_job('cron', hour=4)  # 4 AM daily
+async def cleanup_orphaned_files():
+    """Delete orphaned files"""
+    await evidence_service.cleanup_orphaned()
+
+# Start with app
+@app.on_event("startup")
+async def start_scheduler():
+    scheduler.start()
 ```
-
-### 6.2 Versioning Rules
-
-| Change Type | Action | Example |
-|-------------|--------|---------|
-| Add optional field | Minor bump | Add `priority` field |
-| Add required field | Major bump, migration | Add `tenant_id` required |
-| Remove field | Major bump, deprecation | Remove `legacy_field` |
-| Change field type | Major bump | `id: int` → `string` |
 
 ---
 
-## 7. Deployment
+## 8. Deployment
 
-### 7.1 Container Configuration
+### 8.1 Single Container
 
 ```yaml
 # deploy/docker-compose.yml
 
 services:
   faultmaven:
-    image: faultmaven/core:latest
+    image: faultmaven:latest
     environment:
-      PROFILE: core
       DATABASE_URL: sqlite:///data/faultmaven.db
       FILE_STORAGE: local
       VECTOR_STORE: chromadb
@@ -576,203 +561,110 @@ services:
       - ./data:/data
     ports:
       - "8000:8000"
-
-  job-worker:
-    image: faultmaven/job-worker:latest
-    environment:
-      REDIS_URL: redis://redis:6379
-      CHROMADB_PATH: /data/chromadb
-    volumes:
-      - ./data:/data
-
-  redis:
-    image: redis:7-alpine
-    volumes:
-      - redis-data:/data
-
-  chromadb:
-    image: chromadb/chroma:latest
-    volumes:
-      - ./data/chromadb:/chroma/chroma
-
-volumes:
-  redis-data:
 ```
 
-### 7.2 Deployment Profiles
+### 8.2 Running Without Docker
 
-| Profile | Containers | Use Case |
-|---------|------------|----------|
-| **Core (Minimal)** | faultmaven + redis | Development, small teams |
-| **Core (Full)** | faultmaven + redis + chromadb | Self-hosted production |
-| **Enterprise** | faultmaven + job-workers + redis-cluster + managed-db | SaaS |
+```bash
+# From source
+pip install -e .
+uvicorn faultmaven.main:app --host 0.0.0.0 --port 8000
 
-### 7.3 Local LLM (Ollama)
-
-For self-hosted deployments with local LLM:
-
-```yaml
-services:
-  faultmaven:
-    environment:
-      LLM_PROVIDER: ollama
-      OLLAMA_HOST: http://ollama:11434
-
-  ollama:
-    image: ollama/ollama:latest
-    volumes:
-      - ollama-models:/root/.ollama
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+# Or
+python -m faultmaven
 ```
+
+### 8.3 Deployment Profiles
+
+| Profile | Database | Files | Vectors | LLM |
+|---------|----------|-------|---------|-----|
+| **Dev** | SQLite | Local | ChromaDB | Ollama |
+| **Core** | SQLite | Local | ChromaDB | OpenAI |
+| **Team** | PostgreSQL | Local | ChromaDB | OpenAI |
+| **Enterprise** | PostgreSQL (managed) | S3 | Pinecone | OpenAI |
+
+Same Docker image, different environment variables.
 
 ---
 
-## 8. Testing Strategy
+## 9. Testing
 
-### 8.1 Module Isolation Tests
+### 9.1 Module Isolation
 
-Each module must be testable in isolation with mocked dependencies:
+Each module is testable in isolation:
 
 ```python
 # tests/modules/test_case_service.py
 
 async def test_get_case_with_owner():
-    # Mock dependencies
     mock_auth = AsyncMock(spec=AuthService)
-    mock_auth.get_user.return_value = UserDTO(id="user-1", name="Test User")
+    mock_auth.get_user.return_value = UserDTO(id="user-1", name="Test")
 
     mock_repo = AsyncMock(spec=CaseRepository)
     mock_repo.get.return_value = Case(id="case-1", owner_id="user-1")
 
-    # Create service with mocks
     service = CaseService(auth=mock_auth, repo=mock_repo)
-
-    # Test
     result = await service.get_case_with_owner("case-1")
 
-    assert result.case.id == "case-1"
-    assert result.owner.name == "Test User"
-    mock_auth.get_user.assert_called_once_with("user-1")
+    assert result.owner.name == "Test"
 ```
 
-### 8.2 Architecture Tests
+### 9.2 Architecture Tests
 
 ```python
 # tests/test_architecture.py
 
-def test_no_cross_module_orm_imports():
-    """Ensure modules don't import each other's ORM models."""
-    import ast
-    from pathlib import Path
-
-    modules = ["auth", "session", "case", "evidence", "knowledge", "agent"]
-
-    for module in modules:
-        module_path = Path(f"src/faultmaven/modules/{module}")
-        for py_file in module_path.glob("**/*.py"):
-            tree = ast.parse(py_file.read_text())
-            for node in ast.walk(tree):
-                if isinstance(node, (ast.Import, ast.ImportFrom)):
-                    for other in modules:
-                        if other != module:
-                            assert f"modules.{other}.orm" not in ast.dump(node)
-                            assert f"modules.{other}.repository" not in ast.dump(node)
+def test_no_cross_module_imports():
+    """Modules don't import each other's internals"""
+    # Enforced by import-linter in CI
+    pass
 ```
 
-### 8.3 Provider Contract Tests
+### 9.3 Provider Contract Tests
 
 ```python
-# tests/providers/test_data_provider_contract.py
+# tests/providers/test_data_provider.py
 
 @pytest.mark.parametrize("provider", [
     SQLiteDataProvider(":memory:"),
     PostgreSQLDataProvider("postgresql://test@localhost/test"),
 ])
-async def test_data_provider_contract(provider):
-    """All DataProvider implementations must pass the same tests."""
-    # Create
+async def test_crud_operations(provider):
+    """All providers implement the same contract"""
     entity = await provider.save(User(name="Test"))
     assert entity.id is not None
 
-    # Read
     found = await provider.get(entity.id)
     assert found.name == "Test"
-
-    # Delete
-    await provider.delete(entity.id)
-    assert await provider.get(entity.id) is None
 ```
-
----
-
-## 9. Extraction Readiness
-
-### 9.1 Extraction Checklist
-
-Before extracting any module to a separate service, verify:
-
-| Criterion | Check |
-|-----------|-------|
-| No shared ORM models | `import-linter` passes |
-| No shared DB sessions | Module has own session factory |
-| DTOs at boundaries | Only Pydantic models in `__init__.py` |
-| Async-safe interfaces | All public methods are async |
-| Provider abstractions | No direct infrastructure access |
-
-### 9.2 Extraction Process
-
-To extract a module (e.g., Auth) to a separate service:
-
-1. Copy `modules/auth/` to new repository
-2. Add HTTP API layer (FastAPI)
-3. Replace in-process calls with HTTP client:
-
-```python
-# Before (in-process)
-from modules.auth import AuthService
-user = await auth_service.get_user(user_id)
-
-# After (HTTP client)
-from clients.auth import AuthClient
-user = await auth_client.get_user(user_id)  # HTTP call
-```
-
-4. No database changes required (module owns its schema)
 
 ---
 
 ## 10. Repository Structure
 
-### 10.1 Final Repository Layout
+### 10.1 Final Layout
 
 ```
 FaultMaven/
-├── faultmaven/              # Main monolith + docs + deploy
-│   ├── docs/
-│   ├── src/faultmaven/
+├── faultmaven/                  # Everything in one repo
+│   ├── docs/                    # Architecture docs
+│   ├── src/faultmaven/          # Backend (Python)
+│   ├── dashboard/               # Frontend (React)
 │   ├── tests/
 │   ├── deploy/
 │   ├── Dockerfile
 │   └── pyproject.toml
 │
-├── fm-job-worker/           # Background processing
-│   ├── src/
-│   ├── tests/
-│   └── Dockerfile
-│
-├── faultmaven-copilot/      # Browser extension (unchanged)
-│
-└── faultmaven-dashboard/    # Web UI (unchanged)
+└── faultmaven-copilot/          # Browser extension (separate distribution)
 ```
 
-### 10.2 Repository Count
+### 10.2 Summary
 
-- **Before**: 12+ repositories
-- **After**: 4 repositories
-- **Reduction**: 67%
+| Metric | Before | After |
+|--------|--------|-------|
+| Repositories | 12+ | 2 |
+| Deployable Units | 8 | 1 |
+| Containers | 8+ | 1 |
+| Processes | 8+ | 1 |
+
+**One repo. One image. One container. One process.**
