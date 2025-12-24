@@ -47,7 +47,6 @@ htmlcov/
 *.sqlite
 *.sqlite3
 data/
-alembic/versions/*.py  # Alembic migrations (track manually)
 
 # Logs
 *.log
@@ -77,3 +76,13 @@ dmypy.json
 *.tmp
 *.bak
 *.swp
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Scratch/temporary scripts (one-time use)
+scratch/
+implement_*.py
+validate_*.py
+test_tracer_*.py
+test_tool_*.py
