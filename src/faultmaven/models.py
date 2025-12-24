@@ -12,6 +12,7 @@ from faultmaven.modules.case.orm import Case, Hypothesis, Solution, CaseMessage
 from faultmaven.modules.evidence.orm import Evidence
 from faultmaven.modules.knowledge.orm import Document, SearchQuery
 from faultmaven.modules.agent.orm import ChatSession, LLMRequest
+from faultmaven.modules.report.orm import CaseReport
 
 __all__ = [
     "User",
@@ -26,4 +27,5 @@ __all__ = [
     "SearchQuery",
     "ChatSession",
     "LLMRequest",
+    "CaseReport",
 ]

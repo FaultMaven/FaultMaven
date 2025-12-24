@@ -6,11 +6,14 @@ Provides REST API for report generation and management.
 
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
 from faultmaven.modules.auth.dependencies import get_current_user
 from faultmaven.modules.auth.orm import User
 from faultmaven.modules.report.orm import ReportType, ReportStatus
+from faultmaven.modules.report.service import ReportService
+from faultmaven.dependencies import get_report_service
 
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -60,25 +63,39 @@ class ReportDetail(BaseModel):
     generation_time_ms: int = 0
 
 
-# --- Helper to get service ---
-# Note: This will be properly wired in Phase 5
+def _report_to_summary(report) -> dict:
+    """Convert report ORM to summary dict."""
+    return {
+        "id": report.id,
+        "case_id": report.case_id,
+        "report_type": report.report_type.value,
+        "title": report.title,
+        "status": report.status.value,
+        "version": report.version,
+        "is_current": report.is_current,
+        "created_at": report.created_at.isoformat(),
+        "generated_at": report.generated_at.isoformat() if report.generated_at else None,
+        "generation_time_ms": report.generation_time_ms or 0,
+    }
 
-async def get_report_service(request):
-    """Get report service from request state."""
-    # This is a placeholder - will be wired in dependencies.py
-    from faultmaven.modules.report.service import ReportService
-    from faultmaven.modules.case.service import CaseService
 
-    # Get from request.app.state (set during startup)
-    db_session = request.state.db_session
-    case_service = CaseService(db_session)
-    llm_provider = getattr(request.app.state, 'llm_provider', None)
-
-    return ReportService(
-        db_session=db_session,
-        case_service=case_service,
-        llm_provider=llm_provider,
-    )
+def _report_to_detail(report) -> dict:
+    """Convert report ORM to detail dict."""
+    return {
+        "id": report.id,
+        "case_id": report.case_id,
+        "report_type": report.report_type.value,
+        "title": report.title,
+        "content": report.content,
+        "format": report.format,
+        "status": report.status.value,
+        "version": report.version,
+        "is_current": report.is_current,
+        "linked_to_closure": report.linked_to_closure,
+        "created_at": report.created_at.isoformat(),
+        "generated_at": report.generated_at.isoformat() if report.generated_at else None,
+        "generation_time_ms": report.generation_time_ms or 0,
+    }
 
 
 # --- Endpoints ---
@@ -89,7 +106,7 @@ async def list_case_reports(
     report_type: Optional[str] = None,
     include_history: bool = False,
     current_user: User = Depends(get_current_user),
-    # report_service will be injected via Depends in Phase 5
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     List reports for a case.
@@ -102,17 +119,32 @@ async def list_case_reports(
     Returns:
         List of report summaries
     """
-    # Placeholder - will use injected service in Phase 5
-    from fastapi import Request
-    # For now, return empty list until properly wired
-    return []
+    # Parse report type if provided
+    type_filter = None
+    if report_type:
+        try:
+            type_filter = ReportType(report_type)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid report type: {report_type}"
+            )
+
+    reports = await report_service.list_reports(
+        case_id=case_id,
+        report_type=type_filter,
+        current_only=not include_history,
+    )
+
+    return [_report_to_summary(r) for r in reports]
 
 
-@router.post("/case/{case_id}/generate")
+@router.post("/case/{case_id}/generate", response_model=ReportSummary)
 async def generate_report(
     case_id: str,
     request: GenerateReportRequest,
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Generate a new report for a case.
@@ -126,17 +158,30 @@ async def generate_report(
     Returns:
         Generated report summary
     """
-    # Placeholder - will use injected service in Phase 5
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Report generation will be available after dependency wiring"
-    )
+    try:
+        report = await report_service.generate_report(
+            case_id=case_id,
+            report_type=request.report_type,
+            use_llm=request.use_llm,
+        )
+        return _report_to_summary(report)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Report generation failed: {str(e)}"
+        )
 
 
 @router.get("/case/{case_id}/recommendations")
 async def get_recommendations(
     case_id: str,
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Get report generation recommendations for a case.
@@ -149,21 +194,15 @@ async def get_recommendations(
     Returns:
         Recommendations including available types and suggested actions
     """
-    # Placeholder - will use injected service in Phase 5
-    return {
-        "case_id": case_id,
-        "case_status": "unknown",
-        "available_for_generation": [],
-        "recommended": [],
-        "existing_reports": [],
-        "message": "Recommendations will be available after dependency wiring"
-    }
+    recommendations = await report_service.get_recommendations(case_id)
+    return recommendations
 
 
 @router.get("/{report_id}", response_model=ReportDetail)
 async def get_report(
     report_id: str,
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Get a specific report with full content.
@@ -174,17 +213,20 @@ async def get_report(
     Returns:
         Full report with content
     """
-    # Placeholder - will use injected service in Phase 5
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Report not found"
-    )
+    report = await report_service.get_report(report_id)
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+    return _report_to_detail(report)
 
 
 @router.delete("/{report_id}")
 async def delete_report(
     report_id: str,
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Delete a report.
@@ -197,11 +239,13 @@ async def delete_report(
     Returns:
         Success confirmation
     """
-    # Placeholder - will use injected service in Phase 5
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Report not found"
-    )
+    success = await report_service.delete_report(report_id)
+    if not success:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found or cannot be deleted (linked to closure)"
+        )
+    return {"message": "Report deleted successfully"}
 
 
 @router.post("/case/{case_id}/link-closure")
@@ -209,6 +253,7 @@ async def link_to_closure(
     case_id: str,
     request: LinkToClosureRequest,
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Link reports to case closure.
@@ -223,11 +268,17 @@ async def link_to_closure(
     Returns:
         Number of reports linked
     """
-    # Placeholder - will use injected service in Phase 5
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Closure linking will be available after dependency wiring"
-    )
+    try:
+        count = await report_service.link_to_closure(
+            case_id=case_id,
+            report_ids=request.report_ids,
+        )
+        return {"linked_count": count, "report_ids": request.report_ids}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
 
 
 @router.get("/case/{case_id}/download/{report_id}")
@@ -236,6 +287,7 @@ async def download_report(
     report_id: str,
     format: str = "markdown",
     current_user: User = Depends(get_current_user),
+    report_service: ReportService = Depends(get_report_service),
 ):
     """
     Download a report in specified format.
@@ -250,8 +302,29 @@ async def download_report(
     Returns:
         Report content for download
     """
-    # Placeholder - will use injected service in Phase 5
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="Report not found"
+    if format != "markdown":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only markdown format is currently supported"
+        )
+
+    report = await report_service.get_report(report_id)
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found"
+        )
+
+    if report.case_id != case_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Report not found for this case"
+        )
+
+    return PlainTextResponse(
+        content=report.content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f'attachment; filename="{report.title.replace(" ", "_")}.md"'
+        }
     )
