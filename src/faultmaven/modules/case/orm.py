@@ -19,12 +19,24 @@ if TYPE_CHECKING:
 
 
 class CaseStatus(str, Enum):
-    """Case investigation status."""
-    CONSULTING = "consulting"
-    VERIFYING = "verifying"
-    ROOT_CAUSE_ANALYSIS = "root_cause_analysis"
-    RESOLVED = "resolved"
-    CLOSED = "closed"
+    """
+    Case investigation status aligned with SRS FR-CM-003.
+
+    State Flow:
+        CONSULTING → INVESTIGATING → RESOLVED (terminal)
+                  └→ CLOSED (terminal) ←──────┘
+
+    Terminal states cannot transition to other states.
+    """
+    CONSULTING = "consulting"      # Pre-investigation exploration
+    INVESTIGATING = "investigating" # Active formal investigation
+    RESOLVED = "resolved"          # Terminal - problem fixed with verified solution
+    CLOSED = "closed"              # Terminal - abandoned or escalated
+
+    @property
+    def is_terminal(self) -> bool:
+        """Check if this is a terminal state (no further transitions allowed)."""
+        return self in (CaseStatus.RESOLVED, CaseStatus.CLOSED)
 
 
 class CasePriority(str, Enum):
