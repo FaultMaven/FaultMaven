@@ -21,24 +21,24 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Add case_reports table."""
 
+    # Create report type enum
     op.create_table(
         'case_reports',
         sa.Column('id', sa.String(36), primary_key=True),
         sa.Column('case_id', sa.String(36), sa.ForeignKey('cases.id', ondelete='CASCADE'), nullable=False, index=True),
         sa.Column('report_type', sa.Enum('incident_report', 'runbook', 'post_mortem', name='reporttype'), nullable=False, index=True),
-        sa.Column('title', sa.String(200), nullable=False),
-        sa.Column('content', sa.Text, nullable=False, server_default=''),
+        sa.Column('title', sa.String(500), nullable=False),
+        sa.Column('content', sa.Text, nullable=False),
         sa.Column('format', sa.String(20), nullable=False, server_default='markdown'),
-        # FIXED: Enum values must match ORM (pending/completed, not draft/ready)
-        sa.Column('status', sa.Enum('pending', 'generating', 'completed', 'failed', name='reportstatus'), nullable=False, index=True),
-        sa.Column('generation_time_ms', sa.Integer, nullable=False, server_default='0'),
-        sa.Column('error_message', sa.Text, nullable=True),
+        sa.Column('status', sa.Enum('draft', 'generating', 'ready', 'failed', name='reportstatus'), nullable=False, index=True),
         sa.Column('version', sa.Integer, nullable=False, server_default='1'),
-        sa.Column('is_current', sa.Boolean, nullable=False, server_default='1', index=True),
+        sa.Column('is_current', sa.Boolean, nullable=False, server_default='1'),
         sa.Column('linked_to_closure', sa.Boolean, nullable=False, server_default='0'),
-        sa.Column('report_metadata', sa.JSON, nullable=False, server_default='{}'),
+        sa.Column('generation_config', sa.JSON, nullable=False),
+        sa.Column('llm_model', sa.String(100)),
+        sa.Column('generation_time_ms', sa.Integer, server_default='0'),
         sa.Column('created_at', sa.DateTime, nullable=False),
-        sa.Column('generated_at', sa.DateTime, nullable=True),
+        sa.Column('generated_at', sa.DateTime),
     )
 
     # Add index for finding current reports by type
