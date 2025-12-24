@@ -1,0 +1,182 @@
+[project]
+name = "faultmaven"
+version = "2.0.0"
+description = "FaultMaven Modular Monolith - AI-powered troubleshooting platform"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "FaultMaven Team"}
+]
+keywords = ["ai", "troubleshooting", "debugging", "agent"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+dependencies = [
+    # Web Framework
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.6.0",
+    "pydantic-settings>=2.1.0",
+
+    # Database
+    "sqlalchemy>=2.0.25",
+    "alembic>=1.13.0",
+    "asyncpg>=0.29.0",  # PostgreSQL async driver
+    "aiosqlite>=0.19.0",  # SQLite async driver
+
+    # Redis
+    "redis>=5.0.1",
+
+    # HTTP Client
+    "httpx>=0.26.0",
+
+    # LLM Providers
+    "openai>=1.10.0",
+    "anthropic>=0.18.0",
+
+    # Vector Databases
+    "chromadb>=0.4.22",
+
+    # Embeddings
+    "sentence-transformers>=2.3.1",
+
+    # File Storage
+    "aioboto3>=12.3.0",  # S3 support
+    "aiofiles>=23.2.1",
+
+    # Document Processing
+    "pypdf>=4.0.0",
+    "python-docx>=1.1.0",
+    "python-multipart>=0.0.6",
+
+    # Security
+    "pyjwt>=2.8.0",
+    "python-jose[cryptography]>=3.3.0",
+    "bcrypt>=4.1.2",
+    "cryptography>=42.0.0",
+
+    # Utilities
+    "python-dotenv>=1.0.0",
+    "tenacity>=8.2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.12.0",
+    "httpx>=0.26.0",  # For testing
+    "ruff>=0.2.0",
+    "mypy>=1.8.0",
+    "import-linter>=2.0",
+]
+
+enterprise = [
+    "pinecone-client>=3.0.0",
+]
+
+[project.scripts]
+faultmaven = "faultmaven.main:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/faultmaven"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "unit: Unit tests (fast, no DB)",
+    "integration: Integration tests (DB required)",
+    "api: API endpoint tests",
+    "e2e: End-to-end tests",
+]
+addopts = [
+    "--cov=faultmaven",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["faultmaven"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = [
+    "chromadb.*",
+    "sentence_transformers.*",
+    "pypdf.*",
+    "docx.*",
+]
+ignore_missing_imports = true
+
+[tool.importlinter]
+root_package = "faultmaven"
+
+[[tool.importlinter.contracts]]
+name = "Modules cannot import each other's internals"
+type = "independence"
+modules = [
+    "faultmaven.modules.auth.repository",
+    "faultmaven.modules.auth.orm",
+    "faultmaven.modules.session.repository",
+    "faultmaven.modules.session.orm",
+    "faultmaven.modules.case.repository",
+    "faultmaven.modules.case.orm",
+    "faultmaven.modules.evidence.repository",
+    "faultmaven.modules.evidence.orm",
+    "faultmaven.modules.knowledge.repository",
+    "faultmaven.modules.knowledge.orm",
+    "faultmaven.modules.agent.repository",
+    "faultmaven.modules.agent.orm",
+]
+
+[[tool.importlinter.contracts]]
+name = "Modules cannot import provider implementations directly"
+type = "forbidden"
+source_modules = [
+    "faultmaven.modules.*",
+]
+forbidden_modules = [
+    "faultmaven.providers.data.sqlite",
+    "faultmaven.providers.data.postgresql",
+    "faultmaven.infrastructure.redis_impl",
+]
