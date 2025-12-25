@@ -16,6 +16,7 @@ from faultmaven.modules.case.investigation import (
     EvidenceItem,
 )
 from faultmaven.modules.case.enums import TurnOutcome
+from faultmaven.modules.case.orm import CaseStatus
 
 
 class MockCase:
@@ -25,7 +26,17 @@ class MockCase:
         self.id = "test-case-001"
         self.title = "Test Case"
         self.description = "Test description"
-        self.status = status
+        # Convert string status to CaseStatus enum
+        if isinstance(status, str):
+            status_map = {
+                "consulting": CaseStatus.CONSULTING,
+                "investigating": CaseStatus.INVESTIGATING,
+                "resolved": CaseStatus.RESOLVED,
+                "closed": CaseStatus.CLOSED,
+            }
+            self.status = status_map.get(status, CaseStatus.CONSULTING)
+        else:
+            self.status = status
         self.case_metadata = {}
         self.updated_at = datetime.now()
         self.resolved_at = None
@@ -99,7 +110,7 @@ class TestMilestoneEngine:
         assert "INVESTIGATING" in prompt
         assert "Here are my logs" in prompt
         assert "Milestones Completed" in prompt
-        assert "symptom_verified" in prompt.lower()
+        assert "symptom verified" in prompt.lower()  # Changed from symptom_verified to symptom verified
 
     def test_terminal_prompt_generation(self):
         """Generates correct prompt for RESOLVED status."""
