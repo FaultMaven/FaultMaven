@@ -386,7 +386,7 @@ class TestIterationContinuationLogic:
         inv_state.ooda_state = OODAState(current_iteration=3)
 
         # Create 4 hypotheses in same category to trigger anchoring
-        inv_state.hypotheses = {}
+        inv_state.hypotheses = []
         for i in range(4):
             hyp = HypothesisModel(
                 hypothesis_id=f"hyp_{i}",
@@ -396,7 +396,7 @@ class TestIterationContinuationLogic:
                 initial_likelihood=0.50,
                 status=HypothesisStatus.ACTIVE,
             )
-            inv_state.hypotheses[hyp.hypothesis_id] = hyp
+            inv_state.hypotheses.append(hyp)
 
         should_continue, reason = engine.should_continue_iterations(
             inv_state,
@@ -417,8 +417,8 @@ class TestIterationContinuationLogic:
         inv_state.ooda_state = OODAState(current_iteration=2)
 
         # Add active hypothesis (not validated)
-        inv_state.hypotheses = {
-            "hyp_1": HypothesisModel(
+        inv_state.hypotheses = [
+            HypothesisModel(
                 hypothesis_id="hyp_1",
                 statement="Active hypothesis",
                 category="code",
@@ -426,7 +426,7 @@ class TestIterationContinuationLogic:
                 initial_likelihood=0.50,
                 status=HypothesisStatus.ACTIVE,
             )
-        }
+        ]
 
         should_continue, reason = engine.should_continue_iterations(
             inv_state,
@@ -447,8 +447,8 @@ class TestIterationContinuationLogic:
         inv_state.ooda_state = OODAState(current_iteration=3)
 
         # Add validated hypothesis with sufficient confidence
-        inv_state.hypotheses = {
-            "hyp_1": HypothesisModel(
+        inv_state.hypotheses = [
+            HypothesisModel(
                 hypothesis_id="hyp_1",
                 statement="Validated hypothesis",
                 category="code",
@@ -456,7 +456,7 @@ class TestIterationContinuationLogic:
                 initial_likelihood=0.50,
                 status=HypothesisStatus.VALIDATED,
             )
-        }
+        ]
 
         should_continue, reason = engine.should_continue_iterations(
             inv_state,
@@ -618,7 +618,7 @@ class TestOODAEngineIntegration:
         inv_state.ooda_state = OODAState(current_iteration=3)
 
         # Create 4 hypotheses in same category
-        inv_state.hypotheses = {}
+        inv_state.hypotheses = []
         for i in range(4):
             hyp = HypothesisModel(
                 hypothesis_id=f"hyp_{i}",
@@ -628,7 +628,7 @@ class TestOODAEngineIntegration:
                 initial_likelihood=0.50,
                 status=HypothesisStatus.ACTIVE,
             )
-            inv_state.hypotheses[hyp.hypothesis_id] = hyp
+            inv_state.hypotheses.append(hyp)
 
         should_trigger, reason = engine.check_anchoring_prevention(inv_state)
 
