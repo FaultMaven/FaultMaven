@@ -174,7 +174,8 @@ class MilestoneEngine:
                 progress_made=turn_metadata.get("progress_made", False),
                 outcome=turn_metadata.get("outcome", TurnOutcome.CONVERSATION),
                 user_message=user_message,
-                agent_response=llm_response_text
+                agent_response=llm_response_text,
+                phase=updated_inv_state.current_phase
             )
             updated_inv_state.turn_history.append(turn_record)
 
@@ -679,11 +680,10 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         # Create evidence
         evidence = EvidenceItem(
             evidence_id=f"ev_{uuid4().hex[:12]}",
-            summary=f"Uploaded file: {attachment.get('filename', 'unknown')}",
+            description=f"Uploaded file: {attachment.get('filename', 'unknown')}",
             category=category,
             form="document",
             source_type="user_provided",
-            collected_at=datetime.now(timezone.utc),
             collected_at_turn=turn_number
         )
 
@@ -719,7 +719,8 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         progress_made: bool,
         outcome: TurnOutcome,
         user_message: str,
-        agent_response: str
+        agent_response: str,
+        phase: InvestigationPhase = InvestigationPhase.INTAKE
     ) -> TurnRecord:
         """
         Create turn progress record.
@@ -729,16 +730,11 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         return TurnRecord(
             turn_number=turn_number,
             timestamp=datetime.now(timezone.utc),
+            phase=phase,
             milestones_completed=milestones_completed,
-            evidence_added=evidence_added,
-            hypotheses_generated=hypotheses_generated,
-            hypotheses_validated=hypotheses_validated,
-            solutions_proposed=solutions_proposed,
-            progress_made=progress_made,
-            actions_taken=self._extract_actions(agent_response),
-            outcome=outcome,
-            user_message_summary=self._summarize_text(user_message, 200),
-            agent_response_summary=self._summarize_text(agent_response, 500)
+            evidence_collected=evidence_added,
+            hypotheses_updated=hypotheses_generated + hypotheses_validated,
+            outcome=outcome.value if isinstance(outcome, TurnOutcome) else outcome
         )
 
     def _extract_actions(self, agent_response: str) -> List[str]:
