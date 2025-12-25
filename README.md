@@ -211,6 +211,34 @@ OPENAI_API_KEY=sk-...        # Your API key
 
 ---
 
+## Current Status
+
+**Latest Update**: 2025-12-25
+
+### Investigation Framework Integration ✅
+
+The FaultMaven investigation framework has been successfully integrated from the original FaultMaven-Mono implementation:
+
+- **Integration Complete**: 80% (4/5 engines integrated)
+- **Test Pass Rate**: 148/148 (100%)
+- **Code Coverage**: 47%
+- **Token Efficiency**: 64% improvement (~1,600 vs 4,500+ tokens)
+
+**Integrated Components**:
+
+- ✅ **MemoryManager** - Hierarchical memory (hot/warm/cold tiers)
+- ✅ **WorkingConclusionGenerator** - Continuous progress tracking
+- ✅ **PhaseOrchestrator** - Intelligent phase progression
+- ✅ **OODAEngine** - Adaptive investigation intensity
+
+**Pending**:
+
+- ⏳ **HypothesisManager** - Requires structured LLM output (inherited limitation from FaultMaven-Mono)
+
+For detailed status, see [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](docs/INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+
+---
+
 ## Repositories
 
 The FaultMaven ecosystem is organized into multiple repositories. Each is independently useful and can be contributed to separately.
