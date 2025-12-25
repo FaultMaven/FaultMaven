@@ -212,6 +212,21 @@ class MilestoneEngine:
                 updated_inv_state.degraded_mode is None):
                 self._enter_degraded_mode(updated_inv_state, "no_progress")
 
+            # Step 7.5: Generate working conclusion and progress metrics
+            # This provides current best understanding and momentum tracking
+            updated_inv_state.working_conclusion = self.working_conclusion_generator.generate_conclusion(
+                updated_inv_state
+            )
+            updated_inv_state.progress_metrics = self.working_conclusion_generator.calculate_progress(
+                updated_inv_state
+            )
+
+            logger.info(
+                f"Working conclusion: {updated_inv_state.working_conclusion.statement} "
+                f"(confidence: {updated_inv_state.working_conclusion.confidence:.2f}, "
+                f"momentum: {updated_inv_state.progress_metrics.investigation_momentum.value})"
+            )
+
             # Step 8: Check automatic status transitions
             status_transitioned = self._check_automatic_transitions(case, updated_inv_state)
 
