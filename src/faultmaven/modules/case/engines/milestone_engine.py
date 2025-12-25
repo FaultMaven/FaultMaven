@@ -160,6 +160,9 @@ class MilestoneEngine:
         )
 
         try:
+            # Step 0.5: Organize memory into hierarchical tiers (hot/warm/cold)
+            inv_state.memory = self.memory_manager.organize_memory(inv_state)
+
             # Step 1: Generate status-based prompt
             prompt = self._build_prompt(case, inv_state, user_message, attachments)
 
@@ -211,6 +214,16 @@ class MilestoneEngine:
 
             # Step 8: Check automatic status transitions
             status_transitioned = self._check_automatic_transitions(case, updated_inv_state)
+
+            # Step 8.5: Compress memory if needed (every 3 turns to save tokens)
+            if self.memory_manager.should_trigger_compression(updated_inv_state):
+                logger.info(f"Compressing memory at turn {updated_inv_state.current_turn}")
+                updated_inv_state.memory = self.memory_manager.compress_memory(
+                    updated_inv_state.memory,
+                    max_hot=3,
+                    max_warm=5,
+                    max_cold=10
+                )
 
             # Step 9: Save investigation state back to case metadata
             self._save_investigation_state(case, updated_inv_state)
@@ -370,6 +383,14 @@ Progress: {len(progress.completed_milestones)}/8 milestones complete
                 for h in sorted(active, key=lambda x: x.likelihood, reverse=True)[:3]:  # Top 3
                     hypothesis_summary += f"- {h.statement} (likelihood: {h.likelihood:.2f})\n"
 
+        # Build memory context (hot/warm/cold tiers for token-optimized context)
+        memory_context = ""
+        if inv_state.memory:
+            memory_context = "\n" + self.memory_manager.get_context_for_prompt(
+                inv_state.memory,
+                max_tokens=1600
+            )
+
         # Build attachments note
         attachments_note = ""
         if attachments:
@@ -387,6 +408,7 @@ Turn: {inv_state.current_turn + 1}
 {evidence_summary}
 
 {hypothesis_summary}
+{memory_context}
 
 User Message:
 {user_message}
