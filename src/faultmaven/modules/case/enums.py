@@ -122,3 +122,102 @@ class InvestigationStrategy(str, Enum):
     MITIGATION_FIRST = "mitigation_first"  # Quick fix first, then RCA
     ROOT_CAUSE = "root_cause"              # Traditional thorough RCA
     USER_CHOICE = "user_choice"            # Ambiguous case, let user decide
+
+
+class OODAStep(str, Enum):
+    """
+    OODA framework steps for tactical execution.
+
+    4 steps defining HOW to investigate within each phase:
+    - OBSERVE: Gather information and evidence
+    - ORIENT: Analyze and contextualize data
+    - DECIDE: Choose action or hypothesis
+    - ACT: Execute test or apply solution
+    """
+    OBSERVE = "observe"
+    ORIENT = "orient"
+    DECIDE = "decide"
+    ACT = "act"
+
+
+class EvidenceForm(str, Enum):
+    """
+    Form/nature of evidence.
+
+    Describes how evidence manifests (observation vs metric vs log, etc.).
+    """
+    DIRECT_OBSERVATION = "direct_observation"
+    SYMPTOM = "symptom"
+    METRIC = "metric"
+    LOG_ENTRY = "log_entry"
+    CONFIG_VALUE = "config_value"
+    TEST_RESULT = "test_result"
+    CODE_SNIPPET = "code_snippet"
+
+
+class EvidenceSourceType(str, Enum):
+    """
+    Source/origin of evidence.
+
+    Describes where evidence came from (user provided vs system queried).
+    """
+    USER_PROVIDED = "user_provided"
+    SYSTEM_QUERY = "system_query"
+    LOG_ANALYSIS = "log_analysis"
+    METRIC_QUERY = "metric_query"
+    CODE_INSPECTION = "code_inspection"
+    AUTOMATED_TEST = "automated_test"
+
+
+class HypothesisGenerationMode(str, Enum):
+    """
+    How hypothesis was generated.
+
+    - OPPORTUNISTIC: Captured from early phases (Phases 0-2)
+    - SYSTEMATIC: Generated in hypothesis phase (Phase 3)
+    """
+    OPPORTUNISTIC = "opportunistic"
+    SYSTEMATIC = "systematic"
+
+
+class HypothesisCategory(str, Enum):
+    """
+    Category/domain of hypothesis.
+
+    Used for anchoring detection (too many in same category = bias).
+    """
+    INFRASTRUCTURE = "infrastructure"
+    CODE = "code"
+    CONFIGURATION = "configuration"
+    DATA = "data"
+    EXTERNAL_DEPENDENCY = "external_dependency"
+    HUMAN_ERROR = "human_error"
+    NETWORK = "network"
+    PERFORMANCE = "performance"
+
+
+class EngagementMode(str, Enum):
+    """
+    Agent engagement modes based on investigation state.
+
+    - CONSULTANT: Expert colleague providing guidance (Phase 0)
+    - LEAD_INVESTIGATOR: War room lead driving resolution (Phases 1-6)
+    """
+    CONSULTANT = "consultant"
+    LEAD_INVESTIGATOR = "lead_investigator"
+
+
+class TurnOutcome(str, Enum):
+    """
+    Outcome classification for investigation turns.
+
+    Used to track what happened each turn for analytics.
+    """
+    PROGRESS = "progress"  # Milestone completed
+    CONVERSATION = "conversation"  # Clarification only
+    BLOCKED = "blocked"  # Hit obstacle
+    EVIDENCE_COLLECTED = "evidence_collected"
+    HYPOTHESIS_VALIDATED = "hypothesis_validated"
+    HYPOTHESIS_REFUTED = "hypothesis_refuted"
+    SOLUTION_APPLIED = "solution_applied"
+    PHASE_TRANSITIONED = "phase_transitioned"

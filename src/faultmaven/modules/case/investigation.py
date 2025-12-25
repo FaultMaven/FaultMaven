@@ -113,6 +113,7 @@ class HypothesisModel(BaseModel):
     Root cause hypothesis with validation tracking.
 
     Tracks hypothesis lifecycle from capture through validation/refutation.
+    Enhanced with confidence trajectory and stagnation tracking.
     """
     hypothesis_id: str = Field(..., description="Unique identifier")
     statement: str = Field(..., description="Hypothesis statement")
@@ -128,7 +129,17 @@ class HypothesisModel(BaseModel):
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Estimated likelihood of being root cause"
+        description="Current likelihood of being root cause"
+    )
+    initial_likelihood: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Initial likelihood when hypothesis was created"
+    )
+    confidence_trajectory: List[tuple[int, float]] = Field(
+        default_factory=list,
+        description="History of confidence changes: [(turn, confidence), ...]"
     )
     confidence_level: ConfidenceLevel = Field(
         default=ConfidenceLevel.SPECULATION,
@@ -136,11 +147,11 @@ class HypothesisModel(BaseModel):
     )
     supporting_evidence: List[str] = Field(
         default_factory=list,
-        description="Evidence supporting this hypothesis"
+        description="Evidence IDs supporting this hypothesis"
     )
     refuting_evidence: List[str] = Field(
         default_factory=list,
-        description="Evidence refuting this hypothesis"
+        description="Evidence IDs refuting this hypothesis"
     )
     test_plan: Optional[str] = Field(
         None,
@@ -150,6 +161,8 @@ class HypothesisModel(BaseModel):
         default_factory=list,
         description="Results of hypothesis tests"
     )
+
+    # Lifecycle tracking
     captured_at_turn: int = Field(
         default=0,
         description="Turn when hypothesis was captured"
@@ -158,6 +171,30 @@ class HypothesisModel(BaseModel):
         None,
         description="Turn when hypothesis was validated/refuted"
     )
+    last_progress_at_turn: int = Field(
+        default=0,
+        description="Last turn when this hypothesis made progress"
+    )
+    promoted_to_active_at_turn: Optional[int] = Field(
+        None,
+        description="Turn when promoted from CAPTURED to ACTIVE"
+    )
+
+    # Stagnation tracking
+    iterations_without_progress: int = Field(
+        default=0,
+        description="Number of iterations without confidence improvement"
+    )
+
+    # Generation metadata
+    generation_mode: str = Field(
+        default="systematic",
+        description="How hypothesis was generated: 'opportunistic' or 'systematic'"
+    )
+    triggering_observation: Optional[str] = Field(
+        None,
+        description="What triggered this hypothesis (for opportunistic generation)"
+    )
 
 
 class EvidenceItem(BaseModel):
@@ -165,16 +202,25 @@ class EvidenceItem(BaseModel):
     Evidence collected during investigation.
 
     Categorized by which phase/milestone it helps advance.
+    Enhanced with form and source type classification.
     """
     evidence_id: str = Field(..., description="Unique identifier")
     description: str = Field(..., description="What this evidence shows")
     category: EvidenceCategory = Field(
         default=EvidenceCategory.OTHER,
-        description="Evidence classification"
+        description="Evidence classification (logs, metrics, config, etc.)"
+    )
+    form: str = Field(
+        default="direct_observation",
+        description="Evidence form: 'direct_observation', 'symptom', 'metric', 'log_entry', 'config_value', 'test_result'"
+    )
+    source_type: str = Field(
+        default="user_provided",
+        description="Source type: 'user_provided', 'system_query', 'log_analysis', 'metric_query', 'code_inspection'"
     )
     source: str = Field(
         default="",
-        description="Where this evidence came from"
+        description="Where this evidence came from (specific source name)"
     )
     content_summary: str = Field(
         default="",
@@ -372,6 +418,91 @@ class TurnRecord(BaseModel):
         default_factory=list,
         description="Hypothesis IDs updated this turn"
     )
+    outcome: str = Field(
+        default="conversation",
+        description="Turn outcome: 'progress', 'conversation', 'blocked', 'evidence_collected', etc."
+    )
+
+
+class OODAIteration(BaseModel):
+    """
+    Record of a single OODA iteration within a phase.
+    """
+    iteration_id: str = Field(..., description="Unique iteration ID")
+    turn_number: int = Field(..., description="Turn when this iteration occurred")
+    phase: InvestigationPhase = Field(..., description="Phase during iteration")
+    current_step: str = Field(
+        ...,
+        description="Current OODA step: 'observe', 'orient', 'decide', 'act'"
+    )
+    steps_completed: List[str] = Field(
+        default_factory=list,
+        description="OODA steps completed in this iteration"
+    )
+    made_progress: bool = Field(
+        default=False,
+        description="Whether this iteration made progress"
+    )
+    outcome: str = Field(
+        default="conversation",
+        description="Iteration outcome"
+    )
+
+
+class OODAState(BaseModel):
+    """
+    Current OODA execution state.
+    """
+    current_step: str = Field(
+        default="observe",
+        description="Current OODA step: 'observe', 'orient', 'decide', 'act'"
+    )
+    current_iteration: int = Field(
+        default=0,
+        description="Current iteration count within phase"
+    )
+    iteration_history: List[OODAIteration] = Field(
+        default_factory=list,
+        description="History of all OODA iterations"
+    )
+    adaptive_intensity: str = Field(
+        default="light",
+        description="Current intensity: 'light', 'medium', 'full'"
+    )
+
+
+class MemorySnapshot(BaseModel):
+    """
+    Snapshot of conversation/evidence at a point in time.
+    """
+    turn_number: int = Field(..., description="Turn this snapshot was taken")
+    summary: str = Field(default="", description="Summary of this snapshot")
+    key_facts: List[str] = Field(
+        default_factory=list,
+        description="Key facts from this snapshot"
+    )
+    evidence_collected: List[str] = Field(
+        default_factory=list,
+        description="Evidence IDs from this snapshot"
+    )
+
+
+class HierarchicalMemory(BaseModel):
+    """
+    Hierarchical memory management (hot/warm/cold tiers).
+    """
+    hot_memory: List[MemorySnapshot] = Field(
+        default_factory=list,
+        description="Recent 2-3 iterations (highest priority)"
+    )
+    warm_memory: List[MemorySnapshot] = Field(
+        default_factory=list,
+        description="Relevant context (medium priority)"
+    )
+    cold_memory: List[MemorySnapshot] = Field(
+        default_factory=list,
+        description="Archived key facts (lowest priority)"
+    )
 
 
 class InvestigationState(BaseModel):
@@ -381,6 +512,8 @@ class InvestigationState(BaseModel):
     This is the root model containing all investigation tracking data.
     Stored as JSON in the Case ORM model, enabling rich investigation
     tracking without schema migrations.
+
+    Enhanced with OODA execution state and hierarchical memory management.
     """
     # Metadata
     investigation_id: str = Field(..., description="Unique investigation ID")
@@ -449,6 +582,18 @@ class InvestigationState(BaseModel):
     working_conclusion: Optional[WorkingConclusion] = Field(
         None,
         description="Current working conclusion"
+    )
+
+    # OODA execution layer (NEW)
+    ooda_state: Optional[OODAState] = Field(
+        None,
+        description="Current OODA execution state and iteration tracking"
+    )
+
+    # Memory management layer (NEW)
+    memory: HierarchicalMemory = Field(
+        default_factory=HierarchicalMemory,
+        description="Hierarchical memory (hot/warm/cold tiers)"
     )
 
     # Audit trail
