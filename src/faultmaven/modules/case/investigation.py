@@ -784,7 +784,7 @@ class InvestigationState(BaseModel):
         Implements FR-CNV circular dialogue detection.
         """
         # No progress for 3+ turns
-        if self.progress.turns_without_progress >= 3:
+        if self.progress_metrics.turns_without_progress >= 3:
             return DegradedModeType.NO_PROGRESS
 
         # All hypotheses exhausted
@@ -794,7 +794,7 @@ class InvestigationState(BaseModel):
             return DegradedModeType.HYPOTHESIS_SPACE_EXHAUSTED
 
         # Critical evidence blocked
-        if self.progress.evidence_blocked_count >= 3:
+        if self.progress_metrics.evidence_blocked_count >= 3:
             return DegradedModeType.CRITICAL_EVIDENCE_MISSING
 
         return None

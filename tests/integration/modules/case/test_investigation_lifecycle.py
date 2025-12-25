@@ -17,6 +17,19 @@ from faultmaven.modules.case.enums import (
     UrgencyLevel,
     InvestigationStrategy,
 )
+from tests.factories.user import UserFactory
+
+
+@pytest.fixture
+async def test_user(db_session):
+    """Create a test user for case ownership."""
+    user = await UserFactory.create_async(
+        _session=db_session,
+        id="user-456",
+        email="testuser@example.com",
+    )
+    await db_session.commit()
+    return user
 
 
 @pytest.mark.integration
@@ -26,7 +39,7 @@ class TestInvestigationInitialization:
     async def test_initialize_investigation_for_new_case(
         self,
         db_session,
-        mock_case_service,
+        test_user,
     ):
         """Initialize investigation state when transitioning to INVESTIGATING."""
         # Create a case
@@ -68,13 +81,14 @@ class TestInvestigationInitialization:
         assert "investigation" in case.case_metadata
         assert case.case_metadata["investigation"]["investigation_id"] == state.investigation_id
 
-    async def test_cannot_initialize_twice(self, db_session):
+    async def test_cannot_initialize_twice(self, db_session, test_user):
         """Cannot initialize investigation if already exists."""
         # Create case with existing investigation
         case = Case(
             id="case-789",
             owner_id="user-456",
             title="Test case",
+            description="Test case for duplicate initialization check",
             status=CaseStatus.INVESTIGATING,
             case_metadata={
                 "investigation": {
@@ -134,13 +148,14 @@ class TestInvestigationInitialization:
 class TestInvestigationAdvancement:
     """Test turn advancement and progress tracking."""
 
-    async def test_advance_turn_increments_counter(self, db_session):
+    async def test_advance_turn_increments_counter(self, db_session, test_user):
         """Advancing turn increments turn counter and records history."""
         # Setup case with investigation
         case = Case(
             id="case-adv-1",
             owner_id="user-456",
             title="Test advancement",
+            description="Description for Test advancement",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -170,12 +185,13 @@ class TestInvestigationAdvancement:
         assert state.turn_history[0].turn_number == 1
         assert "connection pool exhaustion" in state.turn_history[0].user_input_summary
 
-    async def test_phase_transition_during_advancement(self, db_session):
+    async def test_phase_transition_during_advancement(self, db_session, test_user):
         """Phase can transition during turn advancement."""
         case = Case(
             id="case-phase-1",
             owner_id="user-456",
             title="Test phase transition",
+            description="Description for Test phase transition",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -209,12 +225,13 @@ class TestInvestigationAdvancement:
 class TestHypothesisManagement:
     """Test hypothesis lifecycle management."""
 
-    async def test_add_hypothesis_to_investigation(self, db_session):
+    async def test_add_hypothesis_to_investigation(self, db_session, test_user):
         """Add hypothesis during investigation."""
         case = Case(
             id="case-hyp-1",
             owner_id="user-456",
             title="Test hypothesis",
+            description="Description for Test hypothesis",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -246,12 +263,13 @@ class TestHypothesisManagement:
         assert hypothesis.likelihood == 0.7
         assert hypothesis.status == HypothesisStatus.CAPTURED
 
-    async def test_update_hypothesis_status(self, db_session):
+    async def test_update_hypothesis_status(self, db_session, test_user):
         """Update hypothesis through lifecycle states."""
         case = Case(
             id="case-hyp-2",
             owner_id="user-456",
             title="Test hypothesis lifecycle",
+            description="Description for Test hypothesis lifecycle",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -302,12 +320,13 @@ class TestHypothesisManagement:
 class TestInvestigationRetrieval:
     """Test retrieving investigation state."""
 
-    async def test_get_investigation_state(self, db_session):
+    async def test_get_investigation_state(self, db_session, test_user):
         """Retrieve investigation state from case."""
         case = Case(
             id="case-get-1",
             owner_id="user-456",
             title="Test retrieval",
+            description="Description for Test retrieval",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -334,12 +353,13 @@ class TestInvestigationRetrieval:
         assert retrieved_state.current_phase == InvestigationPhase.INTAKE
         assert retrieved_state.anomaly_frame.statement == "Test problem"
 
-    async def test_get_nonexistent_investigation(self, db_session):
+    async def test_get_nonexistent_investigation(self, db_session, test_user):
         """Getting investigation for case without one returns None."""
         case = Case(
             id="case-no-inv",
             owner_id="user-456",
             title="No investigation",
+            description="Description for No investigation",
             status=CaseStatus.CONSULTING,
         )
         db_session.add(case)
@@ -360,13 +380,14 @@ class TestInvestigationRetrieval:
 class TestInvestigationPersistence:
     """Test that investigation state persists correctly in database."""
 
-    async def test_investigation_survives_service_recreation(self, db_session):
+    async def test_investigation_survives_service_recreation(self, db_session, test_user):
         """Investigation state persists across service instances."""
         # Create case
         case = Case(
             id="case-persist-1",
             owner_id="user-456",
             title="Persistence test",
+            description="Description for Persistence test",
             status=CaseStatus.INVESTIGATING,
         )
         db_session.add(case)
@@ -399,12 +420,13 @@ class TestInvestigationPersistence:
         assert state_2.anomaly_frame.statement == "Original problem"
         assert state_2.current_phase == InvestigationPhase.INTAKE
 
-    async def test_investigation_updates_case_updated_at(self, db_session):
+    async def test_investigation_updates_case_updated_at(self, db_session, test_user):
         """Investigation operations update case.updated_at timestamp."""
         case = Case(
             id="case-timestamp-1",
             owner_id="user-456",
             title="Timestamp test",
+            description="Description for Timestamp test",
             status=CaseStatus.CONSULTING,
             updated_at=datetime(2024, 1, 1, 0, 0, 0),
         )

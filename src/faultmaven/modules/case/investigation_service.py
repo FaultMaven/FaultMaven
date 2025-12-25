@@ -15,6 +15,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List, Dict, Any
 
+from sqlalchemy.orm.attributes import flag_modified
+
 from faultmaven.modules.case.orm import Case, CaseStatus
 from faultmaven.modules.case.service import CaseService
 from faultmaven.modules.case.status_manager import CaseStatusManager
@@ -26,6 +28,7 @@ from faultmaven.modules.case.investigation import (
     TemporalFrame,
     WorkingConclusion,
     TurnRecord,
+    InvestigationProgress,
     ProgressMetrics,
 )
 from faultmaven.modules.case.enums import (
@@ -136,7 +139,7 @@ class InvestigationService:
             temporal_state=temporal_state,
             urgency_level=urgency_level,
             strategy=strategy,
-            progress=ProgressMetrics(),
+            progress=InvestigationProgress(),
         )
 
         # Set initial problem statement if provided
@@ -150,6 +153,8 @@ class InvestigationService:
         if case.case_metadata is None:
             case.case_metadata = {}
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
+        flag_modified(case, "case_metadata")  # Mark JSON field as modified
         case.updated_at = datetime.utcnow()
 
         await self.case_service.db.commit()
@@ -237,14 +242,14 @@ class InvestigationService:
 
         # Update progress momentum
         if made_progress:
-            state.progress.turns_without_progress = 0
-            state.progress.momentum = InvestigationMomentum.MODERATE
+            state.progress_metrics.turns_without_progress = 0
+            state.progress_metrics.momentum = InvestigationMomentum.MODERATE
         else:
-            state.progress.turns_without_progress += 1
-            if state.progress.turns_without_progress >= 3:
-                state.progress.momentum = InvestigationMomentum.BLOCKED
-            elif state.progress.turns_without_progress >= 2:
-                state.progress.momentum = InvestigationMomentum.LOW
+            state.progress_metrics.turns_without_progress += 1
+            if state.progress_metrics.turns_without_progress >= 3:
+                state.progress_metrics.momentum = InvestigationMomentum.BLOCKED
+            elif state.progress_metrics.turns_without_progress >= 2:
+                state.progress_metrics.momentum = InvestigationMomentum.LOW
 
         # Check for degraded mode
         degraded_type = state.check_degraded_mode()
@@ -267,10 +272,11 @@ class InvestigationService:
         state.turn_history.append(turn_record)
 
         # Update active hypothesis count
-        state.progress.active_hypotheses_count = len(state.get_active_hypotheses())
+        state.progress_metrics.active_hypotheses_count = len(state.get_active_hypotheses())
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         case.updated_at = datetime.utcnow()
 
         await self.case_service.db.commit()
@@ -352,6 +358,7 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return hypothesis, None
@@ -410,10 +417,11 @@ class InvestigationService:
                 hypothesis.refuting_evidence.append(evidence)
 
         # Update progress
-        state.progress.active_hypotheses_count = len(state.get_active_hypotheses())
+        state.progress_metrics.active_hypotheses_count = len(state.get_active_hypotheses())
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return hypothesis, None
@@ -464,6 +472,7 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return evidence, None
@@ -517,6 +526,7 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return conclusion, None
@@ -551,10 +561,10 @@ class InvestigationService:
             "completion_percentage": state.progress.completion_percentage,
             "completed_milestones": state.progress.completed_milestones,
             "pending_milestones": state.progress.pending_milestones,
-            "active_hypotheses": state.progress.active_hypotheses_count,
+            "active_hypotheses": state.progress_metrics.active_hypotheses_count,
             "total_hypotheses": len(state.hypotheses),
             "evidence_count": len(state.evidence),
-            "momentum": state.progress.momentum.value,
+            "momentum": state.progress_metrics.momentum.value,
             "degraded_mode": state.escalation.degraded_mode,
             "degraded_reason": (
                 state.escalation.escalation_reason
@@ -599,10 +609,11 @@ class InvestigationService:
             return False, "Not in degraded mode"
 
         state.escalation.user_acknowledged = True
-        state.progress.turns_without_progress = 0  # Reset counter
+        state.progress_metrics.turns_without_progress = 0  # Reset counter
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
+        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return True, None
