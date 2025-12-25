@@ -144,7 +144,7 @@ class TestMilestoneEngine:
         )
 
         assert evidence.evidence_id.startswith("ev_")
-        assert "error.log" in evidence.summary
+        assert "error.log" in evidence.content_summary  # Changed from .summary to .content_summary
         assert evidence.collected_at_turn == 1
 
     def test_evidence_category_inference_symptom(self):
@@ -163,6 +163,11 @@ class TestMilestoneEngine:
         llm = MockLLMProvider()
         engine = MilestoneEngine(llm_provider=llm)
         inv_state = InvestigationState(investigation_id="inv-001")
+        # Must set verification complete first (checked before solution_proposed)
+        inv_state.progress.symptom_verified = True
+        inv_state.progress.scope_assessed = True
+        inv_state.progress.timeline_established = True
+        inv_state.progress.changes_identified = True
         inv_state.progress.solution_proposed = True
 
         category = engine._infer_evidence_category(inv_state)
@@ -188,9 +193,9 @@ class TestMilestoneEngine:
         )
 
         assert turn_record.turn_number == 5
-        assert turn_record.progress_made is True
+        # TurnRecord uses 'outcome' not 'progress_made'
+        assert turn_record.outcome == "progress"  # TurnOutcome.PROGRESS.value
         assert turn_record.milestones_completed == ["symptom_verified"]
-        assert turn_record.outcome == TurnOutcome.PROGRESS
 
     def test_action_extraction(self):
         """Extracts action keywords from agent response."""

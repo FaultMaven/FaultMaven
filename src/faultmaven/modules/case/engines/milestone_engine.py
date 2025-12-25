@@ -678,12 +678,15 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         category = self._infer_evidence_category(inv_state)
 
         # Create evidence
+        filename = attachment.get('filename', 'unknown')
         evidence = EvidenceItem(
             evidence_id=f"ev_{uuid4().hex[:12]}",
-            description=f"Uploaded file: {attachment.get('filename', 'unknown')}",
+            description=f"Uploaded file: {filename}",
             category=category,
             form="document",
             source_type="user_provided",
+            source=filename,
+            content_summary=f"File attachment: {filename} ({attachment.get('size', 0)} bytes)",
             collected_at_turn=turn_number
         )
 

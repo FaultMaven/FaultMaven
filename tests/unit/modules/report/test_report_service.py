@@ -15,6 +15,7 @@ from faultmaven.modules.report.orm import (
     ReportStatus,
 )
 from faultmaven.modules.case.orm import Case, CaseStatus
+from faultmaven.modules.auth.orm import User
 
 
 @pytest.fixture
@@ -28,14 +29,24 @@ def mock_case_service():
 def mock_llm_provider():
     """Mock LLM provider."""
     llm = AsyncMock()
-    llm.chat = AsyncMock(return_value=Mock(content="# AI Generated Report\n\nDetailed analysis..."))
+    llm.complete = AsyncMock(return_value="# AI Generated Report\n\nDetailed analysis...")
     return llm
 
 
 @pytest.fixture
-def sample_case():
+async def sample_case(db_session):
     """Sample case for testing."""
-    return Case(
+    # Create user first (required for foreign key)
+    user = User(
+        id="user-456",
+        email="testuser@example.com",
+        username="testuser",
+        password_hash="hashed",
+    )
+    db_session.add(user)
+
+    # Create case
+    case = Case(
         id="case-123",
         owner_id="user-456",
         title="Database connection timeout",
@@ -43,6 +54,9 @@ def sample_case():
         status=CaseStatus.RESOLVED,
         resolved_at=datetime(2024, 12, 24, 10, 30, 0),
     )
+    db_session.add(case)
+    await db_session.flush()
+    return case
 
 
 @pytest.fixture
@@ -496,8 +510,9 @@ class TestTemplateGeneration:
         content = report_service._runbook_template(sample_case)
 
         assert "# Runbook" in content
-        assert "## Problem Description" in content
-        assert "## Symptoms" in content
+        assert "## Overview" in content
+        assert "## Prerequisites" in content
+        assert "## Diagnostic Steps" in content
         assert "## Resolution Steps" in content
         assert "## Verification" in content
 
@@ -506,9 +521,10 @@ class TestTemplateGeneration:
         content = report_service._post_mortem_template(sample_case)
 
         assert "# Post-Mortem" in content
-        assert "## Summary" in content
+        assert "## Incident Summary" in content
         assert "## Timeline" in content
-        assert "## Root Cause" in content
+        assert "## Root Cause Analysis" in content
+        assert "## Impact" in content
         assert "## Lessons Learned" in content
 
 
@@ -533,7 +549,7 @@ class TestLLMGeneration:
         )
 
         # Verify LLM was called
-        mock_llm_provider.chat.assert_called_once()
+        mock_llm_provider.complete.assert_called_once()
 
     async def test_fallback_to_template_on_llm_failure(
         self,
@@ -546,7 +562,7 @@ class TestLLMGeneration:
         mock_case_service.get_case.return_value = sample_case
 
         # Mock LLM to raise exception
-        mock_llm_provider.chat.side_effect = Exception("API timeout")
+        mock_llm_provider.complete.side_effect = Exception("API timeout")
 
         report, error = await report_service.generate_report(
             case_id="case-123",
@@ -555,10 +571,12 @@ class TestLLMGeneration:
             use_llm=True,
         )
 
-        # Should fail and set error message
-        assert report is None
-        assert "Report generation failed" in error
-        assert "API timeout" in error
+        # Should fallback to template successfully
+        assert report is not None
+        assert error is None
+        assert report.status == ReportStatus.COMPLETED
+        assert "Incident Report" in report.content  # Template content
+        assert "AI Generated Report" not in report.content  # Not LLM content
 
 
 class TestReportStatusTracking:
@@ -592,9 +610,9 @@ class TestReportStatusTracking:
         mock_llm_provider,
         sample_case,
     ):
-        """Report status is FAILED on generation error."""
+        """Report falls back to template on LLM failure."""
         mock_case_service.get_case.return_value = sample_case
-        mock_llm_provider.chat.side_effect = Exception("LLM error")
+        mock_llm_provider.complete.side_effect = Exception("LLM error")
 
         report, error = await report_service.generate_report(
             case_id="case-123",
@@ -603,8 +621,10 @@ class TestReportStatusTracking:
             use_llm=True,
         )
 
-        assert report is None
-        assert error is not None
+        # Should fallback to template, not fail completely
+        assert report is not None
+        assert error is None
+        assert report.status == ReportStatus.COMPLETED
 
     async def test_generation_time_recorded(
         self,
