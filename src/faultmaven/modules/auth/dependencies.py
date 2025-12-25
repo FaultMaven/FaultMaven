@@ -83,7 +83,3 @@ async def optional_auth(
         return str(user.id) if user else None
     except Exception:
         return None
-
-
-# Alias for backward compatibility
-get_current_user = require_auth

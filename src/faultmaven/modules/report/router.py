@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
-from faultmaven.modules.auth.dependencies import get_current_user
+from faultmaven.modules.auth.dependencies import require_auth
 from faultmaven.modules.auth.orm import User
 from faultmaven.modules.report.orm import ReportType, ReportStatus
 from faultmaven.modules.report.service import ReportService
@@ -105,7 +105,7 @@ async def list_case_reports(
     case_id: str,
     report_type: Optional[str] = None,
     include_history: bool = False,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -143,7 +143,7 @@ async def list_case_reports(
 async def generate_report(
     case_id: str,
     request: GenerateReportRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -180,7 +180,7 @@ async def generate_report(
 @router.get("/case/{case_id}/recommendations")
 async def get_recommendations(
     case_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -201,7 +201,7 @@ async def get_recommendations(
 @router.get("/{report_id}", response_model=ReportDetail)
 async def get_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -225,7 +225,7 @@ async def get_report(
 @router.delete("/{report_id}")
 async def delete_report(
     report_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -252,7 +252,7 @@ async def delete_report(
 async def link_to_closure(
     case_id: str,
     request: LinkToClosureRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
@@ -286,7 +286,7 @@ async def download_report(
     case_id: str,
     report_id: str,
     format: str = "markdown",
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_auth),
     report_service: ReportService = Depends(get_report_service),
 ):
     """
