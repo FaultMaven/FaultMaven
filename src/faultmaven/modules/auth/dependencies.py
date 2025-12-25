@@ -59,6 +59,10 @@ async def require_auth(
         )
 
 
+# Alias for backward compatibility with code that uses get_current_user
+get_current_user = require_auth
+
+
 async def optional_auth(
     credentials: HTTPAuthorizationCredentials | None = Depends(HTTPBearer(auto_error=False)),
     auth_service: AuthService = Depends(get_auth_service),
