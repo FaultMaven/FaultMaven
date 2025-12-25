@@ -255,7 +255,8 @@ class OODAEngine:
         Source: FaultMaven-Mono lines 100-157
         """
         iteration_count = inv_state.ooda_state.current_iteration if inv_state.ooda_state else 0
-        hypotheses = list(inv_state.hypotheses.values()) if inv_state.hypotheses else []
+        # hypotheses is a List[HypothesisModel], not a dict
+        hypotheses = inv_state.hypotheses if inv_state.hypotheses else []
 
         return self.intensity_controller.should_trigger_anchoring_prevention(
             iteration_count,
