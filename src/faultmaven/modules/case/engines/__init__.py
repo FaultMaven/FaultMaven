@@ -28,6 +28,12 @@ from faultmaven.modules.case.engines.hypothesis_manager import (
     HypothesisManagerError,
     rank_hypotheses_by_likelihood,
 )
+from faultmaven.modules.case.engines.ooda_engine import (
+    OODAEngine,
+    OODAEngineError,
+    AdaptiveIntensityController,
+    create_ooda_engine,
+)
 
 __all__ = [
     # Core engines (Phase 2)
@@ -36,7 +42,10 @@ __all__ = [
     "HypothesisManager",  # Phase 2.2 ✅
     "HypothesisManagerError",
     "rank_hypotheses_by_likelihood",
-    # "OODAEngine",  # Coming in Phase 2.3
+    "OODAEngine",  # Phase 2.3 ✅
+    "OODAEngineError",
+    "AdaptiveIntensityController",
+    "create_ooda_engine",
     # Supporting engines (Phase 3)
     # "MemoryManager",
     # "WorkingConclusionGenerator",
