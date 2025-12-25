@@ -91,7 +91,26 @@ class MilestoneEngine:
         self.repository = repository
         self.trace_enabled = trace_enabled
 
-        logger.info("MilestoneEngine initialized with milestone-based architecture")
+        # Initialize supporting engines (Phase 2 & 3)
+        from faultmaven.modules.case.engines import (
+            HypothesisManager,
+            OODAEngine,
+            MemoryManager,
+            WorkingConclusionGenerator,
+            PhaseOrchestrator,
+        )
+
+        self.hypothesis_manager = HypothesisManager()
+        self.ooda_engine = OODAEngine()
+        self.memory_manager = MemoryManager(llm_provider=llm_provider)
+        self.working_conclusion_generator = WorkingConclusionGenerator()
+        self.phase_orchestrator = PhaseOrchestrator()
+
+        logger.info(
+            "MilestoneEngine initialized with milestone-based architecture "
+            "and 5 supporting engines (HypothesisManager, OODAEngine, MemoryManager, "
+            "WorkingConclusionGenerator, PhaseOrchestrator)"
+        )
 
     async def process_turn(
         self,

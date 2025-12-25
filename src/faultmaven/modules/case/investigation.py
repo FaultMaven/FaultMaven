@@ -9,7 +9,7 @@ database schema changes - the entire state is serialized to JSON.
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
 
 from faultmaven.modules.case.enums import (

@@ -82,6 +82,13 @@ class InvestigationMomentum(str, Enum):
 
     Used for analytics and to detect stalled investigations.
     """
+    # WorkingConclusionGenerator values
+    EARLY = "early"               # Investigation just started
+    ACCELERATING = "accelerating" # Progress increasing (2+ progress in last 3 turns)
+    STEADY = "steady"             # Consistent progress (1 progress in last 3 turns)
+    STALLED = "stalled"           # No recent progress
+
+    # Legacy values (for backward compatibility)
     HIGH = "high"           # Rapid progress, evidence flowing
     MODERATE = "moderate"   # Steady progress
     LOW = "low"             # Slow progress, may need intervention
