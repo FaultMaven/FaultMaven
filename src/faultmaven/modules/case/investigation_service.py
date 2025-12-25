@@ -15,8 +15,6 @@ import uuid
 from datetime import datetime
 from typing import Optional, Tuple, List, Dict, Any
 
-from sqlalchemy.orm.attributes import flag_modified
-
 from faultmaven.modules.case.orm import Case, CaseStatus
 from faultmaven.modules.case.service import CaseService
 from faultmaven.modules.case.status_manager import CaseStatusManager
@@ -28,7 +26,6 @@ from faultmaven.modules.case.investigation import (
     TemporalFrame,
     WorkingConclusion,
     TurnRecord,
-    InvestigationProgress,
     ProgressMetrics,
 )
 from faultmaven.modules.case.enums import (
@@ -139,7 +136,7 @@ class InvestigationService:
             temporal_state=temporal_state,
             urgency_level=urgency_level,
             strategy=strategy,
-            progress=InvestigationProgress(),
+            progress=ProgressMetrics(),
         )
 
         # Set initial problem statement if provided
@@ -153,8 +150,6 @@ class InvestigationService:
         if case.case_metadata is None:
             case.case_metadata = {}
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
-        flag_modified(case, "case_metadata")  # Mark JSON field as modified
         case.updated_at = datetime.utcnow()
 
         await self.case_service.db.commit()
@@ -227,21 +222,12 @@ class InvestigationService:
         # Track if we made progress this turn
         made_progress = False
 
-        # Complete milestones (set boolean flags)
+        # Complete milestones
         if milestones_completed:
-            milestone_map = {
-                "symptom_verified": "symptom_verified",
-                "scope_assessed": "scope_assessed",
-                "timeline_established": "timeline_established",
-                "changes_identified": "changes_identified",
-                "root_cause_identified": "root_cause_identified",
-                "solution_proposed": "solution_proposed",
-                "solution_applied": "solution_applied",
-                "solution_verified": "solution_verified",
-            }
             for milestone in milestones_completed:
-                if milestone in milestone_map:
-                    setattr(state.progress, milestone_map[milestone], True)
+                if milestone in state.progress.pending_milestones:
+                    state.progress.pending_milestones.remove(milestone)
+                    state.progress.completed_milestones.append(milestone)
                     made_progress = True
 
         # Phase transition
@@ -251,14 +237,14 @@ class InvestigationService:
 
         # Update progress momentum
         if made_progress:
-            state.progress_metrics.turns_without_progress = 0
-            state.progress_metrics.momentum = InvestigationMomentum.MODERATE
+            state.progress.turns_without_progress = 0
+            state.progress.momentum = InvestigationMomentum.MODERATE
         else:
-            state.progress_metrics.turns_without_progress += 1
-            if state.progress_metrics.turns_without_progress >= 3:
-                state.progress_metrics.momentum = InvestigationMomentum.BLOCKED
-            elif state.progress_metrics.turns_without_progress >= 2:
-                state.progress_metrics.momentum = InvestigationMomentum.LOW
+            state.progress.turns_without_progress += 1
+            if state.progress.turns_without_progress >= 3:
+                state.progress.momentum = InvestigationMomentum.BLOCKED
+            elif state.progress.turns_without_progress >= 2:
+                state.progress.momentum = InvestigationMomentum.LOW
 
         # Check for degraded mode
         degraded_type = state.check_degraded_mode()
@@ -281,11 +267,10 @@ class InvestigationService:
         state.turn_history.append(turn_record)
 
         # Update active hypothesis count
-        state.progress_metrics.active_hypotheses_count = len(state.get_active_hypotheses())
+        state.progress.active_hypotheses_count = len(state.get_active_hypotheses())
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         case.updated_at = datetime.utcnow()
 
         await self.case_service.db.commit()
@@ -330,7 +315,7 @@ class InvestigationService:
         statement: str,
         category: str = "",
         likelihood: float = 0.5,
-    ) -> Tuple[Optional[InvestigationState], Optional[str]]:
+    ) -> Tuple[Optional[HypothesisModel], Optional[str]]:
         """
         Add a hypothesis to the investigation.
 
@@ -342,7 +327,7 @@ class InvestigationService:
             likelihood: Initial likelihood (0-1)
 
         Returns:
-            Tuple of (InvestigationState, error_message)
+            Tuple of (HypothesisModel, error_message)
         """
         case = await self.case_service.get_case(case_id, user_id)
         if not case:
@@ -367,10 +352,9 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
-        return state, None
+        return hypothesis, None
 
     async def update_hypothesis_status(
         self,
@@ -379,7 +363,7 @@ class InvestigationService:
         hypothesis_id: str,
         new_status: HypothesisStatus,
         evidence: Optional[str] = None,
-    ) -> Tuple[Optional[InvestigationState], Optional[str]]:
+    ) -> Tuple[Optional[HypothesisModel], Optional[str]]:
         """
         Update the status of a hypothesis.
 
@@ -391,7 +375,7 @@ class InvestigationService:
             evidence: Optional evidence to add
 
         Returns:
-            Tuple of (InvestigationState, error_message)
+            Tuple of (updated HypothesisModel, error_message)
         """
         case = await self.case_service.get_case(case_id, user_id)
         if not case:
@@ -426,14 +410,13 @@ class InvestigationService:
                 hypothesis.refuting_evidence.append(evidence)
 
         # Update progress
-        state.progress_metrics.active_hypotheses_count = len(state.get_active_hypotheses())
+        state.progress.active_hypotheses_count = len(state.get_active_hypotheses())
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
-        return state, None
+        return hypothesis, None
 
     async def add_evidence(
         self,
@@ -481,7 +464,6 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return evidence, None
@@ -535,7 +517,6 @@ class InvestigationService:
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return conclusion, None
@@ -561,14 +542,6 @@ class InvestigationService:
         if not state:
             return None
 
-        # Compute pending milestones (all possible milestones - completed ones)
-        all_milestones = [
-            "symptom_verified", "scope_assessed", "timeline_established", "changes_identified",
-            "root_cause_identified", "solution_proposed", "solution_applied", "solution_verified"
-        ]
-        completed = set(state.progress.completed_milestones)
-        pending_milestones = [m for m in all_milestones if m not in completed]
-
         return {
             "investigation_id": state.investigation_id,
             "current_phase": state.current_phase.name,
@@ -577,11 +550,11 @@ class InvestigationService:
             "strategy": state.strategy.value,
             "completion_percentage": state.progress.completion_percentage,
             "completed_milestones": state.progress.completed_milestones,
-            "pending_milestones": pending_milestones,
-            "active_hypotheses": state.progress_metrics.active_hypotheses_count,
+            "pending_milestones": state.progress.pending_milestones,
+            "active_hypotheses": state.progress.active_hypotheses_count,
             "total_hypotheses": len(state.hypotheses),
             "evidence_count": len(state.evidence),
-            "momentum": state.progress_metrics.momentum.value,
+            "momentum": state.progress.momentum.value,
             "degraded_mode": state.escalation.degraded_mode,
             "degraded_reason": (
                 state.escalation.escalation_reason
@@ -626,11 +599,10 @@ class InvestigationService:
             return False, "Not in degraded mode"
 
         state.escalation.user_acknowledged = True
-        state.progress_metrics.turns_without_progress = 0  # Reset counter
+        state.progress.turns_without_progress = 0  # Reset counter
 
         # Update case
         case.case_metadata[self.INVESTIGATION_KEY] = state.to_dict()
-        flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
         return True, None

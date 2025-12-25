@@ -9,7 +9,7 @@ database schema changes - the entire state is serialized to JSON.
 """
 
 from datetime import datetime
-from typing import Optional, List, Dict, Any, Tuple
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 from faultmaven.modules.case.enums import (
@@ -113,7 +113,6 @@ class HypothesisModel(BaseModel):
     Root cause hypothesis with validation tracking.
 
     Tracks hypothesis lifecycle from capture through validation/refutation.
-    Enhanced with confidence trajectory and stagnation tracking.
     """
     hypothesis_id: str = Field(..., description="Unique identifier")
     statement: str = Field(..., description="Hypothesis statement")
@@ -129,17 +128,7 @@ class HypothesisModel(BaseModel):
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Current likelihood of being root cause"
-    )
-    initial_likelihood: float = Field(
-        default=0.5,
-        ge=0.0,
-        le=1.0,
-        description="Initial likelihood when hypothesis was created"
-    )
-    confidence_trajectory: List[tuple[int, float]] = Field(
-        default_factory=list,
-        description="History of confidence changes: [(turn, confidence), ...]"
+        description="Estimated likelihood of being root cause"
     )
     confidence_level: ConfidenceLevel = Field(
         default=ConfidenceLevel.SPECULATION,
@@ -147,11 +136,11 @@ class HypothesisModel(BaseModel):
     )
     supporting_evidence: List[str] = Field(
         default_factory=list,
-        description="Evidence IDs supporting this hypothesis"
+        description="Evidence supporting this hypothesis"
     )
     refuting_evidence: List[str] = Field(
         default_factory=list,
-        description="Evidence IDs refuting this hypothesis"
+        description="Evidence refuting this hypothesis"
     )
     test_plan: Optional[str] = Field(
         None,
@@ -161,8 +150,6 @@ class HypothesisModel(BaseModel):
         default_factory=list,
         description="Results of hypothesis tests"
     )
-
-    # Lifecycle tracking
     captured_at_turn: int = Field(
         default=0,
         description="Turn when hypothesis was captured"
@@ -171,30 +158,6 @@ class HypothesisModel(BaseModel):
         None,
         description="Turn when hypothesis was validated/refuted"
     )
-    last_progress_at_turn: int = Field(
-        default=0,
-        description="Last turn when this hypothesis made progress"
-    )
-    promoted_to_active_at_turn: Optional[int] = Field(
-        None,
-        description="Turn when promoted from CAPTURED to ACTIVE"
-    )
-
-    # Stagnation tracking
-    iterations_without_progress: int = Field(
-        default=0,
-        description="Number of iterations without confidence improvement"
-    )
-
-    # Generation metadata
-    generation_mode: str = Field(
-        default="systematic",
-        description="How hypothesis was generated: 'opportunistic' or 'systematic'"
-    )
-    triggering_observation: Optional[str] = Field(
-        None,
-        description="What triggered this hypothesis (for opportunistic generation)"
-    )
 
 
 class EvidenceItem(BaseModel):
@@ -202,25 +165,16 @@ class EvidenceItem(BaseModel):
     Evidence collected during investigation.
 
     Categorized by which phase/milestone it helps advance.
-    Enhanced with form and source type classification.
     """
     evidence_id: str = Field(..., description="Unique identifier")
     description: str = Field(..., description="What this evidence shows")
     category: EvidenceCategory = Field(
         default=EvidenceCategory.OTHER,
-        description="Evidence classification (logs, metrics, config, etc.)"
-    )
-    form: str = Field(
-        default="direct_observation",
-        description="Evidence form: 'direct_observation', 'symptom', 'metric', 'log_entry', 'config_value', 'test_result'"
-    )
-    source_type: str = Field(
-        default="user_provided",
-        description="Source type: 'user_provided', 'system_query', 'log_analysis', 'metric_query', 'code_inspection'"
+        description="Evidence classification"
     )
     source: str = Field(
         default="",
-        description="Where this evidence came from (specific source name)"
+        description="Where this evidence came from"
     )
     content_summary: str = Field(
         default="",
@@ -289,32 +243,6 @@ class ProgressMetrics(BaseModel):
     turns_without_progress: int = Field(
         default=0,
         description="Consecutive turns without milestone progress"
-    )
-
-    # Additional fields for WorkingConclusionGenerator
-    evidence_provided_count: int = Field(
-        default=0,
-        description="Number of evidence items provided"
-    )
-    evidence_pending_count: int = Field(
-        default=0,
-        description="Number of evidence requests pending"
-    )
-    investigation_momentum: InvestigationMomentum = Field(
-        default=InvestigationMomentum.EARLY,
-        description="Investigation momentum status"
-    )
-    next_critical_steps: List[str] = Field(
-        default_factory=list,
-        description="Next critical steps to take"
-    )
-    is_degraded_mode: bool = Field(
-        default=False,
-        description="Whether investigation is in degraded mode"
-    )
-    generated_at_turn: int = Field(
-        default=0,
-        description="Turn when these metrics were generated"
     )
 
     # Next steps
@@ -410,18 +338,6 @@ class WorkingConclusion(BaseModel):
         default_factory=list,
         description="Evidence needed to increase confidence"
     )
-    last_updated_turn: int = Field(
-        default=0,
-        description="Turn when this conclusion was last updated"
-    )
-    last_confidence_change_turn: int = Field(
-        default=0,
-        description="Turn when confidence last changed"
-    )
-    generated_at_turn: int = Field(
-        default=0,
-        description="Turn when this conclusion was generated"
-    )
 
 
 class TurnRecord(BaseModel):
@@ -456,246 +372,6 @@ class TurnRecord(BaseModel):
         default_factory=list,
         description="Hypothesis IDs updated this turn"
     )
-    outcome: str = Field(
-        default="conversation",
-        description="Turn outcome: 'progress', 'conversation', 'blocked', 'evidence_collected', etc."
-    )
-    progress_made: bool = Field(
-        default=False,
-        description="Whether meaningful progress was made this turn"
-    )
-
-
-class OODAIteration(BaseModel):
-    """
-    Record of a single OODA iteration within a phase.
-    """
-    iteration_id: str = Field(..., description="Unique iteration ID")
-    turn_number: int = Field(..., description="Turn when this iteration occurred")
-    phase: InvestigationPhase = Field(..., description="Phase during iteration")
-    current_step: str = Field(
-        ...,
-        description="Current OODA step: 'observe', 'orient', 'decide', 'act'"
-    )
-    steps_completed: List[str] = Field(
-        default_factory=list,
-        description="OODA steps completed in this iteration"
-    )
-    made_progress: bool = Field(
-        default=False,
-        description="Whether this iteration made progress"
-    )
-    outcome: str = Field(
-        default="conversation",
-        description="Iteration outcome"
-    )
-
-
-class OODAState(BaseModel):
-    """
-    Current OODA execution state.
-    """
-    current_step: str = Field(
-        default="observe",
-        description="Current OODA step: 'observe', 'orient', 'decide', 'act'"
-    )
-    current_iteration: int = Field(
-        default=0,
-        description="Current iteration count within phase"
-    )
-    iteration_history: List[OODAIteration] = Field(
-        default_factory=list,
-        description="History of all OODA iterations"
-    )
-    adaptive_intensity: str = Field(
-        default="light",
-        description="Current intensity: 'light', 'medium', 'full'"
-    )
-
-
-class MemorySnapshot(BaseModel):
-    """
-    Snapshot of conversation/evidence at a point in time.
-
-    Used by MemoryManager for hierarchical memory (hot/warm/cold tiers).
-    """
-    snapshot_id: str = Field(..., description="Unique snapshot identifier")
-    turn_range: Tuple[int, int] = Field(..., description="(start_turn, end_turn) covered by snapshot")
-    tier: str = Field(..., description="Memory tier: 'hot', 'warm', or 'cold'")
-    content_summary: str = Field(default="", description="Summary of content")
-    key_insights: List[str] = Field(
-        default_factory=list,
-        description="Key insights from this snapshot"
-    )
-    evidence_ids: List[str] = Field(
-        default_factory=list,
-        description="Evidence IDs referenced"
-    )
-    hypothesis_updates: List[str] = Field(
-        default_factory=list,
-        description="Hypothesis IDs updated"
-    )
-    confidence_delta: float = Field(
-        default=0.0,
-        description="Net confidence change in this snapshot"
-    )
-    token_count_estimate: int = Field(
-        default=0,
-        description="Estimated token count"
-    )
-    created_at: datetime = Field(
-        default_factory=datetime.now,
-        description="When snapshot was created"
-    )
-
-    # Legacy fields for backward compatibility
-    turn_number: Optional[int] = Field(default=None, description="Turn number (legacy)")
-    summary: Optional[str] = Field(default=None, description="Summary (legacy)")
-    key_facts: Optional[List[str]] = Field(default=None, description="Key facts (legacy)")
-    evidence_collected: Optional[List[str]] = Field(default=None, description="Evidence collected (legacy)")
-
-
-class HierarchicalMemory(BaseModel):
-    """
-    Hierarchical memory management (hot/warm/cold tiers).
-    """
-    hot_memory: List[MemorySnapshot] = Field(
-        default_factory=list,
-        description="Recent 2-3 iterations (highest priority)"
-    )
-    warm_memory: List[MemorySnapshot] = Field(
-        default_factory=list,
-        description="Relevant context (medium priority)"
-    )
-    cold_memory: List[MemorySnapshot] = Field(
-        default_factory=list,
-        description="Archived key facts (lowest priority)"
-    )
-
-
-class ConsultingData(BaseModel):
-    """
-    Pre-investigation CONSULTING status data.
-
-    Captures early problem exploration before formal investigation commitment.
-    Source: FaultMaven-Mono case.py lines 715-795
-    """
-    proposed_problem_statement: Optional[str] = Field(
-        None,
-        description="Agent's formalized problem statement",
-        max_length=1000
-    )
-    problem_statement_confirmed: bool = Field(
-        default=False,
-        description="User confirmed the formalized problem statement"
-    )
-    problem_statement_confirmed_at: Optional[datetime] = None
-
-    quick_suggestions: List[str] = Field(
-        default_factory=list,
-        description="Quick fixes or guidance provided during consulting"
-    )
-    decided_to_investigate: bool = Field(
-        default=False,
-        description="Whether user committed to formal investigation"
-    )
-    decision_made_at: Optional[datetime] = None
-    consultation_turns: int = Field(default=0, ge=0)
-
-
-class InvestigationProgress(BaseModel):
-    """
-    Milestone-based progress tracking.
-
-    Track what's completed, not what phase we're in.
-    Agent completes milestones opportunistically based on data availability.
-    Source: FaultMaven-Mono case.py lines 230-445
-    """
-    # Verification Milestones
-    symptom_verified: bool = False
-    scope_assessed: bool = False
-    timeline_established: bool = False
-    changes_identified: bool = False
-
-    # Investigation Milestones
-    root_cause_identified: bool = False
-    root_cause_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
-    root_cause_method: Optional[str] = None
-
-    # Resolution Milestones
-    solution_proposed: bool = False
-    solution_applied: bool = False
-    solution_verified: bool = False
-
-    # Path-Specific
-    mitigation_applied: bool = False
-
-    # Timestamps
-    verification_completed_at: Optional[datetime] = None
-    investigation_completed_at: Optional[datetime] = None
-    resolution_completed_at: Optional[datetime] = None
-
-    @property
-    def verification_complete(self) -> bool:
-        """Check if all verification milestones completed"""
-        return (
-            self.symptom_verified and
-            self.scope_assessed and
-            self.timeline_established and
-            self.changes_identified
-        )
-
-    @property
-    def current_stage(self) -> str:
-        """Compute investigation stage from completed milestones"""
-        if self.solution_proposed or self.solution_applied or self.solution_verified:
-            return "solution"
-        if self.root_cause_identified:
-            return "hypothesis_validation"
-        if self.symptom_verified:
-            return "hypothesis_formulation"
-        return "symptom_verification"
-
-    @property
-    def completed_milestones(self) -> List[str]:
-        """Get list of completed milestone names"""
-        milestones = []
-        if self.symptom_verified:
-            milestones.append("symptom_verified")
-        if self.scope_assessed:
-            milestones.append("scope_assessed")
-        if self.timeline_established:
-            milestones.append("timeline_established")
-        if self.changes_identified:
-            milestones.append("changes_identified")
-        if self.root_cause_identified:
-            milestones.append("root_cause_identified")
-        if self.solution_proposed:
-            milestones.append("solution_proposed")
-        if self.solution_applied:
-            milestones.append("solution_applied")
-        if self.solution_verified:
-            milestones.append("solution_verified")
-        return milestones
-
-
-class DegradedModeData(BaseModel):
-    """
-    Investigation degraded mode tracking.
-
-    Entered when investigation is blocked or struggling.
-    Source: FaultMaven-Mono case.py lines 2434-2492
-    """
-    mode_type: DegradedModeType
-    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    reason: str = Field(..., max_length=1000)
-    attempted_actions: List[str] = Field(default_factory=list)
-
-    fallback_offered: Optional[str] = Field(None, max_length=1000)
-    user_choice: Optional[str] = Field(None, max_length=100)
-
-    exited_at: Optional[datetime] = None
-    exit_reason: Optional[str] = None
 
 
 class InvestigationState(BaseModel):
@@ -705,8 +381,6 @@ class InvestigationState(BaseModel):
     This is the root model containing all investigation tracking data.
     Stored as JSON in the Case ORM model, enabling rich investigation
     tracking without schema migrations.
-
-    Enhanced with OODA execution state and hierarchical memory management.
     """
     # Metadata
     investigation_id: str = Field(..., description="Unique investigation ID")
@@ -759,16 +433,10 @@ class InvestigationState(BaseModel):
         description="All collected evidence"
     )
 
-    # Progress (milestone-based)
-    progress: InvestigationProgress = Field(
-        default_factory=InvestigationProgress,
-        description="Milestone-based progress tracking"
-    )
-
-    # Legacy progress metrics (for compatibility)
-    progress_metrics: ProgressMetrics = Field(
+    # Progress
+    progress: ProgressMetrics = Field(
         default_factory=ProgressMetrics,
-        description="Legacy progress tracking (deprecated, use progress instead)"
+        description="Progress tracking"
     )
 
     # Escalation
@@ -783,47 +451,11 @@ class InvestigationState(BaseModel):
         description="Current working conclusion"
     )
 
-    # OODA execution layer (NEW)
-    ooda_state: Optional[OODAState] = Field(
-        None,
-        description="Current OODA execution state and iteration tracking"
-    )
-
-    # Memory management layer (NEW)
-    memory: HierarchicalMemory = Field(
-        default_factory=HierarchicalMemory,
-        description="Hierarchical memory (hot/warm/cold tiers)"
-    )
-
-    # Consulting data (Phase 0 - CONSULTING status)
-    consulting_data: Optional[ConsultingData] = Field(
-        None,
-        description="Pre-investigation consulting data"
-    )
-
-    # Degraded mode tracking
-    degraded_mode: Optional[DegradedModeData] = Field(
-        None,
-        description="Degraded mode state when investigation is struggling"
-    )
-
-    # Progress tracking
-    turns_without_progress: int = Field(
-        default=0,
-        description="Consecutive turns without meaningful progress"
-    )
-
     # Audit trail
     turn_history: List[TurnRecord] = Field(
         default_factory=list,
         description="History of all turns"
     )
-
-    # Compatibility aliases for MilestoneEngine
-    @property
-    def evidence_items(self) -> List[EvidenceItem]:
-        """Alias for evidence (used by MilestoneEngine)"""
-        return self.evidence
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for storage in case_metadata."""
@@ -852,7 +484,7 @@ class InvestigationState(BaseModel):
         Implements FR-CNV circular dialogue detection.
         """
         # No progress for 3+ turns
-        if self.progress_metrics.turns_without_progress >= 3:
+        if self.progress.turns_without_progress >= 3:
             return DegradedModeType.NO_PROGRESS
 
         # All hypotheses exhausted
@@ -862,7 +494,7 @@ class InvestigationState(BaseModel):
             return DegradedModeType.HYPOTHESIS_SPACE_EXHAUSTED
 
         # Critical evidence blocked
-        if self.progress_metrics.evidence_blocked_count >= 3:
+        if self.progress.evidence_blocked_count >= 3:
             return DegradedModeType.CRITICAL_EVIDENCE_MISSING
 
         return None

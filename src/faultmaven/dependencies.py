@@ -4,16 +4,16 @@ FastAPI dependency injection setup.
 Provides centralized dependency management for services and providers.
 """
 
-import os
 from typing import AsyncGenerator
 
 from fastapi import Depends, Request
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from faultmaven.config import get_settings
 from faultmaven.providers.core import CoreLLMProvider, CoreDataProvider, CoreFileProvider
 from faultmaven.providers.vectors.chromadb import ChromaDBProvider
-from faultmaven.infrastructure.redis_impl import RedisCache, RedisSessionStore, create_redis_client
+from faultmaven.infrastructure.redis_impl import RedisCache, RedisSessionStore
 from faultmaven.modules.agent.service import AgentService
 from faultmaven.modules.auth.service import AuthService
 from faultmaven.modules.session.service import SessionService
@@ -94,11 +94,11 @@ def get_auth_service(
 
     FastAPI automatically resolves db_session and cache before calling this.
     """
-    secret_key = os.getenv("SECRET_KEY", "dev-secret-change-in-production")
+    settings = get_settings()
     return AuthService(
         db_session=db_session,
         cache=cache,
-        secret_key=secret_key,
+        secret_key=settings.security.secret_key.get_secret_value(),
     )
 
 
