@@ -122,3 +122,31 @@ class InvestigationStrategy(str, Enum):
     MITIGATION_FIRST = "mitigation_first"  # Quick fix first, then RCA
     ROOT_CAUSE = "root_cause"              # Traditional thorough RCA
     USER_CHOICE = "user_choice"            # Ambiguous case, let user decide
+
+
+class TurnOutcome(str, Enum):
+    """Outcome classification for a single investigation turn."""
+    PROGRESS = "progress"
+    CLARIFICATION = "clarification"
+    BLOCKED = "blocked"
+    ERROR = "error"
+    STALLED = "stalled"
+    COMPLETE = "complete"
+
+
+class HypothesisGenerationMode(str, Enum):
+    """Mode for hypothesis generation strategy."""
+    SYSTEMATIC = "systematic"
+    EVIDENCE_DRIVEN = "evidence_driven"
+    SYMPTOM_DRIVEN = "symptom_driven"
+    PATTERN_MATCHING = "pattern_matching"
+    LLM_GENERATED = "llm_generated"
+    USER_SUGGESTED = "user_suggested"
+
+
+class OODAStep(str, Enum):
+    """OODA loop step indicators."""
+    OBSERVE = "observe"
+    ORIENT = "orient"
+    DECIDE = "decide"
+    ACT = "act"

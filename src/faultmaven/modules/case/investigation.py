@@ -128,11 +128,25 @@ class HypothesisModel(BaseModel):
         default=0.5,
         ge=0.0,
         le=1.0,
-        description="Estimated likelihood of being root cause"
+        description="Current estimated likelihood of being root cause"
+    )
+    initial_likelihood: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Initial likelihood when hypothesis was created"
     )
     confidence_level: ConfidenceLevel = Field(
         default=ConfidenceLevel.SPECULATION,
         description="Confidence in this hypothesis"
+    )
+    confidence_trajectory: List[tuple] = Field(
+        default_factory=list,
+        description="History of (turn, confidence) values"
+    )
+    iterations_without_progress: int = Field(
+        default=0,
+        description="Count of iterations without confidence change"
     )
     supporting_evidence: List[str] = Field(
         default_factory=list,
@@ -200,6 +214,20 @@ class ProgressMetrics(BaseModel):
 
     Tracks milestone completion and provides progress indicators.
     """
+    # Individual milestone flags
+    symptom_verified: bool = Field(default=False)
+    scope_assessed: bool = Field(default=False)
+    timeline_established: bool = Field(default=False)
+    changes_identified: bool = Field(default=False)
+    root_cause_identified: bool = Field(default=False)
+    root_cause_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    root_cause_method: str = Field(default="", description="Method used to identify root cause")
+    solution_proposed: bool = Field(default=False)
+    verification_complete: bool = Field(default=False, description="Whether verification is complete")
+    solution_applied: bool = Field(default=False)
+    solution_verified: bool = Field(default=False)
+    current_stage: str = Field(default="intake")
+
     # Milestone tracking
     completed_milestones: List[str] = Field(
         default_factory=list,
@@ -298,6 +326,196 @@ class EscalationState(BaseModel):
     suggested_at_turn: Optional[int] = Field(
         None,
         description="Turn when escalation was suggested"
+    )
+
+
+class ConsultingData(BaseModel):
+    """
+    Tracking data for knowledge base consultation and problem statement status.
+    """
+    proposed_problem_statement: Optional[str] = Field(
+        None,
+        description="The proposed problem statement from consulting phase"
+    )
+    problem_statement_confirmed: bool = Field(
+        default=False,
+        description="Whether the problem statement has been confirmed"
+    )
+    problem_statement_confirmed_at: Optional[datetime] = Field(
+        None,
+        description="When problem statement was confirmed"
+    )
+    decided_to_investigate: bool = Field(
+        default=False,
+        description="Whether user decided to proceed with investigation"
+    )
+    decision_made_at: Optional[datetime] = Field(
+        None,
+        description="When investigation decision was made"
+    )
+    consulted_kbs: List[str] = Field(
+        default_factory=list,
+        description="List of knowledge base IDs that have been consulted"
+    )
+    consultation_count: int = Field(
+        default=0,
+        description="Total number of KB consultations"
+    )
+
+
+class InvestigationProgress(BaseModel):
+    """
+    Summary of investigation progress for milestone tracking.
+    """
+    completed_milestones: List[str] = Field(
+        default_factory=list,
+        description="IDs of completed milestones"
+    )
+    pending_milestones: List[str] = Field(
+        default_factory=list,
+        description="IDs of pending milestones"
+    )
+    current_phase: str = Field(
+        default="intake",
+        description="Current investigation phase"
+    )
+    hypothesis_count: int = Field(
+        default=0,
+        description="Number of active hypotheses"
+    )
+    evidence_count: int = Field(
+        default=0,
+        description="Number of evidence items collected"
+    )
+    momentum_score: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Investigation momentum (0=stalled, 1=rapid progress)"
+    )
+
+
+class DegradedModeData(BaseModel):
+    """
+    Data for degraded mode operation tracking.
+    """
+    mode_type: Optional[DegradedModeType] = Field(
+        None,
+        description="Type of degradation"
+    )
+    entered_at: Optional[datetime] = Field(
+        None,
+        description="When degraded mode was entered"
+    )
+    reason: str = Field(
+        default="",
+        description="Detailed reason for degraded mode"
+    )
+    recovery_attempts: int = Field(
+        default=0,
+        description="Number of recovery attempts"
+    )
+    user_notified: bool = Field(
+        default=False,
+        description="Whether user has been notified"
+    )
+
+
+class OODAIteration(BaseModel):
+    """
+    Single OODA loop iteration record.
+    """
+    iteration_id: str = Field(..., description="Unique iteration identifier")
+    turn_number: int = Field(..., description="Turn when iteration started")
+    phase: InvestigationPhase = Field(..., description="Investigation phase")
+    current_step: str = Field(
+        default="observe",
+        description="Current OODA step (observe/orient/decide/act)"
+    )
+    steps_completed: List[str] = Field(
+        default_factory=list,
+        description="OODA steps completed this iteration"
+    )
+    made_progress: bool = Field(
+        default=False,
+        description="Whether this iteration made progress"
+    )
+    started_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When this iteration started"
+    )
+    completed_at: Optional[datetime] = Field(
+        None,
+        description="When this iteration completed"
+    )
+    outcome: str = Field(
+        default="",
+        description="Outcome of this iteration"
+    )
+    hypotheses_updated: List[str] = Field(
+        default_factory=list,
+        description="Hypothesis IDs updated this iteration"
+    )
+
+
+class OODAState(BaseModel):
+    """
+    OODA loop state tracking.
+    """
+    current_iteration: int = Field(
+        default=0,
+        description="Current OODA iteration number"
+    )
+    iterations: List[OODAIteration] = Field(
+        default_factory=list,
+        description="History of OODA iterations"
+    )
+    intensity_level: float = Field(
+        default=0.5,
+        ge=0.0,
+        le=1.0,
+        description="Current investigation intensity (0=low, 1=high)"
+    )
+
+
+class MemorySnapshot(BaseModel):
+    """
+    Snapshot of investigation memory at a point in time.
+    """
+    snapshot_id: str = Field(..., description="Unique snapshot identifier")
+    created_at: datetime = Field(
+        default_factory=datetime.utcnow,
+        description="When snapshot was created"
+    )
+    summary: str = Field(
+        default="",
+        description="Summary of this memory period"
+    )
+    key_findings: List[str] = Field(
+        default_factory=list,
+        description="Key findings from this period"
+    )
+
+
+class HierarchicalMemory(BaseModel):
+    """
+    Hierarchical memory management for investigation context.
+    """
+    hot_turn_count: int = Field(
+        default=3,
+        description="Number of recent turns in hot memory"
+    )
+    warm_snapshots: List[MemorySnapshot] = Field(
+        default_factory=list,
+        description="Snapshots in warm memory"
+    )
+    cold_summary: str = Field(
+        default="",
+        description="Summary of cold (oldest) memory"
+    )
+    total_turns_processed: int = Field(
+        default=0,
+        description="Total number of turns processed"
     )
 
 
@@ -449,6 +667,24 @@ class InvestigationState(BaseModel):
     working_conclusion: Optional[WorkingConclusion] = Field(
         None,
         description="Current working conclusion"
+    )
+
+    # OODA state
+    ooda_state: Optional[OODAState] = Field(
+        None,
+        description="OODA loop state tracking"
+    )
+
+    # Consulting data
+    consulting_data: Optional[ConsultingData] = Field(
+        None,
+        description="Consulting phase tracking"
+    )
+
+    # Hierarchical memory
+    hierarchical_memory: Optional[HierarchicalMemory] = Field(
+        None,
+        description="Memory management"
     )
 
     # Audit trail
