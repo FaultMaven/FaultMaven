@@ -34,6 +34,20 @@ from faultmaven.modules.case.engines.ooda_engine import (
     AdaptiveIntensityController,
     create_ooda_engine,
 )
+from faultmaven.modules.case.engines.memory_manager import (
+    MemoryManager,
+    MemoryManagerError,
+)
+from faultmaven.modules.case.engines.working_conclusion_generator import (
+    WorkingConclusionGenerator,
+    WorkingConclusionGeneratorError,
+)
+from faultmaven.modules.case.engines.phase_orchestrator import (
+    PhaseOrchestrator,
+    PhaseOrchestratorError,
+    PhaseOutcome,
+    LoopBackReason,
+)
 
 __all__ = [
     # Core engines (Phase 2)
@@ -47,7 +61,12 @@ __all__ = [
     "AdaptiveIntensityController",
     "create_ooda_engine",
     # Supporting engines (Phase 3)
-    # "MemoryManager",
-    # "WorkingConclusionGenerator",
-    # "PhaseOrchestrator",
+    "MemoryManager",  # Phase 3.1 ✅
+    "MemoryManagerError",
+    "WorkingConclusionGenerator",  # Phase 3.2 ✅
+    "WorkingConclusionGeneratorError",
+    "PhaseOrchestrator",  # Phase 3.3 ✅
+    "PhaseOrchestratorError",
+    "PhaseOutcome",
+    "LoopBackReason",
 ]
