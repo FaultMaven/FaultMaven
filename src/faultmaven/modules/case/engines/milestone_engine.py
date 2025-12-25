@@ -230,6 +230,30 @@ class MilestoneEngine:
             # Step 8: Check automatic status transitions
             status_transitioned = self._check_automatic_transitions(case, updated_inv_state)
 
+            # Step 8.3: Check for phase loop-back needed
+            # Detects if investigation needs to revisit earlier phase
+            needs_loopback, outcome, reason = self.phase_orchestrator.detect_loopback_needed(
+                updated_inv_state
+            )
+
+            if needs_loopback and outcome and reason:
+                logger.info(
+                    f"Loop-back detected: {outcome.value} - {reason.value}"
+                )
+                # Determine which phase to loop back to
+                next_phase, is_loopback, message = self.phase_orchestrator.determine_next_phase(
+                    updated_inv_state,
+                    outcome,
+                    reason
+                )
+
+                if is_loopback:
+                    logger.warning(
+                        f"Looping back: {updated_inv_state.current_phase.value} → {next_phase.value}. "
+                        f"Reason: {message}"
+                    )
+                    updated_inv_state.current_phase = next_phase
+
             # Step 8.5: Compress memory if needed (every 3 turns to save tokens)
             if self.memory_manager.should_trigger_compression(updated_inv_state):
                 logger.info(f"Compressing memory at turn {updated_inv_state.current_turn}")
