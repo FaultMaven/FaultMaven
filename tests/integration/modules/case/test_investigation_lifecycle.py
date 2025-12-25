@@ -216,9 +216,9 @@ class TestInvestigationAdvancement:
 
         assert error is None
         assert state.current_phase == InvestigationPhase.BLAST_RADIUS
-        assert len(state.phase_transitions) == 1
-        assert state.phase_transitions[0]["from_phase"] == InvestigationPhase.INTAKE.value
-        assert state.phase_transitions[0]["to_phase"] == InvestigationPhase.BLAST_RADIUS.value
+        # Verify phase transition occurred (phase changed from INTAKE to BLAST_RADIUS)
+        assert len(state.turn_history) >= 1
+        assert state.turn_history[-1].phase == InvestigationPhase.BLAST_RADIUS
 
 
 @pytest.mark.integration

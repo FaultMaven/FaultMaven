@@ -227,12 +227,21 @@ class InvestigationService:
         # Track if we made progress this turn
         made_progress = False
 
-        # Complete milestones
+        # Complete milestones (set boolean flags)
         if milestones_completed:
+            milestone_map = {
+                "symptom_verified": "symptom_verified",
+                "scope_assessed": "scope_assessed",
+                "timeline_established": "timeline_established",
+                "changes_identified": "changes_identified",
+                "root_cause_identified": "root_cause_identified",
+                "solution_proposed": "solution_proposed",
+                "solution_applied": "solution_applied",
+                "solution_verified": "solution_verified",
+            }
             for milestone in milestones_completed:
-                if milestone in state.progress.pending_milestones:
-                    state.progress.pending_milestones.remove(milestone)
-                    state.progress.completed_milestones.append(milestone)
+                if milestone in milestone_map:
+                    setattr(state.progress, milestone_map[milestone], True)
                     made_progress = True
 
         # Phase transition
@@ -321,7 +330,7 @@ class InvestigationService:
         statement: str,
         category: str = "",
         likelihood: float = 0.5,
-    ) -> Tuple[Optional[HypothesisModel], Optional[str]]:
+    ) -> Tuple[Optional[InvestigationState], Optional[str]]:
         """
         Add a hypothesis to the investigation.
 
@@ -333,7 +342,7 @@ class InvestigationService:
             likelihood: Initial likelihood (0-1)
 
         Returns:
-            Tuple of (HypothesisModel, error_message)
+            Tuple of (InvestigationState, error_message)
         """
         case = await self.case_service.get_case(case_id, user_id)
         if not case:
@@ -361,7 +370,7 @@ class InvestigationService:
         flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
-        return hypothesis, None
+        return state, None
 
     async def update_hypothesis_status(
         self,
@@ -370,7 +379,7 @@ class InvestigationService:
         hypothesis_id: str,
         new_status: HypothesisStatus,
         evidence: Optional[str] = None,
-    ) -> Tuple[Optional[HypothesisModel], Optional[str]]:
+    ) -> Tuple[Optional[InvestigationState], Optional[str]]:
         """
         Update the status of a hypothesis.
 
@@ -382,7 +391,7 @@ class InvestigationService:
             evidence: Optional evidence to add
 
         Returns:
-            Tuple of (updated HypothesisModel, error_message)
+            Tuple of (InvestigationState, error_message)
         """
         case = await self.case_service.get_case(case_id, user_id)
         if not case:
@@ -424,7 +433,7 @@ class InvestigationService:
         flag_modified(case, "case_metadata")
         await self.case_service.db.commit()
 
-        return hypothesis, None
+        return state, None
 
     async def add_evidence(
         self,
@@ -552,6 +561,14 @@ class InvestigationService:
         if not state:
             return None
 
+        # Compute pending milestones (all possible milestones - completed ones)
+        all_milestones = [
+            "symptom_verified", "scope_assessed", "timeline_established", "changes_identified",
+            "root_cause_identified", "solution_proposed", "solution_applied", "solution_verified"
+        ]
+        completed = set(state.progress.completed_milestones)
+        pending_milestones = [m for m in all_milestones if m not in completed]
+
         return {
             "investigation_id": state.investigation_id,
             "current_phase": state.current_phase.name,
@@ -560,7 +577,7 @@ class InvestigationService:
             "strategy": state.strategy.value,
             "completion_percentage": state.progress.completion_percentage,
             "completed_milestones": state.progress.completed_milestones,
-            "pending_milestones": state.progress.pending_milestones,
+            "pending_milestones": pending_milestones,
             "active_hypotheses": state.progress_metrics.active_hypotheses_count,
             "total_hypotheses": len(state.hypotheses),
             "evidence_count": len(state.evidence),
