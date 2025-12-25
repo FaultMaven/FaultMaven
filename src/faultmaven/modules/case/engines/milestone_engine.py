@@ -163,6 +163,25 @@ class MilestoneEngine:
             # Step 0.5: Organize memory into hierarchical tiers (hot/warm/cold)
             inv_state.memory = self.memory_manager.organize_memory(inv_state)
 
+            # Step 0.7: Track OODA iteration and get investigation intensity
+            # This provides adaptive thoroughness based on phase and iteration count
+            if case.status == CaseStatus.INVESTIGATING:
+                # Initialize OODA state if not present
+                if not inv_state.ooda_state:
+                    from faultmaven.modules.case.investigation import OODAState
+                    inv_state.ooda_state = OODAState()
+
+                # Increment iteration for this turn
+                inv_state.ooda_state.current_iteration += 1
+
+                # Get adaptive intensity level
+                intensity = self.ooda_engine.get_current_intensity(inv_state)
+
+                logger.info(
+                    f"OODA iteration {inv_state.ooda_state.current_iteration} "
+                    f"(intensity: {intensity}, phase: {inv_state.current_phase.value})"
+                )
+
             # Step 1: Generate status-based prompt
             prompt = self._build_prompt(case, inv_state, user_message, attachments)
 
