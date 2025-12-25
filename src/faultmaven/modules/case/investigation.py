@@ -460,6 +460,10 @@ class TurnRecord(BaseModel):
         default="conversation",
         description="Turn outcome: 'progress', 'conversation', 'blocked', 'evidence_collected', etc."
     )
+    progress_made: bool = Field(
+        default=False,
+        description="Whether meaningful progress was made this turn"
+    )
 
 
 class OODAIteration(BaseModel):

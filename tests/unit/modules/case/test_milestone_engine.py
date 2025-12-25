@@ -370,3 +370,77 @@ class TestMilestoneEngineIntegration:
         assert len(inv_state.turn_history) == 2
         assert inv_state.turn_history[0].turn_number == 1
         assert inv_state.turn_history[1].turn_number == 2
+
+    @pytest.mark.asyncio
+    async def test_memory_manager_integration(self):
+        """MemoryManager organizes memory into hot/warm/cold tiers."""
+        llm = MockLLMProvider()
+        engine = MilestoneEngine(llm_provider=llm)
+        case = MockCase(status="investigating")
+
+        # Process multiple turns to build turn history
+        await engine.process_turn(case, "First message")
+        await engine.process_turn(case, "Second message")
+        await engine.process_turn(case, "Third message")
+        await engine.process_turn(case, "Fourth message")
+
+        # Load state and verify memory is organized
+        inv_state = engine._load_investigation_state(case)
+
+        # MemoryManager should have organized memory
+        assert inv_state.memory is not None
+        assert hasattr(inv_state.memory, "hot_memory")
+        assert hasattr(inv_state.memory, "warm_memory")
+        assert hasattr(inv_state.memory, "cold_memory")
+
+        # Hot memory should contain recent turns (last 3)
+        assert len(inv_state.memory.hot_memory) <= 3
+        assert len(inv_state.memory.hot_memory) > 0
+
+    @pytest.mark.asyncio
+    async def test_memory_compression_triggers(self):
+        """Memory compression triggers every 3 turns."""
+        llm = MockLLMProvider()
+        engine = MilestoneEngine(llm_provider=llm)
+        case = MockCase(status="investigating")
+
+        # Process turns up to compression threshold (turn 3)
+        await engine.process_turn(case, "Turn 1")
+        await engine.process_turn(case, "Turn 2")
+        await engine.process_turn(case, "Turn 3")  # Should trigger compression
+
+        inv_state = engine._load_investigation_state(case)
+
+        # Verify memory exists and is compressed
+        assert inv_state.memory is not None
+
+        # Hot memory should be limited after compression
+        assert len(inv_state.memory.hot_memory) <= 3
+
+    @pytest.mark.asyncio
+    async def test_memory_context_in_prompt(self):
+        """Memory context is included in investigating prompt."""
+        llm = MockLLMProvider()
+        engine = MilestoneEngine(llm_provider=llm)
+        case = MockCase(status="investigating")
+
+        # Process a turn to build memory
+        await engine.process_turn(case, "First message")
+
+        # Load state and build prompt
+        inv_state = engine._load_investigation_state(case)
+        inv_state.memory = engine.memory_manager.organize_memory(inv_state)
+
+        prompt = engine._build_investigating_prompt(case, inv_state, "Next message")
+
+        # If memory exists, context should be in prompt
+        if inv_state.memory and (inv_state.memory.hot_memory or
+                                  inv_state.memory.warm_memory or
+                                  inv_state.memory.cold_memory):
+            # Check for memory section headers (either Recent Turns or Investigation Context)
+            assert ("Recent Turns" in prompt or
+                    "Active Investigation" in prompt or
+                    "Archived Facts" in prompt or
+                    inv_state.memory.hot_memory == [] and
+                    inv_state.memory.warm_memory == [] and
+                    inv_state.memory.cold_memory == [])

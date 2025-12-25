@@ -131,7 +131,7 @@ class MemoryManager:
             snapshot_id=f"turn_{turn.turn_number}",
             turn_range=(turn.turn_number, turn.turn_number),
             tier=tier,
-            content_summary=f"Turn {turn.turn_number}: {turn.user_input_summary or 'User input'} → {turn.outcome.value}",
+            content_summary=f"Turn {turn.turn_number}: {turn.user_input_summary or 'User input'} → {turn.outcome}",
             key_insights=[
                 f"Phase: {turn.phase.value}",
                 f"Progress made: {turn.progress_made}",
