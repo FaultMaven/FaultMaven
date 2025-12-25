@@ -339,7 +339,7 @@ Progress: {len(progress.completed_milestones)}/8 milestones complete
         if inv_state.evidence_items:
             evidence_summary = f"\nEvidence Collected ({len(inv_state.evidence_items)} items):\n"
             for ev in inv_state.evidence_items[-5:]:  # Last 5 evidence items
-                evidence_summary += f"- [{ev.category}] {ev.summary}\n"
+                evidence_summary += f"- [{ev.category}] {ev.description}\n"
 
         # Build hypothesis summary
         hypothesis_summary = ""
@@ -780,8 +780,9 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         if inv_data:
             return InvestigationState(**inv_data)
         else:
-            # Initialize new investigation state
-            return InvestigationState()
+            # Initialize new investigation state with required fields
+            from uuid import uuid4
+            return InvestigationState(investigation_id=f"inv_{uuid4().hex[:12]}")
 
     def _save_investigation_state(
         self,
