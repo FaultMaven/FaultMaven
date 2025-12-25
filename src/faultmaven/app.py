@@ -17,6 +17,7 @@ from faultmaven.config import get_settings
 from faultmaven.health.router import router as health_router
 from faultmaven.logging_config import configure_logging, get_logger
 from faultmaven.middleware import RequestLoggingMiddleware
+from faultmaven.workers.router import router as tasks_router
 from faultmaven.modules.agent.router import router as agent_router
 from faultmaven.modules.auth.router import router as auth_router
 from faultmaven.modules.session.router import router as session_router
@@ -170,6 +171,7 @@ def create_app(enable_lifespan: bool = True) -> FastAPI:
 
     # Include module routers
     app.include_router(health_router)  # Health endpoints first
+    app.include_router(tasks_router)   # Task status endpoints
     app.include_router(auth_router)
     app.include_router(session_router)
     app.include_router(case_router)
