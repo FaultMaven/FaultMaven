@@ -14,6 +14,7 @@ from redis.asyncio import Redis
 import faultmaven.models  # noqa: F401
 
 from faultmaven.config import get_settings
+from faultmaven.health.router import router as health_router
 from faultmaven.logging_config import configure_logging, get_logger
 from faultmaven.middleware import RequestLoggingMiddleware
 from faultmaven.modules.agent.router import router as agent_router
@@ -168,6 +169,7 @@ def create_app(enable_lifespan: bool = True) -> FastAPI:
     app.add_middleware(RequestLoggingMiddleware)
 
     # Include module routers
+    app.include_router(health_router)  # Health endpoints first
     app.include_router(auth_router)
     app.include_router(session_router)
     app.include_router(case_router)
@@ -176,29 +178,19 @@ def create_app(enable_lifespan: bool = True) -> FastAPI:
     app.include_router(report_router)
     app.include_router(agent_router)
 
-    # Root health check
+    # Root endpoint
     @app.get("/")
     async def root():
+        """Root endpoint with service info."""
         return {
             "service": "faultmaven",
             "status": "healthy",
-            "version": "0.1.0"
+            "version": "0.1.0",
+            "docs": "/docs",
+            "health": "/health",
         }
 
-    @app.get("/health")
-    async def health_check():
-        return {"status": "healthy"}
-
-    @app.get("/health/live")
-    async def liveness_check():
-        """Kubernetes liveness probe endpoint."""
-        return {"status": "alive", "service": "faultmaven"}
-
-    @app.get("/health/ready")
-    async def readiness_check():
-        """Kubernetes readiness probe endpoint."""
-        return {"status": "ready", "service": "faultmaven", "checks": {"database": "ok", "cache": "ok"}}
-
+    # Admin endpoints
     @app.post("/admin/refresh-openapi")
     async def refresh_openapi():
         """Admin endpoint to refresh OpenAPI spec."""
