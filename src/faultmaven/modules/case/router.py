@@ -286,12 +286,13 @@ async def update_case_status(
     """
     Update case status with validation.
 
-    Validates status transitions:
-    - consulting -> resolved (allowed)
-    - verifying -> resolved (allowed)
-    - root_cause_analysis -> resolved (allowed)
-    - resolved -> closed (allowed)
-    - Any status except resolved -> closed (NOT allowed, must be resolved first)
+    Validates status transitions (aligned with SRS FR-CM-003):
+    - consulting -> investigating (allowed)
+    - consulting -> closed (allowed)
+    - investigating -> resolved (allowed)
+    - investigating -> closed (allowed)
+    - resolved -> (terminal, no transitions)
+    - closed -> (terminal, no transitions)
 
     Args:
         case_id: Case ID

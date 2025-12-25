@@ -18,8 +18,10 @@ from faultmaven.modules.agent.service import AgentService
 from faultmaven.modules.auth.service import AuthService
 from faultmaven.modules.session.service import SessionService
 from faultmaven.modules.case.service import CaseService
+from faultmaven.modules.case.investigation_service import InvestigationService
 from faultmaven.modules.evidence.service import EvidenceService
 from faultmaven.modules.knowledge.service import KnowledgeService
+from faultmaven.modules.report.service import ReportService
 
 
 # --- Redis (from app.state) ---
@@ -142,6 +144,30 @@ def get_knowledge_service(
         db_session=db_session,
         file_provider=file_provider,
         vector_provider=vector_provider,
+        llm_provider=llm_provider,
+    )
+
+
+def get_investigation_service(
+    db_session: AsyncSession = Depends(get_db_session),
+    case_service: CaseService = Depends(get_case_service),
+) -> InvestigationService:
+    """Get investigation service for milestone-based tracking."""
+    return InvestigationService(
+        db_session=db_session,
+        case_service=case_service,
+    )
+
+
+def get_report_service(
+    db_session: AsyncSession = Depends(get_db_session),
+    case_service: CaseService = Depends(get_case_service),
+    llm_provider: CoreLLMProvider = Depends(get_llm_provider),
+) -> ReportService:
+    """Get report service for generation and management."""
+    return ReportService(
+        db_session=db_session,
+        case_service=case_service,
         llm_provider=llm_provider,
     )
 

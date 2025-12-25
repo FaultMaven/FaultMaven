@@ -115,7 +115,7 @@ class TestCaseListEndpoint:
             _session=db_session,
             owner_id=user.id,
             title="Second Case",
-            status=CaseStatus.VERIFYING,
+            status=CaseStatus.INVESTIGATING,
         )
         await db_session.commit()
 
@@ -158,19 +158,19 @@ class TestCaseListEndpoint:
             _session=db_session,
             owner_id=user.id,
             title="In Progress Case",
-            status=CaseStatus.VERIFYING,
+            status=CaseStatus.INVESTIGATING,
         )
         await db_session.commit()
 
-        response = await client.get("/cases?status_filter=verifying")
+        response = await client.get("/cases?status_filter=investigating")
 
         assert response.status_code == 200
         data = response.json()
 
-        # Should only return VERIFYING cases
+        # Should only return INVESTIGATING cases
         assert len(data) >= 1
         for case in data:
-            assert case["status"] == "verifying"
+            assert case["status"] == "investigating"
 
     async def test_list_cases_pagination(self, authenticated_client, db_session):
         """Test listing cases with pagination."""
@@ -330,12 +330,12 @@ class TestCaseUpdateEndpoint:
 
         response = await client.patch(
             f"/cases/{case.id}",
-            json={"status": "verifying"},
+            json={"status": "investigating"},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "verifying"
+        assert data["status"] == "investigating"
 
     async def test_update_case_not_found(self, authenticated_client):
         """Test updating non-existent case returns 404."""

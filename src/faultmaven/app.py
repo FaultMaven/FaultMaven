@@ -21,6 +21,7 @@ from faultmaven.modules.session.router import router as session_router
 from faultmaven.modules.case.router import router as case_router
 from faultmaven.modules.evidence.router import router as evidence_router
 from faultmaven.modules.knowledge.router import router as knowledge_router
+from faultmaven.modules.report.router import router as report_router
 
 from faultmaven.providers.core import CoreLLMProvider, CoreDataProvider, CoreFileProvider
 from faultmaven.providers.vectors.chromadb import ChromaDBProvider
@@ -144,6 +145,7 @@ def create_app(enable_lifespan: bool = True) -> FastAPI:
     app.include_router(case_router)
     app.include_router(evidence_router)
     app.include_router(knowledge_router)
+    app.include_router(report_router)
     app.include_router(agent_router)
 
     # Root health check
