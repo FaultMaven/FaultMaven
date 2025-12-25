@@ -344,7 +344,8 @@ Progress: {len(progress.completed_milestones)}/8 milestones complete
         # Build hypothesis summary
         hypothesis_summary = ""
         if inv_state.hypotheses:
-            active = [h for h in inv_state.hypotheses.values() if h.status == HypothesisStatus.ACTIVE]
+            # hypotheses is a List[HypothesisModel], not a dict
+            active = [h for h in inv_state.hypotheses if h.status == HypothesisStatus.ACTIVE]
             if active:
                 hypothesis_summary = f"\nActive Hypotheses ({len(active)}):\n"
                 for h in sorted(active, key=lambda x: x.likelihood, reverse=True)[:3]:  # Top 3

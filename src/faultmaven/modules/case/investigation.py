@@ -291,6 +291,32 @@ class ProgressMetrics(BaseModel):
         description="Consecutive turns without milestone progress"
     )
 
+    # Additional fields for WorkingConclusionGenerator
+    evidence_provided_count: int = Field(
+        default=0,
+        description="Number of evidence items provided"
+    )
+    evidence_pending_count: int = Field(
+        default=0,
+        description="Number of evidence requests pending"
+    )
+    investigation_momentum: InvestigationMomentum = Field(
+        default=InvestigationMomentum.EARLY,
+        description="Investigation momentum status"
+    )
+    next_critical_steps: List[str] = Field(
+        default_factory=list,
+        description="Next critical steps to take"
+    )
+    is_degraded_mode: bool = Field(
+        default=False,
+        description="Whether investigation is in degraded mode"
+    )
+    generated_at_turn: int = Field(
+        default=0,
+        description="Turn when these metrics were generated"
+    )
+
     # Next steps
     next_steps: List[str] = Field(
         default_factory=list,
@@ -384,6 +410,18 @@ class WorkingConclusion(BaseModel):
         default_factory=list,
         description="Evidence needed to increase confidence"
     )
+    last_updated_turn: int = Field(
+        default=0,
+        description="Turn when this conclusion was last updated"
+    )
+    last_confidence_change_turn: int = Field(
+        default=0,
+        description="Turn when confidence last changed"
+    )
+    generated_at_turn: int = Field(
+        default=0,
+        description="Turn when this conclusion was generated"
+    )
 
 
 class TurnRecord(BaseModel):
@@ -474,17 +512,43 @@ class OODAState(BaseModel):
 class MemorySnapshot(BaseModel):
     """
     Snapshot of conversation/evidence at a point in time.
+
+    Used by MemoryManager for hierarchical memory (hot/warm/cold tiers).
     """
-    turn_number: int = Field(..., description="Turn this snapshot was taken")
-    summary: str = Field(default="", description="Summary of this snapshot")
-    key_facts: List[str] = Field(
+    snapshot_id: str = Field(..., description="Unique snapshot identifier")
+    turn_range: Tuple[int, int] = Field(..., description="(start_turn, end_turn) covered by snapshot")
+    tier: str = Field(..., description="Memory tier: 'hot', 'warm', or 'cold'")
+    content_summary: str = Field(default="", description="Summary of content")
+    key_insights: List[str] = Field(
         default_factory=list,
-        description="Key facts from this snapshot"
+        description="Key insights from this snapshot"
     )
-    evidence_collected: List[str] = Field(
+    evidence_ids: List[str] = Field(
         default_factory=list,
-        description="Evidence IDs from this snapshot"
+        description="Evidence IDs referenced"
     )
+    hypothesis_updates: List[str] = Field(
+        default_factory=list,
+        description="Hypothesis IDs updated"
+    )
+    confidence_delta: float = Field(
+        default=0.0,
+        description="Net confidence change in this snapshot"
+    )
+    token_count_estimate: int = Field(
+        default=0,
+        description="Estimated token count"
+    )
+    created_at: datetime = Field(
+        default_factory=datetime.now,
+        description="When snapshot was created"
+    )
+
+    # Legacy fields for backward compatibility
+    turn_number: Optional[int] = Field(default=None, description="Turn number (legacy)")
+    summary: Optional[str] = Field(default=None, description="Summary (legacy)")
+    key_facts: Optional[List[str]] = Field(default=None, description="Key facts (legacy)")
+    evidence_collected: Optional[List[str]] = Field(default=None, description="Evidence collected (legacy)")
 
 
 class HierarchicalMemory(BaseModel):

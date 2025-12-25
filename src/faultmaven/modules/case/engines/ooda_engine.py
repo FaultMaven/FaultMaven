@@ -300,7 +300,8 @@ class OODAEngine:
         # Check phase-specific completion
         if phase == InvestigationPhase.VALIDATION:
             # Continue until hypothesis validated
-            hypotheses = list(inv_state.hypotheses.values()) if inv_state.hypotheses else []
+            # hypotheses is a List[HypothesisModel], not a dict
+            hypotheses = inv_state.hypotheses if inv_state.hypotheses else []
             validated = any(
                 h.status == HypothesisStatus.VALIDATED
                 and h.likelihood >= 0.7
