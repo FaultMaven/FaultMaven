@@ -4,7 +4,6 @@ FaultMaven FastAPI Application.
 Main application entry point that assembles all module routers.
 """
 
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,6 +14,8 @@ from redis.asyncio import Redis
 import faultmaven.models  # noqa: F401
 
 from faultmaven.config import get_settings
+from faultmaven.logging_config import configure_logging, get_logger
+from faultmaven.middleware import RequestLoggingMiddleware
 from faultmaven.modules.agent.router import router as agent_router
 from faultmaven.modules.auth.router import router as auth_router
 from faultmaven.modules.session.router import router as session_router
@@ -26,8 +27,9 @@ from faultmaven.modules.report.router import router as report_router
 from faultmaven.providers.core import CoreLLMProvider, CoreDataProvider, CoreFileProvider
 from faultmaven.providers.vectors.chromadb import ChromaDBProvider
 
-
-logger = logging.getLogger(__name__)
+# Configure logging on module load
+configure_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
@@ -161,6 +163,9 @@ def create_app(enable_lifespan: bool = True) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Request logging middleware (adds correlation IDs)
+    app.add_middleware(RequestLoggingMiddleware)
 
     # Include module routers
     app.include_router(auth_router)
