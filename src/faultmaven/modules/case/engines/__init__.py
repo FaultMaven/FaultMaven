@@ -23,12 +23,19 @@ from faultmaven.modules.case.engines.milestone_engine import (
     MilestoneEngine,
     MilestoneEngineError,
 )
+from faultmaven.modules.case.engines.hypothesis_manager import (
+    HypothesisManager,
+    HypothesisManagerError,
+    rank_hypotheses_by_likelihood,
+)
 
 __all__ = [
     # Core engines (Phase 2)
     "MilestoneEngine",
     "MilestoneEngineError",
-    # "HypothesisManager",  # Coming in Phase 2.2
+    "HypothesisManager",  # Phase 2.2 ✅
+    "HypothesisManagerError",
+    "rank_hypotheses_by_likelihood",
     # "OODAEngine",  # Coming in Phase 2.3
     # Supporting engines (Phase 3)
     # "MemoryManager",
