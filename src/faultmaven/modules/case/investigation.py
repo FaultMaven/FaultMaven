@@ -505,6 +505,131 @@ class HierarchicalMemory(BaseModel):
     )
 
 
+class ConsultingData(BaseModel):
+    """
+    Pre-investigation CONSULTING status data.
+
+    Captures early problem exploration before formal investigation commitment.
+    Source: FaultMaven-Mono case.py lines 715-795
+    """
+    proposed_problem_statement: Optional[str] = Field(
+        None,
+        description="Agent's formalized problem statement",
+        max_length=1000
+    )
+    problem_statement_confirmed: bool = Field(
+        default=False,
+        description="User confirmed the formalized problem statement"
+    )
+    problem_statement_confirmed_at: Optional[datetime] = None
+
+    quick_suggestions: List[str] = Field(
+        default_factory=list,
+        description="Quick fixes or guidance provided during consulting"
+    )
+    decided_to_investigate: bool = Field(
+        default=False,
+        description="Whether user committed to formal investigation"
+    )
+    decision_made_at: Optional[datetime] = None
+    consultation_turns: int = Field(default=0, ge=0)
+
+
+class InvestigationProgress(BaseModel):
+    """
+    Milestone-based progress tracking.
+
+    Track what's completed, not what phase we're in.
+    Agent completes milestones opportunistically based on data availability.
+    Source: FaultMaven-Mono case.py lines 230-445
+    """
+    # Verification Milestones
+    symptom_verified: bool = False
+    scope_assessed: bool = False
+    timeline_established: bool = False
+    changes_identified: bool = False
+
+    # Investigation Milestones
+    root_cause_identified: bool = False
+    root_cause_confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    root_cause_method: Optional[str] = None
+
+    # Resolution Milestones
+    solution_proposed: bool = False
+    solution_applied: bool = False
+    solution_verified: bool = False
+
+    # Path-Specific
+    mitigation_applied: bool = False
+
+    # Timestamps
+    verification_completed_at: Optional[datetime] = None
+    investigation_completed_at: Optional[datetime] = None
+    resolution_completed_at: Optional[datetime] = None
+
+    @property
+    def verification_complete(self) -> bool:
+        """Check if all verification milestones completed"""
+        return (
+            self.symptom_verified and
+            self.scope_assessed and
+            self.timeline_established and
+            self.changes_identified
+        )
+
+    @property
+    def current_stage(self) -> str:
+        """Compute investigation stage from completed milestones"""
+        if self.solution_proposed or self.solution_applied or self.solution_verified:
+            return "solution"
+        if self.root_cause_identified:
+            return "hypothesis_validation"
+        if self.symptom_verified:
+            return "hypothesis_formulation"
+        return "symptom_verification"
+
+    @property
+    def completed_milestones(self) -> List[str]:
+        """Get list of completed milestone names"""
+        milestones = []
+        if self.symptom_verified:
+            milestones.append("symptom_verified")
+        if self.scope_assessed:
+            milestones.append("scope_assessed")
+        if self.timeline_established:
+            milestones.append("timeline_established")
+        if self.changes_identified:
+            milestones.append("changes_identified")
+        if self.root_cause_identified:
+            milestones.append("root_cause_identified")
+        if self.solution_proposed:
+            milestones.append("solution_proposed")
+        if self.solution_applied:
+            milestones.append("solution_applied")
+        if self.solution_verified:
+            milestones.append("solution_verified")
+        return milestones
+
+
+class DegradedModeData(BaseModel):
+    """
+    Investigation degraded mode tracking.
+
+    Entered when investigation is blocked or struggling.
+    Source: FaultMaven-Mono case.py lines 2434-2492
+    """
+    mode_type: DegradedModeType
+    entered_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    reason: str = Field(..., max_length=1000)
+    attempted_actions: List[str] = Field(default_factory=list)
+
+    fallback_offered: Optional[str] = Field(None, max_length=1000)
+    user_choice: Optional[str] = Field(None, max_length=100)
+
+    exited_at: Optional[datetime] = None
+    exit_reason: Optional[str] = None
+
+
 class InvestigationState(BaseModel):
     """
     Complete investigation state stored in case.case_metadata["investigation"].
@@ -566,10 +691,16 @@ class InvestigationState(BaseModel):
         description="All collected evidence"
     )
 
-    # Progress
-    progress: ProgressMetrics = Field(
+    # Progress (milestone-based)
+    progress: InvestigationProgress = Field(
+        default_factory=InvestigationProgress,
+        description="Milestone-based progress tracking"
+    )
+
+    # Legacy progress metrics (for compatibility)
+    progress_metrics: ProgressMetrics = Field(
         default_factory=ProgressMetrics,
-        description="Progress tracking"
+        description="Legacy progress tracking (deprecated, use progress instead)"
     )
 
     # Escalation
@@ -596,11 +727,35 @@ class InvestigationState(BaseModel):
         description="Hierarchical memory (hot/warm/cold tiers)"
     )
 
+    # Consulting data (Phase 0 - CONSULTING status)
+    consulting_data: Optional[ConsultingData] = Field(
+        None,
+        description="Pre-investigation consulting data"
+    )
+
+    # Degraded mode tracking
+    degraded_mode: Optional[DegradedModeData] = Field(
+        None,
+        description="Degraded mode state when investigation is struggling"
+    )
+
+    # Progress tracking
+    turns_without_progress: int = Field(
+        default=0,
+        description="Consecutive turns without meaningful progress"
+    )
+
     # Audit trail
     turn_history: List[TurnRecord] = Field(
         default_factory=list,
         description="History of all turns"
     )
+
+    # Compatibility aliases for MilestoneEngine
+    @property
+    def evidence_items(self) -> List[EvidenceItem]:
+        """Alias for evidence (used by MilestoneEngine)"""
+        return self.evidence
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize for storage in case_metadata."""
