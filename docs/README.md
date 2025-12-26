@@ -74,6 +74,7 @@ This guide helps you find the right documentation for your needs, organized by p
 
 | Document | Purpose |
 |----------|---------|
+| **[FEATURE_PARITY_TRACKING.md](FEATURE_PARITY_TRACKING.md)** | 🔴 **Feature parity gaps** vs FaultMaven-Mono (CRITICAL) |
 | **[FAQ.md](FAQ.md)** | Frequently asked questions |
 | **[ROADMAP.md](ROADMAP.md)** | Product roadmap and future plans |
 | **[ENGINE_INTEGRATION_STATUS.md](ENGINE_INTEGRATION_STATUS.md)** | Framework engine integration status |
@@ -145,6 +146,9 @@ Located in [archive/2025/12/](archive/2025/12/):
 ---
 
 ## 🔍 Documentation by Task
+
+### Tracking Feature Parity vs FaultMaven-Mono 🔴
+→ [FEATURE_PARITY_TRACKING.md](FEATURE_PARITY_TRACKING.md) **← CRITICAL GAP TRACKING**
 
 ### Setting Up Development Environment
 → [DEVELOPMENT.md](DEVELOPMENT.md)
