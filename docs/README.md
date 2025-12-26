@@ -22,6 +22,8 @@ This guide helps you find the right documentation for your needs, organized by p
 
 | Document | Purpose | Audience |
 |----------|---------|----------|
+| **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | 🎯 **System design of record** - What the system SHOULD do | All developers |
+| **[TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)** | 🔴 **Implementation gaps** - What's NOT yet implemented | All developers |
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | System architecture overview, modular monolith design | All developers |
 | **[MODULAR_MONOLITH_DESIGN.md](MODULAR_MONOLITH_DESIGN.md)** | Detailed modular monolith rationale and patterns | Architects, senior developers |
 | **[evaluation-modular-monolith-design.md](evaluation-modular-monolith-design.md)** | Design evaluation and decision rationale | Architects |
@@ -147,8 +149,11 @@ Located in [archive/2025/12/](archive/2025/12/):
 
 ## 🔍 Documentation by Task
 
-### Tracking Feature Parity vs FaultMaven-Mono 🔴
-→ [FEATURE_PARITY_TRACKING.md](FEATURE_PARITY_TRACKING.md) **← CRITICAL GAP TRACKING**
+### Understanding System Requirements & Design 🎯
+→ [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) **← DESIGN OF RECORD** (What the system SHOULD do)
+
+### Tracking Implementation Gaps 🔴
+→ [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) **← CRITICAL GAPS** (What's NOT implemented)
 
 ### Setting Up Development Environment
 → [DEVELOPMENT.md](DEVELOPMENT.md)
