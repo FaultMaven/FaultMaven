@@ -131,7 +131,7 @@ class TestCheckDegradedMode:
     def test_no_progress_triggers_degraded(self):
         """3+ turns without progress triggers NO_PROGRESS degraded mode."""
         state = InvestigationState(investigation_id="test")
-        state.progress.turns_without_progress = 3
+        state.progress_metrics.turns_without_progress = 3
 
         result = state.check_degraded_mode()
         assert result == DegradedModeType.NO_PROGRESS
@@ -139,7 +139,7 @@ class TestCheckDegradedMode:
     def test_two_turns_no_progress_not_degraded(self):
         """2 turns without progress is not yet degraded."""
         state = InvestigationState(investigation_id="test")
-        state.progress.turns_without_progress = 2
+        state.progress_metrics.turns_without_progress = 2
 
         result = state.check_degraded_mode()
         assert result is None
@@ -166,7 +166,7 @@ class TestCheckDegradedMode:
     def test_critical_evidence_blocked_triggers_degraded(self):
         """3+ blocked evidence requests triggers degraded."""
         state = InvestigationState(investigation_id="test")
-        state.progress.evidence_blocked_count = 3
+        state.progress_metrics.evidence_blocked_count = 3
 
         result = state.check_degraded_mode()
         assert result == DegradedModeType.CRITICAL_EVIDENCE_MISSING
