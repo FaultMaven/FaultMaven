@@ -1,0 +1,279 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  SERVICE_NAME: faultmaven-dashboard
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ghcr.io/faultmaven/faultmaven-dashboard
+
+jobs:
+  # ============================================================================
+  # Stage 1: Build (No Push - Export Artifact)
+  # ============================================================================
+  build:
+    name: Build Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      image_tag: ${{ steps.image-tag.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          outputs: type=docker,dest=/tmp/image.tar
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp/image.tar
+          retention-days: 1
+
+      - name: Set image tag output
+        id: image-tag
+        run: echo "tag=sha-${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build summary
+        run: |
+          echo "### ✅ Build Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_NAME }}:sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Next: Running tests..." >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # Stage 2: Frontend Tests (Quality Gate)
+  # ============================================================================
+  test:
+    name: Frontend Tests
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm run test:coverage
+
+      - name: Test summary
+        if: success()
+        run: |
+          echo "### ✅ Frontend Tests Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All tests completed successfully." >> $GITHUB_STEP_SUMMARY
+          echo "Next: Smoke testing..." >> $GITHUB_STEP_SUMMARY
+
+      - name: Test failure
+        if: failure()
+        run: |
+          echo "### ❌ Frontend Tests Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Tests failed. Pipeline halted." >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+  # ============================================================================
+  # Stage 3: Smoke Test (Pre-Push Quality Gate)
+  # ============================================================================
+  smoke:
+    name: Smoke Test
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load Docker image
+        run: docker load --input /tmp/image.tar
+
+      - name: Start nginx container
+        run: |
+          docker run -d \
+            --name smoke-${{ github.sha }} \
+            -p 8080:80 \
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+
+      - name: Wait for service to be ready
+        run: |
+          echo "Waiting for nginx to start..."
+          MAX_ATTEMPTS=30
+          ATTEMPT=0
+
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            if curl -sf http://localhost:8080/ > /dev/null 2>&1; then
+              echo "✅ Dashboard is serving!"
+              curl -v http://localhost:8080/
+              exit 0
+            fi
+
+            ATTEMPT=$((ATTEMPT + 1))
+            echo "Attempt $ATTEMPT/$MAX_ATTEMPTS failed, retrying in 2s..."
+            sleep 2
+          done
+
+          echo "❌ Dashboard failed to start after $MAX_ATTEMPTS attempts"
+          echo ""
+          echo "Container logs:"
+          docker logs smoke-${{ github.sha }}
+          exit 1
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop smoke-${{ github.sha }} || true
+          docker rm smoke-${{ github.sha }} || true
+
+      - name: Smoke test summary
+        if: success()
+        run: |
+          echo "### ✅ Smoke Test Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Dashboard container started successfully and is serving content." >> $GITHUB_STEP_SUMMARY
+          echo "Next: Push to registry..." >> $GITHUB_STEP_SUMMARY
+
+      - name: Smoke test failure
+        if: failure()
+        run: |
+          echo "### ❌ Smoke Test Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Dashboard failed smoke test. Check logs above." >> $GITHUB_STEP_SUMMARY
+          exit 1
+
+  # ============================================================================
+  # Stage 4: Push to Registry (After All Tests Pass)
+  # ============================================================================
+  push:
+    name: Push Image to Registry
+    needs: smoke
+    if: |
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-image
+          path: /tmp
+
+      - name: Load image
+        run: docker load --input /tmp/image.tar
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine tags
+        id: tags
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "tag_suffix=latest" >> $GITHUB_OUTPUT
+          else
+            echo "environment=development" >> $GITHUB_OUTPUT
+            echo "tag_suffix=develop" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push image
+        run: |
+          docker push ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          docker tag ${{ env.IMAGE_NAME }}:sha-${{ github.sha }} ${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.tag_suffix }}
+          docker push ${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.tag_suffix }}
+
+      - name: Push summary
+        run: |
+          echo "### ✅ Image Pushed to Registry" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Image**: \`${{ env.IMAGE_NAME }}:sha-${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Also tagged**: \`${{ env.IMAGE_NAME }}:${{ steps.tags.outputs.tag_suffix }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry**: ghcr.io" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment**: ${{ steps.tags.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "Next: Promote image via enterprise-infra (no direct deploy from this repo)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Development image ready for testing." >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================================================
+  # Pipeline Summary
+  # ============================================================================
+  summary:
+    name: Pipeline Summary
+    needs: [build, test, smoke, push]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Pipeline summary
+        run: |
+          echo "### 📊 CI/CD Pipeline Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Tests | ${{ needs.test.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Smoke Test | ${{ needs.smoke.result == 'success' && '✅ Passed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Push to Registry | ${{ needs.push.result == 'success' && '✅ Passed' || needs.push.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY

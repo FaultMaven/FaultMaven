@@ -22,6 +22,32 @@ FaultMaven correlates your live telemetry with your runbooks, docs, and past fix
 
 ### Installation
 
+#### Option 1: Docker (Recommended)
+
+```bash
+# Clone repository
+git clone https://github.com/FaultMaven/faultmaven.git
+cd faultmaven
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your LLM provider API key
+
+# Start entire stack (backend, dashboard, Redis, ChromaDB)
+docker-compose up -d
+
+# Initialize database (run once)
+docker-compose exec faultmaven-backend alembic upgrade head
+```
+
+**Access Points:**
+- **Dashboard**: http://localhost:3000 - Knowledge base management UI
+- **API**: http://localhost:8000 - Backend REST API
+- **API Docs**: http://localhost:8000/docs - Interactive API documentation
+- **Health Check**: http://localhost:8000/health - Service health status
+
+#### Option 2: Local Development
+
 ```bash
 # Clone repository
 git clone https://github.com/FaultMaven/faultmaven.git
@@ -36,18 +62,24 @@ pip install -e .
 cp .env.example .env
 # Edit .env with your LLM provider API key
 
-# Start infrastructure (Redis, ChromaDB)
-docker-compose up -d
+# Start infrastructure only (Redis, ChromaDB)
+docker-compose up -d redis chromadb
 
 # Initialize database
 alembic upgrade head
 
-# Run FaultMaven
+# Run backend
 uvicorn faultmaven.app:app --reload --port 8000
+
+# In another terminal: Run dashboard (optional)
+cd dashboard
+pnpm install
+pnpm dev
 ```
 
 **Access Points:**
 - **API**: http://localhost:8000
+- **Dashboard (dev)**: http://localhost:5173
 - **Interactive API Docs**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
 
@@ -187,8 +219,8 @@ For detailed status, see [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](docs/
 ### Project Structure
 
 ```
-faultmaven/
-├── src/faultmaven/          # Main application
+faultmaven/                  # Single repository - true monolith
+├── src/faultmaven/          # Backend application
 │   ├── modules/             # 6 domain modules
 │   │   ├── auth/           # Authentication
 │   │   ├── session/        # Session management
@@ -201,10 +233,17 @@ faultmaven/
 │   ├── infrastructure/     # Redis, in-memory implementations
 │   ├── app.py             # FastAPI application
 │   └── dependencies.py    # Dependency injection
+├── dashboard/              # Web UI (React/TypeScript)
+│   ├── src/               # Dashboard source code
+│   ├── public/            # Static assets
+│   ├── Dockerfile         # Dashboard container
+│   └── package.json       # Node.js dependencies
 ├── tests/                  # Test suite (148 tests)
 ├── docs/                   # Documentation
 ├── scripts/               # Utility scripts
-└── alembic/               # Database migrations
+├── alembic/               # Database migrations
+├── Dockerfile             # Backend container
+└── docker-compose.yml     # Full stack orchestration
 ```
 
 ### Testing
@@ -358,13 +397,27 @@ For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](d
 
 ---
 
-## Browser Extension
+## User Interfaces
 
-FaultMaven integrates with the **[FaultMaven Copilot](https://github.com/FaultMaven/faultmaven-copilot)** browser extension for seamless troubleshooting workflows.
+FaultMaven provides two complementary interfaces:
 
-**Features**:
+### Web Dashboard (Included)
+
+Built-in React/TypeScript dashboard for proactive management:
+
+- **Knowledge Base**: Upload runbooks, manage indexed documents
+- **Case History**: View, search, and export past investigations
+- **Configuration**: Manage LLM providers and settings
+- **Access**: [http://localhost:3000](http://localhost:3000) (when running with Docker)
+
+Located in [dashboard/](dashboard/) directory.
+
+### Browser Extension (Separate Repository)
+
+The **[FaultMaven Copilot](https://github.com/FaultMaven/faultmaven-copilot)** browser extension for reactive troubleshooting:
+
 - Overlay AI troubleshooting on AWS Console, Datadog, Grafana
-- Context-aware conversations
+- Context-aware conversations during incidents
 - File upload and evidence collection
 - Multi-session support
 

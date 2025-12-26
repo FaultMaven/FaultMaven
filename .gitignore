@@ -86,3 +86,10 @@ implement_*.py
 validate_*.py
 test_tracer_*.py
 test_tool_*.py
+
+# Dashboard (Node.js/React)
+dashboard/node_modules/
+dashboard/dist/
+dashboard/.vercel/
+dashboard/pnpm-lock.yaml
+dashboard/.env.local
