@@ -1,569 +1,668 @@
-# FaultMaven Development Setup
+# FaultMaven Development Guide
+
+**Architecture**: Modular Monolith
+**Last Updated**: 2025-12-26
 
 This guide will help you set up a local development environment for contributing to FaultMaven.
+
+---
 
 ## Prerequisites
 
 ### Required
+
 - **Git** - Version control
-- **Docker** - For running infrastructure (Redis, ChromaDB)
-- **Docker Compose** - For orchestrating services
-- **Python 3.11+** - For running services locally
-- **Node.js 18+** - For browser extension development (optional)
+- **Python 3.11+** - Primary development language
+- **Poetry** or **pip** - Python package management
+- **Docker** - For infrastructure dependencies (Redis, ChromaDB)
 
 ### Recommended
+
 - **VSCode** or **PyCharm** - IDEs with Python support
 - **Postman** or **HTTPie** - For API testing
-- **pgAdmin** or **DBeaver** - For database inspection (optional)
+- **Redis Insight** - For Redis debugging (optional)
+- **SQLite Browser** - For database inspection (optional)
 
 ---
 
 ## Quick Start
 
-### 1. Clone Repositories
-
-You can work on individual services or clone everything:
+### 1. Clone Repository
 
 ```bash
-# Clone the repository you want to work on
-git clone https://github.com/FaultMaven/fm-agent-service.git
-cd fm-agent-service
-
-# Or clone multiple services
-mkdir faultmaven-dev
-cd faultmaven-dev
-git clone https://github.com/FaultMaven/fm-auth-service.git
-git clone https://github.com/FaultMaven/fm-case-service.git
-git clone https://github.com/FaultMaven/fm-agent-service.git
-# ... etc
+git clone https://github.com/FaultMaven/faultmaven.git
+cd faultmaven
 ```
 
-### 2. Set Up Infrastructure
+**Note**: FaultMaven is now a **single repository** with all modules in one codebase.
 
-Start Redis and ChromaDB (required by most services):
-
-```bash
-# Create docker-compose.yml for infrastructure
-cat > docker-compose-infra.yml <<EOF
-version: '3.8'
-services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-
-  chromadb:
-    image: chromadb/chroma:latest
-    ports:
-      - "8000:8000"
-    volumes:
-      - chromadb-data:/chroma/chroma
-    environment:
-      - ANONYMIZED_TELEMETRY=False
-
-volumes:
-  redis-data:
-  chromadb-data:
-EOF
-
-# Start infrastructure
-docker-compose -f docker-compose-infra.yml up -d
-```
-
-### 3. Set Up Python Environment
-
-For each service you're working on:
+### 2. Set Up Python Environment
 
 ```bash
-cd fm-agent-service
-
 # Create virtual environment
 python3 -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 # Install dependencies
-pip install -e .              # Install service
-pip install -e ".[dev]"       # Install dev dependencies (pytest, etc.)
+pip install -e .              # Install FaultMaven
+pip install -e ".[dev]"       # Install dev dependencies (pytest, ruff, etc.)
 ```
+
+### 3. Start Infrastructure
+
+Start Redis and ChromaDB using Docker Compose:
+
+```bash
+# Option 1: Use provided docker-compose.yml
+docker-compose up -d redis chromadb
+
+# Option 2: Infrastructure only
+docker-compose -f docker-compose.infra.yml up -d
+```
+
+**Services started**:
+- Redis: `localhost:6379` (sessions, cache)
+- ChromaDB: `localhost:8000` (vector store)
 
 ### 4. Configure Environment
 
-Create `.env` file:
+Create `.env` file in project root:
 
 ```bash
-# LLM Provider (required for agent service)
-OPENAI_API_KEY=sk-...
-# OR
-ANTHROPIC_API_KEY=sk-ant-...
-# OR
-FIREWORKS_API_KEY=fw_...
+# Copy example configuration
+cp .env.example .env
 
-# Database
-DB_TYPE=sqlite
-PROFILE=public
-
-# Infrastructure
-REDIS_HOST=localhost
-REDIS_PORT=6379
-CHROMADB_HOST=localhost
-CHROMADB_PORT=8000
-
-# Development
-DEBUG=true
-LOG_LEVEL=DEBUG
+# Edit with your API keys
+nano .env
 ```
 
-### 5. Run Service Locally
+**Minimum Configuration**:
+
+```env
+# Database
+DATABASE_URL=sqlite+aiosqlite:///./data/faultmaven.db
+
+# LLM Provider (choose one)
+LLM_PROVIDER=openai
+OPENAI_API_KEY=sk-...
+
+# Redis (sessions/cache)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# ChromaDB (vectors)
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+```
+
+### 5. Initialize Database
 
 ```bash
-# Start the service
-uvicorn agent_service.main:app --reload --port 8006
+# Run database migrations
+alembic upgrade head
 
-# Service will auto-reload on code changes
+# Or let the app create tables automatically on first run
+python -m faultmaven.main
+```
+
+### 6. Run FaultMaven
+
+```bash
+# Development mode (auto-reload)
+uvicorn faultmaven.app:app --reload --port 8000
+
+# Or use the provided script
+python -m faultmaven.main
+```
+
+**Access Points**:
+- API: http://localhost:8000
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- Health Check: http://localhost:8000/health
+
+---
+
+## Project Structure
+
+```
+faultmaven/
+├── src/faultmaven/          # Main application code
+│   ├── modules/             # 6 domain modules
+│   │   ├── auth/           # Authentication
+│   │   ├── session/        # Session management
+│   │   ├── case/           # Investigation management
+│   │   │   └── engines/    # Investigation framework
+│   │   ├── evidence/       # File upload
+│   │   ├── knowledge/      # Knowledge base (RAG)
+│   │   └── agent/          # AI agent orchestration
+│   ├── providers/          # Infrastructure abstractions
+│   │   ├── interfaces.py  # Provider protocols
+│   │   ├── llm/           # LLM providers
+│   │   ├── data.py        # Database provider
+│   │   ├── files.py       # File storage provider
+│   │   └── vectors.py     # Vector store provider
+│   ├── infrastructure/     # Concrete implementations
+│   │   ├── redis_impl.py  # Redis session store
+│   │   └── memory_impl.py # In-memory fallback
+│   ├── app.py             # FastAPI application
+│   ├── dependencies.py    # Dependency injection
+│   └── models.py          # ORM model registry
+├── tests/                  # Test suite
+│   ├── unit/              # Unit tests
+│   └── integration/       # Integration tests
+├── docs/                   # Documentation
+├── scripts/               # Utility scripts
+├── alembic/               # Database migrations
+├── .env.example           # Environment template
+├── pyproject.toml         # Python dependencies
+└── README.md
 ```
 
 ---
 
 ## Development Workflow
 
-### Making Changes
+### Working on a Module
 
-1. **Create a feature branch**
-   ```bash
-   git checkout -b feature/add-hypothesis-tracking
-   ```
+Each module follows vertical slice architecture:
 
-2. **Make your changes**
-   - Edit code in `src/`
-   - Add tests in `tests/`
-   - Update documentation if needed
+```python
+# Example: Working on case module
+src/faultmaven/modules/case/
+├── routers.py      # HTTP endpoints
+├── service.py      # Business logic
+├── models.py       # ORM models
+├── investigation.py # Domain models
+└── engines/        # Framework engines
+```
 
-3. **Run tests**
-   ```bash
-   pytest                    # Run all tests
-   pytest tests/unit         # Run unit tests only
-   pytest -v                 # Verbose output
-   pytest --cov=agent_service  # With coverage
-   ```
+**Typical workflow**:
+1. Add/modify endpoint in `routers.py`
+2. Implement logic in `service.py`
+3. Update models if needed
+4. Write tests in `tests/unit/modules/case/`
+5. Run tests: `pytest tests/unit/modules/case/`
 
-4. **Check code quality**
-   ```bash
-   # Format code
-   black src tests
+### Adding a New Endpoint
 
-   # Check style
-   ruff src tests
+Example: Add `GET /cases/{case_id}/summary`
 
-   # Type checking (if service uses it)
-   mypy src
-   ```
+```python
+# 1. Add route in routers.py
+@router.get("/{case_id}/summary")
+async def get_case_summary(
+    case_id: str,
+    case_service: CaseService = Depends(get_case_service),
+) -> Dict[str, Any]:
+    return await case_service.get_summary(case_id)
 
-5. **Commit and push**
-   ```bash
-   git add .
-   git commit -m "feat: Add hypothesis tracking to agent service"
-   git push origin feature/add-hypothesis-tracking
-   ```
+# 2. Implement in service.py
+async def get_summary(self, case_id: str) -> Dict[str, Any]:
+    case = await self.db_session.get(Case, case_id)
+    if not case:
+        raise HTTPException(404, "Case not found")
 
-6. **Create Pull Request**
-   - Go to GitHub and create a PR
-   - Fill in the PR template
-   - Wait for CI checks and review
+    return {
+        "case_id": case.case_id,
+        "status": case.status,
+        "message_count": len(case.messages),
+        "created_at": case.created_at,
+    }
+
+# 3. Add test
+async def test_get_case_summary(case_service):
+    case = await case_service.create_case(user_id="user123")
+    summary = await case_service.get_summary(case.case_id)
+
+    assert summary["case_id"] == case.case_id
+    assert summary["status"] == "consulting"
+```
+
+### Adding a New Module
+
+```bash
+# 1. Create module structure
+mkdir -p src/faultmaven/modules/mymodule
+touch src/faultmaven/modules/mymodule/{__init__.py,routers.py,service.py,models.py}
+
+# 2. Define ORM models (models.py)
+from sqlalchemy import Column, String
+from faultmaven.models import Base
+
+class MyModel(Base):
+    __tablename__ = "my_table"
+    id = Column(String, primary_key=True)
+    # ... fields
+
+# 3. Create service (service.py)
+class MyModuleService:
+    def __init__(self, db_session):
+        self.db_session = db_session
+
+# 4. Add routes (routers.py)
+from fastapi import APIRouter
+router = APIRouter(prefix="/mymodule", tags=["mymodule"])
+
+# 5. Register in app.py
+from faultmaven.modules.mymodule.routers import router as mymodule_router
+app.include_router(mymodule_router)
+
+# 6. Register model in models.py
+from faultmaven.modules.mymodule.models import MyModel
+```
 
 ---
 
 ## Testing
 
-### Unit Tests
-
-Test individual functions without external dependencies:
+### Running Tests
 
 ```bash
-pytest tests/unit -v
+# All tests
+pytest
+
+# Specific module
+pytest tests/unit/modules/case/
+
+# Specific test file
+pytest tests/unit/modules/case/test_service.py
+
+# With coverage
+pytest --cov=faultmaven tests/
+
+# Watch mode (requires pytest-watch)
+ptw tests/
 ```
 
-**Example unit test:**
+### Test Structure
+
 ```python
-def test_message_validation():
-    from agent_service.models import Message
+# tests/unit/modules/case/test_service.py
+import pytest
+from faultmaven.modules.case.service import CaseService
 
-    msg = Message(
-        role="user",
-        content="Test message"
-    )
-    assert msg.role == "user"
-    assert msg.content == "Test message"
+@pytest.fixture
+async def case_service(db_session):
+    return CaseService(db_session=db_session)
+
+async def test_create_case(case_service):
+    case = await case_service.create_case(user_id="user123")
+    assert case.case_id is not None
+    assert case.status == "consulting"
 ```
 
-### Integration Tests
+### Test Coverage Goals
 
-Test services with real infrastructure:
+- **Unit tests**: 80%+ coverage
+- **Integration tests**: Critical paths
+- **Current**: 47% coverage (target: 80%)
+
+---
+
+## Code Quality
+
+### Linting and Formatting
 
 ```bash
-# Ensure Redis and ChromaDB are running
-docker-compose -f docker-compose-infra.yml up -d
+# Format code with ruff
+ruff format .
 
-# Run integration tests
-pytest tests/integration -v
+# Lint code
+ruff check .
+
+# Type checking with mypy
+mypy src/
+
+# Run all checks
+./scripts/lint.sh
 ```
 
-**Example integration test:**
-```python
-def test_knowledge_search(client):
-    """Test searching the knowledge base"""
-    response = client.post(
-        "/v1/knowledge/search",
-        json={"query": "database timeout"}
-    )
-    assert response.status_code == 200
-    assert "results" in response.json()
-```
-
-### Running Specific Tests
+### Pre-commit Hooks
 
 ```bash
-# Single test file
-pytest tests/unit/test_agent.py
+# Install pre-commit hooks
+pre-commit install
 
-# Single test function
-pytest tests/unit/test_agent.py::test_message_validation
-
-# Tests matching pattern
-pytest -k "agent"
-```
-
-### Test Coverage
-
-```bash
-# Generate coverage report
-pytest --cov=agent_service --cov-report=html
-
-# Open in browser
-open htmlcov/index.html  # macOS
-xdg-open htmlcov/index.html  # Linux
+# Run manually
+pre-commit run --all-files
 ```
 
 ---
 
-## Working on Specific Services
+## Database Management
 
-### Agent Service
+### Migrations with Alembic
 
-**Location:** `fm-agent-service/`
-
-**Key files:**
-- `src/agent_service/core/agent/` - AI agent implementation
-- `src/agent_service/api/routes/` - API endpoints
-
-**Development:**
 ```bash
-# Start dependencies
-docker-compose -f docker-compose-infra.yml up -d
+# Create new migration
+alembic revision --autogenerate -m "Add new column to cases table"
 
-# Run service
-cd fm-agent-service
-source .venv/bin/activate
-uvicorn agent_service.main:app --reload --port 8006
+# Apply migrations
+alembic upgrade head
 
-# Test endpoint
-curl http://localhost:8006/health
+# Rollback one migration
+alembic downgrade -1
+
+# View migration history
+alembic history
 ```
 
----
+### Database Inspection
 
-### Knowledge Service
-
-**Location:** `fm-knowledge-service/`
-
-**Key files:**
-- `src/knowledge_service/core/knowledge/` - Knowledge base logic
-- `src/knowledge_service/infrastructure/` - ChromaDB integration
-
-**Development:**
 ```bash
-# Ensure ChromaDB is running
-docker-compose -f docker-compose-infra.yml up -d chromadb
+# SQLite (development)
+sqlite3 data/faultmaven.db
+.tables
+.schema cases
 
-# Run service
-cd fm-knowledge-service
-source .venv/bin/activate
-uvicorn knowledge_service.main:app --reload --port 8004
+# Or use GUI tool
+sqlitebrowser data/faultmaven.db
 ```
-
----
-
-### Browser Extension
-
-**Location:** `faultmaven-copilot/`
-
-**Setup:**
-```bash
-cd faultmaven-copilot
-pnpm install
-
-# Development build with hot reload
-pnpm dev
-
-# Load extension in browser:
-# Chrome: chrome://extensions → Load unpacked → .output/chrome-mv3
-# Firefox: about:debugging → Load Temporary Add-on → .output/firefox-mv2
-```
-
-**Tech stack:**
-- WXT framework (WebExtension toolkit)
-- React + TypeScript
-- Tailwind CSS
 
 ---
 
 ## Debugging
 
-### Python Services
+### VSCode Launch Configuration
 
-**VSCode `launch.json`:**
+`.vscode/launch.json`:
+
 ```json
 {
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Run Agent Service",
+      "name": "FaultMaven FastAPI",
       "type": "python",
       "request": "launch",
       "module": "uvicorn",
       "args": [
-        "agent_service.main:app",
+        "faultmaven.app:app",
         "--reload",
-        "--port",
-        "8006"
+        "--port", "8000"
       ],
-      "envFile": "${workspaceFolder}/.env"
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}/src"
+      }
+    },
+    {
+      "name": "Pytest Current File",
+      "type": "python",
+      "request": "launch",
+      "module": "pytest",
+      "args": ["${file}", "-v"]
     }
   ]
 }
 ```
 
-**Set breakpoints** in VSCode and press F5 to start debugging.
+### Logging
 
-### Viewing Logs
-
-```bash
-# Service logs (if running in Docker)
-docker-compose logs -f agent-service
-
-# Infrastructure logs
-docker-compose -f docker-compose-infra.yml logs -f redis
-docker-compose -f docker-compose-infra.yml logs -f chromadb
-```
-
-### Database Inspection
-
-**SQLite:**
-```bash
-# Install sqlite3
-sqlite3 data/cases.db
-
-# View tables
-.tables
-
-# Query data
-SELECT * FROM cases LIMIT 10;
-```
-
-**ChromaDB:**
 ```python
-import chromadb
+# Add logging to your module
+import logging
+logger = logging.getLogger(__name__)
 
-client = chromadb.HttpClient(host="localhost", port=8000)
-collections = client.list_collections()
-print(collections)
+# Use in code
+logger.info("Processing case %s", case_id)
+logger.error("Failed to process: %s", error)
+
+# Configure log level in .env
+LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR
+```
+
+### API Testing
+
+```bash
+# HTTPie examples
+http POST localhost:8000/auth/register email=test@example.com password=test123
+
+http POST localhost:8000/sessions Authorization:"Bearer <token>"
+
+http POST localhost:8000/cases Authorization:"Bearer <token>" \
+  user_message="My app is crashing"
+
+# Curl examples
+curl -X POST http://localhost:8000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}'
+```
+
+---
+
+## Working with Investigation Framework
+
+### Understanding the Framework
+
+The investigation framework consists of 5 engines in `src/faultmaven/modules/case/engines/`:
+
+1. **MilestoneEngine** - Orchestrator
+2. **MemoryManager** - Hierarchical memory (✅ integrated)
+3. **WorkingConclusionGenerator** - Progress tracking (✅ integrated)
+4. **PhaseOrchestrator** - Phase progression (✅ integrated)
+5. **OODAEngine** - Adaptive intensity (✅ integrated)
+6. **HypothesisManager** - Hypothesis lifecycle (⏳ pending)
+
+**Status**: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+
+### Testing Framework Engines
+
+```bash
+# Run investigation framework tests
+pytest tests/unit/modules/case/test_milestone_engine.py -v
+pytest tests/unit/modules/case/test_ooda_engine_business_logic.py -v
+pytest tests/unit/modules/case/test_hypothesis_manager_business_logic.py -v
+
+# All framework tests
+pytest tests/unit/modules/case/ -k engine -v
+```
+
+---
+
+## LLM Provider Development
+
+### Adding a New LLM Provider
+
+See FaultMaven-Mono reference:
+
+1. Create provider class in `src/faultmaven/providers/llm/`
+2. Implement `LLMProvider` protocol
+3. Register in provider factory
+4. Add configuration to `.env.example`
+5. Update documentation
+
+**Example**: `src/faultmaven/providers/llm/groq.py`
+
+```python
+from faultmaven.providers.interfaces import LLMProvider
+
+class GroqProvider(LLMProvider):
+    async def chat(self, messages, **kwargs):
+        # Implementation
+        pass
 ```
 
 ---
 
 ## Common Tasks
 
-### Add a New API Endpoint
-
-1. **Add route** in `src/{service}/api/routes/`
-   ```python
-   @router.post("/new-endpoint")
-   async def new_endpoint(data: RequestModel):
-       return {"status": "success"}
-   ```
-
-2. **Add business logic** in `src/{service}/core/` or `src/{service}/domain/`
-
-3. **Add tests** in `tests/`
-
-4. **Test manually:**
-   ```bash
-   curl -X POST http://localhost:8006/v1/new-endpoint \
-     -H "Content-Type: application/json" \
-     -d '{"key":"value"}'
-   ```
-
-### Update Database Schema
-
-**For SQLite services:**
-
-1. Update model in `src/{service}/models/`
-2. Create migration (if using Alembic):
-   ```bash
-   alembic revision --autogenerate -m "Add new column"
-   alembic upgrade head
-   ```
-
-3. Or delete and recreate database (dev only):
-   ```bash
-   rm data/*.db
-   # Restart service to recreate
-   ```
-
-### Add New Dependency
+### Reset Database
 
 ```bash
-# Add to pyproject.toml
-[project]
-dependencies = [
-    "new-package>=1.0.0"
-]
-
-# Reinstall
-pip install -e .
+rm data/faultmaven.db
+alembic upgrade head
 ```
 
-### Regenerate Requirements
-
-Some services use `requirements.txt`:
+### Clear Redis
 
 ```bash
-pip freeze > requirements.txt
+redis-cli FLUSHDB
 ```
 
----
+### Reset ChromaDB
 
-## IDE Setup
-
-### VSCode
-
-**Recommended extensions:**
-- Python (Microsoft)
-- Pylance
-- Ruff
-- Black Formatter
-- Docker
-- GitLens
-
-**Settings (`.vscode/settings.json`):**
-```json
-{
-  "python.linting.enabled": true,
-  "python.linting.ruffEnabled": true,
-  "python.formatting.provider": "black",
-  "editor.formatOnSave": true,
-  "[python]": {
-    "editor.defaultFormatter": "ms-python.black-formatter"
-  }
-}
+```bash
+docker-compose down chromadb
+docker volume rm faultmaven_chromadb-data
+docker-compose up -d chromadb
 ```
 
-### PyCharm
+### Generate API Documentation
 
-1. **Interpreter:** Set to `.venv/bin/python`
-2. **Code Style:** Configure Black formatter
-3. **Run Configuration:** Add Uvicorn run config
+```bash
+# Generate OpenAPI spec
+python scripts/generate_openapi_spec.py
+
+# View at
+open http://localhost:8000/docs
+```
 
 ---
 
 ## Troubleshooting
 
-### Service won't start
+### Port Already in Use
 
-**Check dependencies:**
 ```bash
-docker ps  # Ensure Redis/ChromaDB are running
+# Find process using port 8000
+lsof -i :8000
+
+# Kill process
+kill -9 <PID>
 ```
 
-**Check environment:**
+### Import Errors
+
 ```bash
-cat .env  # Ensure all required vars are set
-```
+# Ensure PYTHONPATH includes src/
+export PYTHONPATH="${PWD}/src:${PYTHONPATH}"
 
-**Check logs:**
-```bash
-# Look for errors in terminal output
-uvicorn agent_service.main:app --reload --log-level debug
-```
-
-### Tests failing
-
-**Update dependencies:**
-```bash
-pip install -e ".[dev]"
-```
-
-**Clear cache:**
-```bash
-pytest --cache-clear
-```
-
-**Run in verbose mode:**
-```bash
-pytest -vv --tb=long
-```
-
-### Import errors
-
-**Ensure package is installed in editable mode:**
-```bash
+# Or install in editable mode
 pip install -e .
 ```
 
-**Check PYTHONPATH:**
+### Database Lock Errors
+
 ```bash
-export PYTHONPATH=/path/to/project/src:$PYTHONPATH
+# SQLite is locked (multiple connections)
+# Solution: Use PostgreSQL for multi-process development
+
+# Update .env
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost/faultmaven
+```
+
+### Redis Connection Failed
+
+```bash
+# Check Redis is running
+docker ps | grep redis
+
+# Check connection
+redis-cli ping
 ```
 
 ---
 
-## Getting Help
+## Performance Profiling
 
-- **GitHub Issues:** Report bugs or request features
-- **GitHub Discussions:** Ask questions or share ideas
-- **Code Comments:** Check inline documentation
-- **API Docs:** Visit http://localhost:8006/docs for interactive API testing
+### Profile API Endpoints
 
----
+```python
+# Add profiling middleware
+from fastapi_profiler import PyInstrumentProfilerMiddleware
 
-## Best Practices
+app.add_middleware(PyInstrumentProfilerMiddleware)
 
-### Code Style
-- Follow PEP 8 (enforced by Black and Ruff)
-- Use type hints
-- Write docstrings for public functions
-- Keep functions small and focused
+# Access profiler at /__profiler__
+```
 
-### Testing
-- Write tests for new features
-- Maintain test coverage above 70%
-- Use descriptive test names
-- Mock external dependencies in unit tests
+### Memory Profiling
 
-### Git
-- Use meaningful commit messages
-- Keep commits small and focused
-- Rebase before pushing to keep history clean
-- Reference issues in commits (e.g., "fixes #123")
+```bash
+# Install memory profiler
+pip install memory-profiler
 
-### Documentation
-- Update README when adding features
-- Keep API docs in sync with code
-- Add inline comments for complex logic
+# Profile function
+python -m memory_profiler script.py
+```
 
 ---
 
-**Last Updated:** 2025-11-20
-**Version:** 2.0
-**Status:** Current
+## Contributing Guidelines
+
+### Branch Naming
+
+```bash
+# Feature branches
+git checkout -b feature/add-hypothesis-validation
+
+# Bug fixes
+git checkout -b fix/session-timeout-bug
+
+# Documentation
+git checkout -b docs/update-api-guide
+```
+
+### Commit Messages
+
+Follow conventional commits:
+
+```bash
+feat: Add hypothesis confidence tracking
+fix: Resolve session cleanup race condition
+docs: Update development guide for monolith
+test: Add integration tests for case service
+refactor: Extract memory manager to separate class
+```
+
+### Pull Request Process
+
+1. Create feature branch from `main`
+2. Make changes and add tests
+3. Ensure all tests pass: `pytest`
+4. Run linters: `ruff check .`
+5. Update documentation if needed
+6. Create PR with descriptive title and summary
+7. Wait for CI checks to pass
+8. Request review from maintainers
+
+---
+
+## IDE Setup
+
+### VSCode Extensions
+
+Recommended:
+- Python (Microsoft)
+- Pylance
+- Ruff
+- SQLite Viewer
+- REST Client
+- Docker
+
+### PyCharm Configuration
+
+1. Set interpreter to `.venv/bin/python`
+2. Mark `src` as Sources Root
+3. Enable pytest as test runner
+4. Configure run configuration for `uvicorn`
+
+---
+
+## Additional Resources
+
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System architecture
+- **[API Documentation](api/)** - OpenAPI specs
+- **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** - Testing approach
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment
+- **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** - Common issues
+
+---
+
+**Architecture**: Modular Monolith (Single Repository)
+**Main Application**: `src/faultmaven/app.py`
+**Default Port**: 8000
+**Database**: SQLite (dev), PostgreSQL (production)
+
+For questions, see [FAQ.md](FAQ.md) or open an issue on GitHub.
