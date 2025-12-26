@@ -1,371 +1,450 @@
 # FaultMaven Architecture Overview
 
-This document explains how FaultMaven's services work together to deliver AI-powered troubleshooting.
+**Architecture**: Modular Monolith
+**Status**: Production Ready
+**Last Updated**: 2025-12-26
+
+---
 
 ## System Overview
 
-FaultMaven uses a **microservices architecture** where each service handles a specific concern. Services communicate via REST APIs and share data through Redis (cache/queue) and ChromaDB (knowledge base).
+FaultMaven is built as a **modular monolith** - a single codebase organized into well-defined modules with clear boundaries. This architecture provides the simplicity of a monolith with the maintainability of microservices.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│              Browser Extension / Dashboard           │
+│         Browser Extension / Dashboard                │
 └────────────────────┬────────────────────────────────┘
                      │ HTTPS
                      ▼
 ┌─────────────────────────────────────────────────────┐
-│                  API Gateway (8090)                  │
-│          Routes requests + Authentication            │
-└─────┬───────┬──────┬───────┬────────┬───────┬───────┘
-      │       │      │       │        │       │
-      ▼       ▼      ▼       ▼        ▼       ▼
-   ┌─────┐ ┌────┐ ┌────┐ ┌──────┐ ┌────┐ ┌──────┐
-   │Auth │ │Sess│ │Case│ │Knowl │ │Evid│ │Agent │
-   │8001 │ │8002│ │8003│ │ 8004 │ │8005│ │ 8006 │
-   └─────┘ └────┘ └────┘ └──────┘ └────┘ └──────┘
-      │       │      │       │        │       │
-      ▼       ▼      ▼       ▼        ▼       ▼
-   ┌──────────────────────────────────────────────┐
-   │         Infrastructure Layer                  │
-   │  SQLite | Redis | ChromaDB | LLM Providers   │
-   └──────────────────────────────────────────────┘
+│              FaultMaven Monolith (8000)              │
+│                                                       │
+│  ┌───────────────────────────────────────────────┐  │
+│  │              Module Layer                      │  │
+│  ├───────┬────────┬──────┬────────┬────────┬─────┤  │
+│  │ Auth  │Session │ Case │Evidence│Knowledge│Agent│  │
+│  │       │        │      │        │         │     │  │
+│  └───┬───┴────┬───┴──┬───┴────┬───┴────┬────┴─┬───┘  │
+│      │        │      │        │        │      │      │
+│  ┌───▼────────▼──────▼────────▼────────▼──────▼───┐  │
+│  │          Shared Infrastructure Layer          │  │
+│  │  Providers | ORM | Redis | ChromaDB | LLM    │  │
+│  └───────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────┘
+                     │
+                     ▼
+        ┌────────────────────────────┐
+        │    Infrastructure           │
+        │  SQLite/PostgreSQL          │
+        │  Redis (sessions/cache)     │
+        │  ChromaDB (vectors)         │
+        │  LLM Providers (7 supported)│
+        └────────────────────────────┘
 ```
-
-## Service Responsibilities
-
-### API Gateway (Port 8090)
-**Purpose:** Single entry point for all client requests
-
-**Responsibilities:**
-- Routes requests to appropriate services
-- Handles authentication (JWT validation)
-- Provides `/health` and `/v1/meta/capabilities` endpoints
-- CORS management
-
-**Technology:** FastAPI, Python
 
 ---
 
-### Auth Service (Port 8001)
-**Purpose:** User authentication
+## Architecture Principles
 
-**Responsibilities:**
+### 1. **Modular Monolith Design**
+- Single deployable unit with clear module boundaries
+- Each module owns its domain logic, routes, and services
+- Modules communicate through well-defined interfaces
+- Shared infrastructure layer (no duplication)
+
+### 2. **Vertical Slice Architecture**
+Each module contains:
+- **Router** (`routers.py`) - HTTP endpoints
+- **Service** (`service.py`) - Business logic
+- **Models** (`models.py`) - ORM entities
+- **Dependencies** - Module-specific DI
+
+### 3. **Provider Abstraction**
+Infrastructure accessed through provider interfaces:
+- `LLMProvider` - Multi-provider LLM support (7 providers)
+- `DataProvider` - Database abstraction (SQLite/PostgreSQL)
+- `FileProvider` - File storage (local/S3)
+- `VectorProvider` - Vector store (ChromaDB/Pinecone)
+- `IdentityProvider` - Auth (JWT/OAuth)
+
+---
+
+## Module Architecture
+
+### Module Structure
+
+```
+src/faultmaven/modules/
+├── auth/               # Authentication & authorization
+│   ├── routers.py     # /auth/* endpoints
+│   ├── service.py     # AuthService
+│   └── models.py      # User ORM model
+├── session/           # Session management
+│   ├── routers.py     # /sessions/* endpoints
+│   ├── service.py     # SessionService
+│   └── models.py      # Session ORM model
+├── case/              # Investigation management
+│   ├── routers.py     # /cases/* endpoints
+│   ├── service.py     # CaseService
+│   ├── models.py      # Case, Message ORM models
+│   ├── investigation.py  # Investigation domain models
+│   └── engines/       # Investigation framework
+│       ├── milestone_engine.py
+│       ├── hypothesis_manager.py
+│       ├── ooda_engine.py
+│       ├── memory_manager.py           # ✅ Integrated
+│       ├── working_conclusion_generator.py  # ✅ Integrated
+│       └── phase_orchestrator.py       # ✅ Integrated
+├── evidence/          # File upload & evidence
+│   ├── routers.py     # /evidence/* endpoints
+│   ├── service.py     # EvidenceService
+│   └── models.py      # Evidence ORM model
+├── knowledge/         # Knowledge base (RAG)
+│   ├── routers.py     # /knowledge/* endpoints
+│   ├── service.py     # KnowledgeService
+│   └── models.py      # Document ORM model
+└── agent/             # AI agent orchestration
+    ├── routers.py     # /agent/* endpoints
+    ├── service.py     # AgentService
+    └── response_types.py  # Response type system
+```
+
+---
+
+## Module Responsibilities
+
+### Auth Module
+**Purpose**: User authentication and authorization
+
+**Capabilities**:
 - User registration and login
 - JWT token generation and validation
 - Password hashing (bcrypt)
+- User profile management
 
-**Data Store:** SQLite (users table)
+**Data Store**: SQLite/PostgreSQL (users table)
 
-**Technology:** FastAPI, SQLAlchemy, JWT
+**Endpoints**:
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/logout`
+- `GET /auth/me`
 
 ---
 
-### Session Service (Port 8002)
-**Purpose:** Track user sessions
+### Session Module
+**Purpose**: Multi-session management with client-based resumption
 
-**Responsibilities:**
+**Capabilities**:
 - Create and manage user sessions
-- Session expiration and cleanup
-- Store session metadata
+- Client-based session resumption (device continuity)
+- Session timeout with configurable TTL (60-480 minutes)
+- Session cleanup and recovery
+- Heartbeat tracking
 
-**Data Store:** Redis (key-value with TTL)
+**Data Store**: Redis (key-value with TTL)
 
-**Technology:** FastAPI, Redis
+**Endpoints**:
+- `POST /sessions` - Create with client_id resumption
+- `GET /sessions/{session_id}`
+- `POST /sessions/{session_id}/heartbeat`
+- `POST /sessions/{session_id}/cleanup`
 
----
-
-### Case Service (Port 8003)
-**Purpose:** Manage troubleshooting investigations
-
-**Responsibilities:**
-- Create and track cases
-- Store messages and conversation history
-- Track investigation progress
-- Case status management
-
-**Data Store:** SQLite (cases, messages tables)
-
-**Technology:** FastAPI, SQLAlchemy
+**Key Feature**: Multiple concurrent sessions per user with device-specific resumption
 
 ---
 
-### Knowledge Service (Port 8004)
-**Purpose:** Knowledge base with semantic search
+### Case Module
+**Purpose**: Investigation lifecycle management with advanced AI framework
 
-**Responsibilities:**
-- Document upload and ingestion
-- Convert documents to embeddings
+**Capabilities**:
+- Case CRUD operations
+- Investigation state tracking
+- Message history
+- Hypothesis management
+- Solution tracking
+- Report generation
+
+**Investigation Framework** (80% integrated):
+- ✅ **MemoryManager** - Hierarchical memory (64% token reduction)
+- ✅ **WorkingConclusionGenerator** - Continuous progress tracking
+- ✅ **PhaseOrchestrator** - Intelligent phase progression
+- ✅ **OODAEngine** - Adaptive investigation intensity
+- ⏳ **HypothesisManager** - (Pending: requires structured LLM output)
+
+**Data Store**: SQLite/PostgreSQL (cases, messages, hypotheses tables)
+
+**Endpoints**:
+- `POST /cases` - Create case
+- `GET /cases/{case_id}`
+- `POST /cases/{case_id}/messages`
+- `POST /cases/{case_id}/hypotheses`
+- `POST /cases/{case_id}/solutions`
+
+**Status**: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md) for detailed framework status
+
+---
+
+### Evidence Module
+**Purpose**: File upload and evidence management
+
+**Capabilities**:
+- File upload (logs, configs, screenshots)
+- Evidence metadata tracking
+- Evidence-case association
+- File download and retrieval
+
+**Data Store**:
+- SQLite/PostgreSQL (evidence metadata)
+- Local filesystem or S3 (file content)
+
+**Endpoints**:
+- `POST /evidence/upload`
+- `GET /evidence/{evidence_id}`
+- `GET /evidence/{evidence_id}/download`
+- `DELETE /evidence/{evidence_id}`
+
+---
+
+### Knowledge Module
+**Purpose**: Knowledge base with semantic search (RAG)
+
+**Capabilities**:
+- Document ingestion and embedding
 - Semantic search via vector similarity
-- Manage three knowledge collections:
-  - **User KB:** Personal runbooks (permanent)
-  - **Global KB:** System-wide documentation (permanent)
-  - **Case Evidence:** Investigation-specific data (ephemeral)
+- Three knowledge collections:
+  - **User KB**: Personal runbooks
+  - **Global KB**: System-wide documentation
+  - **Case KB**: Case-specific knowledge (auto-cleanup)
+- Document management (create, delete, list)
 
-**Data Store:** ChromaDB (vector embeddings), SQLite (metadata)
+**Data Store**:
+- ChromaDB (vector embeddings)
+- SQLite/PostgreSQL (document metadata)
 
-**Technology:** FastAPI, ChromaDB, Sentence Transformers (BGE-M3)
+**Endpoints**:
+- `POST /knowledge/documents` - Ingest document
+- `POST /knowledge/search` - Semantic search
+- `GET /knowledge/documents`
+- `DELETE /knowledge/documents/{doc_id}`
 
----
-
-### Evidence Service (Port 8005)
-**Purpose:** File uploads and attachments
-
-**Responsibilities:**
-- Accept file uploads (logs, screenshots, configs)
-- Store files on disk
-- Retrieve files by ID
-- Link files to cases
-
-**Data Store:** Local filesystem, SQLite (metadata)
-
-**Technology:** FastAPI, multipart/form-data
+**Embedding Model**: BGE-M3 (multilingual, multi-granularity)
 
 ---
 
-### Agent Service (Port 8006)
-**Purpose:** AI-powered troubleshooting conversations
+### Agent Module
+**Purpose**: AI agent orchestration with multi-turn conversations
 
-**Responsibilities:**
-- Process user messages
-- Generate AI responses
-- Track investigation context
-- Call Knowledge Service for relevant documentation
-- Manage conversation flow
+**Capabilities**:
+- Multi-turn troubleshooting conversations
+- Context-aware responses
+- RAG integration (knowledge retrieval)
+- Multi-provider LLM support (7 providers)
+- Response type system (9 types)
 
-**Data Store:** None (stateless, relies on Case Service)
+**Response Types**:
+1. `ANSWER` - Direct answer
+2. `PLAN_PROPOSAL` - Investigation plan
+3. `CLARIFICATION_REQUEST` - Request more info
+4. `CONFIRMATION_REQUEST` - Confirm action
+5. `SOLUTION_READY` - Solution proposal
+6. `NEEDS_MORE_DATA` - Request evidence
+7. `ESCALATION_REQUIRED` - Human escalation
+8. `STATUS_UPDATE` - Progress update
+9. `ERROR` - Error handling
 
-**Technology:** FastAPI, LangChain, OpenAI/Anthropic/Fireworks APIs
+**LLM Providers**: Fireworks, OpenAI, Anthropic, Google Gemini, HuggingFace, OpenRouter, Local (Ollama/vLLM)
+
+**Endpoints**:
+- `POST /agent/chat/{case_id}` - Send message
+- `GET /agent/health`
 
 ---
 
-### Job Worker (Background)
-**Purpose:** Async background task processing
+## Shared Infrastructure
 
-**Responsibilities:**
-- Process document uploads asynchronously
-- Generate embeddings for knowledge base
-- Clean up old cases
-- Delete ephemeral evidence collections
-- Generate post-mortem documentation
+### Provider Layer (`src/faultmaven/providers/`)
 
-**Task Queue:** Redis + Celery
+**Purpose**: Abstract infrastructure dependencies behind interfaces
 
-**Technology:** Python, Celery, Celery Beat (scheduler)
+**Providers**:
+- **LLM Provider** (`llm/`) - Multi-provider LLM routing with fallback
+- **Data Provider** (`data.py`) - SQLAlchemy ORM wrapper
+- **File Provider** (`files.py`) - Local/S3 file storage
+- **Vector Provider** (`vectors.py`) - ChromaDB/Pinecone abstraction
+
+**Configuration**:
+- Protocol-based interfaces (PEP 544)
+- Deployment profile support (Core/Team/Enterprise)
+- Automatic provider selection based on configuration
+
+### Infrastructure Layer (`src/faultmaven/infrastructure/`)
+
+**Purpose**: Concrete implementations of infrastructure services
+
+**Components**:
+- **Redis** (`redis_impl.py`) - Session storage, caching
+- **In-Memory** (`memory_impl.py`) - Fallback session storage
+- **SQLAlchemy** - ORM for all modules
 
 ---
 
 ## Data Flow Examples
 
-### Example 1: User Asks a Question
-
+### 1. User Login Flow
 ```
-1. User types message in browser extension
-2. Extension → API Gateway → Agent Service
-3. Agent Service → Knowledge Service (search for relevant docs)
-4. Agent Service → LLM Provider (OpenAI/Anthropic)
-5. Agent Service → Case Service (store message + response)
-6. Response flows back: Agent → Gateway → Extension
+Browser → POST /auth/login
+       → AuthService.login()
+       → DataProvider.query(User, email=...)
+       → JWT token generation
+       → Response with access_token
 ```
 
-### Example 2: Upload a Document
-
+### 2. Investigation Chat Flow
 ```
-1. User uploads PDF in dashboard
-2. Dashboard → API Gateway → Knowledge Service
-3. Knowledge Service → Job Worker (async task queued in Redis)
-4. Job Worker:
-   a. Extracts text from PDF
-   b. Splits into chunks
-   c. Generates embeddings via Sentence Transformers
-   d. Stores in ChromaDB
-5. Document is now searchable
-```
-
-### Example 3: Create a New Case
-
-```
-1. User starts troubleshooting session in extension
-2. Extension → API Gateway → Case Service (create case)
-3. Case Service stores case in SQLite
-4. Extension → Agent Service (send first message)
-5. Agent Service → Case Service (link message to case)
-6. Conversation continues with case_id in all requests
+Browser → POST /agent/chat/{case_id}
+       → AgentService.process_message()
+       → KnowledgeService.search() [RAG retrieval]
+       → LLMProvider.chat() [LLM inference]
+       → CaseService.add_message()
+       → MilestoneEngine.process_turn()
+         ├─→ MemoryManager.organize_memory()
+         ├─→ WorkingConclusionGenerator.generate()
+         ├─→ PhaseOrchestrator.detect_loopback()
+         └─→ OODAEngine.get_current_intensity()
+       → Response with answer + updated state
 ```
 
-## Key Design Decisions
-
-### Why Microservices?
-
-**Benefits:**
-- **Independent scaling:** Scale Agent Service separately from Case Service
-- **Technology flexibility:** Each service can use best-fit tools
-- **Fault isolation:** Knowledge Service issues don't affect authentication
-- **Clear boundaries:** Each service has a single responsibility
-
-**Trade-offs:**
-- More complex deployment (mitigated by docker-compose)
-- Network latency between services (acceptable for our use case)
-
-### Why SQLite for FaultMaven Core?
-
-**Benefits:**
-- Zero configuration (no database server needed)
-- Single file backup/restore
-- Perfect for single-user or small team deployments
-- Excellent performance for < 100GB data
-
-**FaultMaven Enterprise uses PostgreSQL** for multi-tenancy and scale.
-
-### Why Redis?
-
-**Used for:**
-1. **Session storage** - Fast key-value lookups with TTL
-2. **Celery task queue** - Reliable message broker
-3. **Cache** - Future use for API response caching
-
-### Why ChromaDB?
-
-**Benefits:**
-- Purpose-built for embeddings/vector search
-- Easy to run in Docker
-- Good performance for < 1M documents
-- Open source and actively maintained
-
-### Why Multiple LLM Providers?
-
-**Benefits:**
-- **No vendor lock-in** - Switch providers anytime
-- **Failover** - If OpenAI is down, try Anthropic
-- **Cost optimization** - Use cheaper providers when possible
-- **Feature access** - Different models for different tasks
-
-## Security Considerations
-
-### Authentication Flow
-1. User logs in → Auth Service generates JWT
-2. JWT stored in browser extension
-3. All requests include JWT in `Authorization: Bearer <token>`
-4. API Gateway validates JWT before routing
-
-### Data Privacy
-- All sensitive data (PII, credentials) is sanitized before sending to LLM
-- Knowledge base is private per user (user_id scoping)
-- Case data is isolated by user
-
-### API Security
-- Rate limiting (configurable per service)
-- CORS policies
-- Input validation via Pydantic models
-
-## Deployment Modes
-
-### FaultMaven Core (Docker Compose)
-**Target:** Individuals, small teams
-
-**Stack:**
-- SQLite databases (no server needed)
-- Redis container
-- ChromaDB container
-- All services in docker-compose.yml
-
-**Command:** `docker-compose up -d`
-
-### Enterprise (Kubernetes)
-**Target:** Organizations, 100+ users
-
-**Changes:**
-- PostgreSQL instead of SQLite
-- S3/MinIO for file storage
-- Helm charts for deployment
-- Horizontal pod autoscaling
-
-## Monitoring and Observability
-
-### Health Checks
-Every service exposes `/health` endpoint:
-```bash
-curl http://localhost:8001/health
-# Response: {"status": "healthy"}
+### 3. Knowledge Base Search
 ```
-
-### Logs
-- Structured JSON logging
-- Stdout/stderr captured by Docker
-- View with: `docker-compose logs -f service-name`
-
-### Metrics (Future)
-- Prometheus metrics endpoint (`/metrics`)
-- Grafana dashboards
-- Request latency, error rates, LLM usage
-
-## Scaling Considerations
-
-### Horizontal Scaling
-These services can run multiple instances:
-- ✅ API Gateway
-- ✅ Agent Service
-- ✅ Knowledge Service
-- ✅ Job Worker
-
-These need special handling:
-- ⚠️ Session Service (requires Redis clustering)
-- ⚠️ Auth Service (can scale, but shares SQLite - needs PostgreSQL)
-
-### Vertical Scaling
-Resource-intensive services:
-- **Agent Service:** High CPU during LLM calls
-- **Knowledge Service:** High memory for embeddings
-- **Job Worker:** High CPU for document processing
-
-## Technology Stack Summary
-
-| Component | Technology | Why |
-|-----------|------------|-----|
-| **API Framework** | FastAPI | Async, OpenAPI docs, Python ecosystem |
-| **Database** | SQLite / PostgreSQL | Zero-config / Scale |
-| **Cache/Queue** | Redis | Fast, reliable, widely supported |
-| **Vector DB** | ChromaDB | Purpose-built for embeddings |
-| **LLM** | OpenAI/Anthropic/Fireworks | Best-in-class AI capabilities |
-| **Embeddings** | Sentence Transformers | Open source, multilingual |
-| **Task Queue** | Celery | Mature, distributed task processing |
-| **Deployment** | Docker + Compose | Easy self-hosting |
-
-## Development Workflow
-
-### Running Locally
-```bash
-# Start all services
-cd faultmaven-deploy
-docker-compose up -d
-
-# Check logs
-docker-compose logs -f agent-service
-
-# Rebuild after code changes
-docker-compose up -d --build agent-service
+Browser → POST /knowledge/search
+       → KnowledgeService.search()
+       → VectorProvider.search() [ChromaDB]
+       → Semantic similarity ranking
+       → Response with relevant documents
 ```
-
-### Testing a Service
-```bash
-cd fm-agent-service
-python -m pytest tests/
-```
-
-### Adding a New Endpoint
-1. Add route in `fm-{service}/src/{service}/api/routes/`
-2. Add business logic in `fm-{service}/src/{service}/domain/`
-3. Update OpenAPI docs (auto-generated from FastAPI)
-4. Add tests
-5. Build and deploy
-
-## Future Architecture Improvements
-
-- [ ] **API Gateway caching** - Cache Knowledge Service responses
-- [ ] **Event bus** - Replace sync REST with async events (RabbitMQ/Kafka)
-- [ ] **GraphQL** - Single query for complex data needs
-- [ ] **gRPC** - Faster inter-service communication
-- [ ] **Service mesh** - Istio for advanced traffic management
 
 ---
 
-**Last Updated:** 2025-11-20
-**Version:** 2.0
+## Deployment Profiles
+
+### Core Profile (Default)
+- SQLite database
+- Local file storage
+- In-memory fallback for sessions
+- ChromaDB (local)
+- JWT authentication
+
+### Team Profile
+- PostgreSQL database
+- Shared Redis for sessions
+- ChromaDB (shared)
+- JWT authentication
+
+### Enterprise Profile
+- PostgreSQL database (HA)
+- Redis cluster
+- S3 file storage
+- Pinecone vector store
+- OAuth/SAML authentication
+
+---
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Database
+DATABASE_URL=sqlite+aiosqlite:///./data/faultmaven.db
+
+# LLM Provider (7 supported)
+LLM_PROVIDER=openai  # fireworks, anthropic, google, ollama, etc.
+OPENAI_API_KEY=sk-...
+
+# Redis (sessions/cache)
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# ChromaDB (vectors)
+CHROMA_HOST=localhost
+CHROMA_PORT=8000
+
+# Session Configuration
+SESSION_TIMEOUT_MINUTES=60  # 60-480 range
+```
+
+### Feature Flags
+
+- `ENABLE_RAG`: Enable knowledge base search (default: true)
+- `ENABLE_STREAMING`: Enable streaming responses (default: false)
+- `DEBUG_MODE`: Enhanced logging (default: false)
+
+---
+
+## Testing Strategy
+
+### Unit Tests
+- Service layer mocked with provider interfaces
+- 148/148 tests passing (100%)
+- 47% code coverage
+
+### Integration Tests
+- Full stack with test database
+- Redis integration tests
+- LLM provider integration (mock mode)
+
+### Test Command
+```bash
+pytest tests/
+pytest tests/unit/           # Unit tests only
+pytest tests/integration/    # Integration tests only
+```
+
+---
+
+## Performance Characteristics
+
+### Token Efficiency
+- **Before**: 4,500+ tokens per investigation turn
+- **After**: ~1,600 tokens (64% reduction via MemoryManager)
+
+### Response Times
+- Chat endpoint: <2s (p95)
+- Knowledge search: <500ms (p95)
+- Session operations: <100ms (p95)
+
+### Scalability
+- Single process: 100-500 req/s
+- Horizontal scaling: Multiple processes behind load balancer
+- Database: SQLite (dev), PostgreSQL (production)
+
+---
+
+## Migration History
+
+FaultMaven evolved through three architectural phases:
+
+1. **Original Monolith** (FaultMaven-Mono) - Feature-complete reference implementation
+2. **Microservices** (2024) - Split into 8 independent services
+3. **Modular Monolith** (Current) - Consolidated with improved architecture
+
+**Current Status**: Production-ready modular monolith with 80% investigation framework integration
+
+For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+
+---
+
+## Related Documentation
+
+- **[MODULAR_MONOLITH_DESIGN.md](MODULAR_MONOLITH_DESIGN.md)** - Detailed design rationale
+- **[DEVELOPMENT.md](DEVELOPMENT.md)** - Developer setup guide
+- **[API Documentation](api/)** - Auto-generated OpenAPI specs
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
+- **[INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)** - Framework integration status
+
+---
+
+**Last Updated**: 2025-12-26
+**Architecture**: Modular Monolith
+**Status**: ✅ Production Ready (80% investigation framework integrated)
