@@ -366,15 +366,24 @@ For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](d
 
 ## Documentation
 
+**📖 [Complete Documentation Index](docs/README.md)** - Central map of all documentation
+
+**Essential Documents:**
+
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and module design
 - **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup and workflows
-- **[API Documentation](docs/api/)** - Auto-generated OpenAPI specs
 - **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
-- **[TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md)** - Testing approach
-- **[SECURITY.md](docs/SECURITY.md)** - Security guidelines
-- **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
-- **[FAQ.md](docs/FAQ.md)** - Frequently asked questions
-- **[ROADMAP.md](docs/ROADMAP.md)** - Product roadmap
+- **[API Documentation](docs/api/)** - Auto-generated OpenAPI specs
+
+**Additional Resources:**
+
+- [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) - Testing approach
+- [SECURITY.md](docs/SECURITY.md) - Security guidelines
+- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues and solutions
+- [FAQ.md](docs/FAQ.md) - Frequently asked questions
+- [ROADMAP.md](docs/ROADMAP.md) - Product roadmap
+
+See [docs/README.md](docs/README.md) for complete documentation organized by role and task.
 
 ---
 
