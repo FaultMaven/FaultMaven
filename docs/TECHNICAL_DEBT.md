@@ -465,7 +465,7 @@ Track implementation progress at: <https://github.com/FaultMaven/faultmaven/proj
 
 **Design Specification**: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
 
-**Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+**Architecture**: [architecture/](architecture/)
 
 **Feature Parity** (deprecated): [working/FEATURE_PARITY_TRACKING.md](working/FEATURE_PARITY_TRACKING.md)
 

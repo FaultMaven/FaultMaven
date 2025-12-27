@@ -11,8 +11,8 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 **New to FaultMaven? Start here:**
 
 1. **[Main README](../README.md)** - Project overview, quick start, installation
-2. **[DEVELOPMENT.md](DEVELOPMENT.md)** - Local development setup and workflow
-3. **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
+2. **[Development Setup](development/setup.md)** - Local development environment and workflow
+3. **[Deployment Guide](operations/deployment.md)** - Production deployment
 
 ---
 
@@ -22,10 +22,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose | Audience |
 | -------- | ------- | -------- |
-| **[ARCHITECTURE.md](ARCHITECTURE.md)** | 🎯 System architecture with inline status | All developers |
-| **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | Detailed design specifications | All developers |
-| **[TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)** | 🔴 Implementation gaps and roadmap | Developers, PM |
-| **[modular-monolith-rationale.md](modular-monolith-rationale.md)** | Modular monolith rationale and patterns | Architects |
+| **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | Target design specifications with implementation gaps | All developers |
+| **[TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)** | 🔴 Detailed gap analysis and roadmap | Developers, PM |
+| **[architecture/](architecture/)** | System architecture and module designs | All developers |
 
 ---
 
@@ -35,8 +34,8 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose |
 | -------- | ------- |
-| **[DEVELOPMENT.md](DEVELOPMENT.md)** | Complete development guide and workflows |
-| **[testing-strategy.md](testing-strategy.md)** | Testing approach and patterns |
+| **[development/setup.md](development/setup.md)** | Complete development guide and workflows |
+| **[development/testing-strategy.md](development/testing-strategy.md)** | Testing approach and patterns |
 | **[api/README.md](api/README.md)** | Auto-generated API documentation |
 
 ---
@@ -47,9 +46,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose |
 | -------- | ------- |
-| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production deployment guide |
-| **[SECURITY.md](SECURITY.md)** | Security guidelines and best practices |
-| **[troubleshooting.md](troubleshooting.md)** | Common issues and solutions |
+| **[operations/deployment.md](operations/deployment.md)** | Production deployment guide |
+| **[operations/security.md](operations/security.md)** | Security guidelines and best practices |
+| **[operations/troubleshooting.md](operations/troubleshooting.md)** | Common issues and solutions |
 
 ---
 
@@ -57,8 +56,8 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose |
 | -------- | ------- |
-| **[faq.md](faq.md)** | Frequently asked questions |
-| **[roadmap.md](roadmap.md)** | Product roadmap and future plans |
+| **[reference/faq.md](reference/faq.md)** | Frequently asked questions |
+| **[reference/roadmap.md](reference/roadmap.md)** | Product roadmap and future plans |
 
 ---
 
@@ -68,9 +67,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 **Essential reading:**
 
-1. [DEVELOPMENT.md](DEVELOPMENT.md) - Setup and workflow
-2. [ARCHITECTURE.md](ARCHITECTURE.md) - System structure
-3. [testing-strategy.md](testing-strategy.md) - Testing approach
+1. [development/setup.md](development/setup.md) - Setup and workflow
+2. [architecture/](architecture/) - System architecture
+3. [development/testing-strategy.md](development/testing-strategy.md) - Testing approach
 
 **Optional:**
 
@@ -81,10 +80,10 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 **Essential reading:**
 
-1. [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
+1. [architecture/](architecture/) - System architecture
 2. [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) - Design specifications
 3. [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - Implementation gaps
-4. [modular-monolith-rationale.md](modular-monolith-rationale.md) - Design rationale
+4. [architecture/modular-monolith-rationale.md](architecture/modular-monolith-rationale.md) - Design rationale
 
 **Optional:**
 
@@ -94,9 +93,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 **Essential reading:**
 
-1. [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
-2. [troubleshooting.md](troubleshooting.md) - Common issues
-3. [SECURITY.md](SECURITY.md) - Security practices
+1. [operations/deployment.md](operations/deployment.md) - Deployment guide
+2. [operations/troubleshooting.md](operations/troubleshooting.md) - Common issues
+3. [operations/security.md](operations/security.md) - Security practices
 
 **Optional:**
 
@@ -108,9 +107,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 **Essential reading:**
 
 1. [../README.md](../README.md) - Product overview
-2. [roadmap.md](roadmap.md) - Future plans
+2. [reference/roadmap.md](reference/roadmap.md) - Future plans
 3. [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - Implementation priorities
-4. [faq.md](faq.md) - Common questions
+4. [reference/faq.md](reference/faq.md) - Common questions
 
 ---
 
@@ -118,7 +117,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Understanding System Architecture
 
-→ [ARCHITECTURE.md](ARCHITECTURE.md) → [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+→ [architecture/](architecture/) → [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
 
 ### Tracking Implementation Gaps 🔴
 
@@ -126,19 +125,19 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Setting Up Development Environment
 
-→ [DEVELOPMENT.md](DEVELOPMENT.md)
+→ [development/setup.md](development/setup.md)
 
 ### Deploying to Production
 
-→ [DEPLOYMENT.md](DEPLOYMENT.md) → [SECURITY.md](SECURITY.md)
+→ [operations/deployment.md](operations/deployment.md) → [operations/security.md](operations/security.md)
 
 ### Writing Tests
 
-→ [testing-strategy.md](testing-strategy.md)
+→ [development/testing-strategy.md](development/testing-strategy.md)
 
 ### Debugging Issues
 
-→ [troubleshooting.md](troubleshooting.md)
+→ [operations/troubleshooting.md](operations/troubleshooting.md)
 
 ### Understanding Investigation Framework
 
@@ -150,75 +149,55 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Contributing to FaultMaven
 
-→ [DEVELOPMENT.md](DEVELOPMENT.md) → [testing-strategy.md](testing-strategy.md)
+→ [../CONTRIBUTING.md](../CONTRIBUTING.md) → [development/setup.md](development/setup.md)
 
 ---
 
-## 🗂️ Document Organization
+## 🗂️ Folder Organization
 
-### Long-term Documentation (This Directory)
+### Root Documentation Files
+
+**Long-term (3 files)**:
+
+- **SYSTEM_DESIGN.md** - Target design specifications
+- **TECHNICAL_DEBT.md** - Implementation gaps and roadmap
+- **README.md** - This file (documentation index)
+
+### Folders
+
+- **[architecture/](architecture/)** - System architecture and module designs
+- **[development/](development/)** - Developer guides and testing strategy
+- **[operations/](operations/)** - Deployment, security, troubleshooting
+- **[reference/](reference/)** - FAQ and roadmap
+- **[api/](api/)** - Auto-generated API documentation
+- **[working/](working/)** - Temporary planning and status tracking
+- **[archive/](archive/)** - Historical documentation
+
+---
+
+## 📝 Documentation Lifecycle
+
+### Long-term Documentation
 
 All files in `docs/` (excluding `working/` and `archive/`) are **permanent reference documentation**:
 
-- **Top-Level Meta** (7 UPPERCASE files)
-- **Detailed Guides** (5 lowercase files)
-- **API Documentation** (1 file)
-
-**Total**: 13 permanent documents
+- Updated as system evolves
+- Versioned with code (git)
+- Listed in this documentation map
 
 ### Short-term Documentation ([working/](working/))
 
 Temporary planning, status tracking, and work-in-progress documents:
 
-- Documentation cleanup tracking
-- Integration status reports
-- Test coverage reports
-- Feature parity tracking (superseded by TECHNICAL_DEBT.md)
-- Implementation roadmaps
-
-**Purpose**: Active planning and status tracking. These documents may be deleted or archived when work is complete.
-
-### Historical Documentation ([archive/](archive/))
-
-Archived documents from completed work or deprecated approaches:
-
-- Migration plans and status (microservices → monolith)
-- Completed design audits
-- Historical architecture evaluations
-- Gap analyses (superseded by current tracking)
-
-**Purpose**: Historical reference. Not relevant to current development.
-
----
-
-## 📝 Documentation Standards
-
-### Document Types
-
-1. **Guide** (DEVELOPMENT.md, DEPLOYMENT.md) - Step-by-step instructions
-2. **Reference** (ARCHITECTURE.md, SYSTEM_DESIGN.md) - Comprehensive technical details
-3. **Strategy** (TESTING_STRATEGY.md, ROADMAP.md) - Approaches and plans
-4. **Tracker** (TECHNICAL_DEBT.md) - Current state and gaps
-
-### Lifecycle Management
-
-**Long-term Documents** (`docs/*.md`):
-
-- Permanent reference documentation
-- Updated as system evolves
-- Versioned with code (git)
-- Listed in this documentation map
-
-**Short-term Documents** (`docs/working/*.md`):
-
-- Temporary planning and status tracking
 - May include `<!-- DELETE WHEN: condition -->` markers
 - Moved to archive or deleted when work completes
 - NOT listed in main documentation map
 
-**Archived Documents** (`docs/archive/YYYY/MM/*.md`):
+### Archived Documentation ([archive/](archive/))
 
-- Historical reference only
+Historical reference only:
+
+- Organized by date: `archive/YYYY/MM/`
 - Kept if valuable for understanding system evolution
 - Deleted if purely transient status tracking
 
@@ -228,21 +207,20 @@ Archived documents from completed work or deprecated approaches:
 
 ### Design → Implementation
 
-- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) defines requirements
-- [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) tracks what's NOT implemented
-- [ARCHITECTURE.md](ARCHITECTURE.md) shows current state with inline status
+- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) defines target design with implementation gaps
+- [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) tracks detailed gap analysis and roadmap
 
 ### Architecture → Development
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) explains system structure
-- [DEVELOPMENT.md](DEVELOPMENT.md) shows how to work with that structure
-- [TESTING_STRATEGY.md](TESTING_STRATEGY.md) defines testing approach
+- [architecture/](architecture/) explains system structure
+- [development/setup.md](development/setup.md) shows how to work with that structure
+- [development/testing-strategy.md](development/testing-strategy.md) defines testing approach
 
 ### Development → Deployment
 
-- [DEVELOPMENT.md](DEVELOPMENT.md) for local setup
-- [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
-- [SECURITY.md](SECURITY.md) for production security
+- [development/setup.md](development/setup.md) for local setup
+- [operations/deployment.md](operations/deployment.md) for production deployment
+- [operations/security.md](operations/security.md) for production security
 
 ---
 
@@ -256,6 +234,6 @@ Archived documents from completed work or deprecated approaches:
 ---
 
 **Last Updated**: 2025-12-27
-**Total Long-term Documents**: 13
+**Total Long-term Documents**: 3 root files + 4 folders
 **Architecture**: Modular Monolith (Single Repository)
 **Status**: ✅ Production Ready (with known gaps in TECHNICAL_DEBT.md)

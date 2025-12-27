@@ -605,9 +605,9 @@ This section tracks which parts of the design are implemented and which are not.
 
 **Implementation Gaps**: [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - What's not yet implemented
 
-**Architecture Overview**: [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and diagrams
+**Architecture Overview**: [architecture/](architecture/) - System architecture and diagrams
 
-**Development Guide**: [DEVELOPMENT.md](DEVELOPMENT.md) - How to build and run
+**Development Guide**: [development/setup.md](development/setup.md) - How to build and run
 
 ---
 

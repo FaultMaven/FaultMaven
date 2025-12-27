@@ -4,7 +4,7 @@
 [![Python Version](https://img.shields.io/badge/Python-3.11%2B-blue)](https://www.python.org/downloads/)
 [![Tests](https://img.shields.io/badge/Tests-148%20passing-brightgreen)](https://github.com/FaultMaven/faultmaven)
 [![Coverage](https://img.shields.io/badge/Coverage-47%25-yellow)](https://github.com/FaultMaven/faultmaven)
-[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blue)](docs/ARCHITECTURE.md)
+[![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-blue)](docs/architecture/)
 
 **AI-Powered Troubleshooting Copilot for SRE and DevOps Teams**
 
@@ -84,8 +84,9 @@ pnpm dev
 - **Health Check**: http://localhost:8000/health
 
 **Next Steps:**
-- See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for detailed setup
-- Check [DEPLOYMENT.md](docs/DEPLOYMENT.md) for production deployment
+
+- See [Development Setup](docs/development/setup.md) for detailed setup
+- Check [Deployment Guide](docs/operations/deployment.md) for production deployment
 
 ---
 
@@ -166,7 +167,7 @@ FaultMaven is built as a **modular monolith** - a single codebase organized into
 - **Knowledge** - Knowledge base with semantic search (RAG)
 - **Agent** - AI agent orchestration with multi-turn conversations
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed architecture documentation.
+See [architecture/](docs/architecture/) for detailed architecture documentation.
 
 ---
 
@@ -260,7 +261,7 @@ pytest --cov=faultmaven tests/
 
 ### Contributing
 
-See [DEVELOPMENT.md](docs/DEVELOPMENT.md) for:
+See [Development Setup](docs/development/setup.md) for:
 - Local development setup
 - Module development patterns
 - Testing guidelines
@@ -340,7 +341,7 @@ DATABASE_URL=postgresql+asyncpg://user:pass@localhost/faultmaven
 gunicorn faultmaven.app:app -w 4 -k uvicorn.workers.UvicornWorker
 ```
 
-See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for production deployment guide.
+See [Deployment Guide](docs/operations/deployment.md) for production deployment guide.
 
 ---
 
@@ -370,18 +371,18 @@ For detailed comparison: See [investigation-framework-status.md](docs/working/in
 
 **Essential Documents:**
 
-- **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and module design
-- **[DEVELOPMENT.md](docs/DEVELOPMENT.md)** - Development setup and workflows
-- **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Production deployment guide
+- **[architecture/](docs/architecture/)** - System architecture and module design
+- **[Development Setup](docs/development/setup.md)** - Development setup and workflows
+- **[Deployment Guide](docs/operations/deployment.md)** - Production deployment guide
 - **[API Documentation](docs/api/)** - Auto-generated OpenAPI specs
 
 **Additional Resources:**
 
-- [testing-strategy.md](docs/testing-strategy.md) - Testing approach
-- [SECURITY.md](docs/SECURITY.md) - Security guidelines
-- [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
-- [faq.md](docs/faq.md) - Frequently asked questions
-- [roadmap.md](docs/roadmap.md) - Product roadmap
+- [Testing Strategy](docs/development/testing-strategy.md) - Testing approach
+- [Security Guidelines](docs/operations/security.md) - Security guidelines
+- [Troubleshooting](docs/operations/troubleshooting.md) - Common issues and solutions
+- [FAQ](docs/reference/faq.md) - Frequently asked questions
+- [Roadmap](docs/reference/roadmap.md) - Product roadmap
 
 See [docs/README.md](docs/README.md) for complete documentation organized by role and task.
 
@@ -452,9 +453,9 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 **Quick Links**:
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - **Start here for contribution guidelines**
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development environment setup
-- [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps and roadmap
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+- [Development Setup](docs/development/setup.md) - Development environment setup
+- [TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps and roadmap
+- [architecture/](docs/architecture/) - System architecture
 
 ---
 

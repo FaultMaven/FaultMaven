@@ -9,8 +9,8 @@ Thank you for your interest in contributing to FaultMaven! This guide will help 
 **New to FaultMaven?** Follow these steps:
 
 1. **Fork and clone** the repository
-2. **Setup**: Follow [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) to get the project running locally
-3. **Understand**: Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) to learn the system structure
+2. **Setup**: Follow [docs/development/setup.md](docs/development/setup.md) to get the project running locally
+3. **Understand**: Read [docs/architecture/](docs/architecture/) to learn the system structure
 4. **Find work**: See "What to Work On" below
 5. **Make changes**: Create a feature branch, make your changes, add tests
 6. **Submit**: Open a pull request with a clear description
@@ -37,7 +37,7 @@ This section answers three critical questions for contributors and AI agents.
    - Design requirements for each module
    - **Implementation status summary at the end** (gives you current state snapshot)
 
-3. **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - Understand system structure
+3. **[docs/architecture/](docs/architecture/)** - Understand system structure
    - System overview and architecture diagrams
    - Module structure and boundaries
    - Architecture principles and patterns
@@ -53,7 +53,7 @@ START → TECHNICAL_DEBT.md (pick a gap + read spec)
      ↓
      → SYSTEM_DESIGN.md (understand target design + check Implementation Status)
      ↓
-     → ARCHITECTURE.md (understand system structure)
+     → architecture/ (understand system structure)
      ↓
      → Read code (location specified in TECHNICAL_DEBT.md)
      ↓
@@ -161,17 +161,17 @@ Deliverables:
 + **Evidence**: ✅ Complete (core), ✅ 100% (advanced) - Fully implemented
 ```
 
-#### 3. Update ARCHITECTURE.md (if applicable)
+#### 3. Update architecture/ (if applicable)
 
-**Location**: `docs/ARCHITECTURE.md`
+**Location**: `docs/architecture/`
 
 **When to update**: If you added new components or changed system structure
 
 **What to update**:
 
-- Add new components to architecture diagrams
+- Add new components to architecture diagrams in architecture/README.md
 - Update module descriptions
-- Update implementation status inline markers
+- Create/update module-specific design docs if needed
 
 #### 4. Create/Update Module Documentation (OPTIONAL)
 
@@ -202,7 +202,7 @@ After closing a gap or implementing a feature:
 - [ ] Coverage ≥ 80% for new code
 - [ ] docs/TECHNICAL_DEBT.md updated (mark gap completed)
 - [ ] docs/SYSTEM_DESIGN.md updated (Implementation Status section)
-- [ ] docs/ARCHITECTURE.md updated (if structure changed)
+- [ ] docs/architecture/ updated (if structure changed)
 - [ ] CHANGELOG.md updated (add entry for next release)
 - [ ] Close related GitHub issues (if any)
 ```
@@ -305,7 +305,8 @@ We have **4 critical implementation gaps** that block core functionality. These 
 ## 🧪 Testing Requirements
 
 **Before starting work**:
-1. Read [docs/testing-strategy.md](docs/testing-strategy.md)
+
+1. Read [docs/development/testing-strategy.md](docs/development/testing-strategy.md)
 2. Understand test structure: `tests/unit/`, `tests/integration/`, `tests/api/`
 
 **While working**:
@@ -385,7 +386,7 @@ Fixes #123 (or "Addresses TECHNICAL_DEBT.md#1")
 
 → **Fix a bug**: Create issue, write failing test, fix, verify test passes.
 
-→ **Improve tests**: See [docs/testing-strategy.md](docs/testing-strategy.md), focus on modules with low coverage.
+→ **Improve tests**: See [docs/development/testing-strategy.md](docs/development/testing-strategy.md), focus on modules with low coverage.
 
 → **Update documentation**: See [docs/README.md](docs/README.md) for organization.
 
@@ -396,17 +397,20 @@ Fixes #123 (or "Addresses TECHNICAL_DEBT.md#1")
 ## 📚 Documentation
 
 **Architecture & Design**:
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
+
+- [docs/architecture/](docs/architecture/) - System architecture
 - [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) - Design specifications
 - [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps (start here!)
 
 **Development**:
-- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Setup and workflow
-- [docs/testing-strategy.md](docs/testing-strategy.md) - Testing approach
+
+- [docs/development/setup.md](docs/development/setup.md) - Setup and workflow
+- [docs/development/testing-strategy.md](docs/development/testing-strategy.md) - Testing approach
 
 **Operations**:
-- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) - Production deployment
-- [docs/troubleshooting.md](docs/troubleshooting.md) - Common issues
+
+- [docs/operations/deployment.md](docs/operations/deployment.md) - Production deployment
+- [docs/operations/troubleshooting.md](docs/operations/troubleshooting.md) - Common issues
 
 ---
 
