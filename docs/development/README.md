@@ -15,7 +15,7 @@ Developer guides for working with FaultMaven.
 
 - **[Contributing Guide](../../CONTRIBUTING.md)** - What to work on and how to contribute
 - **[Technical Debt](../TECHNICAL_DEBT.md)** - Implementation gaps and priorities
-- **[System Design](../SYSTEM_DESIGN.md)** - Target design specifications
+- **[System Design](../architecture/design-specifications.md)** - Target design specifications
 - **[Architecture](../architecture/README.md)** - System architecture and structure
 
 ---

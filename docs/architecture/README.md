@@ -1,305 +1,127 @@
-# FaultMaven Architecture
+# Architecture Documentation
 
-**Architecture**: Modular Monolith
-**Status**: Production Ready (with known gaps)
-**Last Updated**: 2025-12-27
+**Complete architectural documentation for the FaultMaven modular monolith.**
 
----
-
-## Overview
-
-This folder contains architectural documentation for the FaultMaven system and its modules.
-
-**High-level design**: See [../SYSTEM_DESIGN.md](../SYSTEM_DESIGN.md) for target design specifications
-**Implementation gaps**: See [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md) for what's not yet implemented
+This folder contains all architecture and design documents. For implementation gaps, see [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md).
 
 ---
 
-## System Overview
+## 📐 Architecture Documents
 
-FaultMaven is built as a **modular monolith** - a single codebase organized into well-defined modules with clear boundaries. This architecture provides the simplicity of a monolith with the maintainability of microservices.
+### [design-specifications.md](design-specifications.md) - **What to Build**
+
+**Purpose**: Defines the **target design** (desired state) for FaultMaven
+
+**Contains**:
+
+- Module specifications (6 modules: auth, session, case, evidence, knowledge, agent)
+- API endpoint definitions
+- Required capabilities for each module
+- Infrastructure design (LLM providers, databases, vector stores)
+- Deployment profiles (Core/Team/Enterprise)
+- Performance requirements
+- Security requirements
+- **Implementation Status** section (summary of what's implemented vs. what's not)
+
+**Use this when**: You need to understand what the system SHOULD do and what features are required
+
+---
+
+### [overview.md](overview.md) - **How It's Built**
+
+**Purpose**: Describes the **current architecture** (how it's structured)
+
+**Contains**:
+
+- System architecture diagrams
+- Architecture principles (modular monolith, vertical slices, provider abstraction)
+- Module structure and file organization
+- Shared infrastructure layer
+- Data flow examples
+- Configuration details
+- Performance characteristics
+- Migration history
+
+**Use this when**: You need to understand how the system IS built and how components interact
+
+---
+
+### [modular-monolith-rationale.md](modular-monolith-rationale.md) - **Why This Design**
+
+**Purpose**: Explains design decisions and architectural patterns
+
+**Contains**:
+
+- Why modular monolith vs. microservices
+- Trade-offs and benefits
+- Design patterns used
+- Module boundary principles
+
+**Use this when**: You need to understand the reasoning behind architectural decisions
+
+---
+
+## 🗺️ Quick Navigation
+
+### "I want to understand..."
+
+**...what features the system should have**
+→ Read [design-specifications.md](design-specifications.md)
+
+**...how the system is structured**
+→ Read [overview.md](overview.md)
+
+**...why we chose this architecture**
+→ Read [modular-monolith-rationale.md](modular-monolith-rationale.md)
+
+**...what's not yet implemented**
+→ Read [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md)
+
+---
+
+## 📊 Key Differences
+
+| Document | Focus | Perspective | Content Type |
+| -------- | ----- | ----------- | ------------ |
+| **design-specifications.md** | Requirements | Should/Must | Specifications, API contracts, requirements |
+| **overview.md** | Implementation | Is/How | Architecture diagrams, patterns, structure |
+| **modular-monolith-rationale.md** | Decisions | Why | Rationale, trade-offs, principles |
+
+---
+
+## 🔄 Relationship Between Documents
 
 ```
-┌─────────────────────────────────────────────────────┐
-│         Browser Extension / Dashboard                │
-└────────────────────┬────────────────────────────────┘
-                     │ HTTPS
-                     ▼
-┌─────────────────────────────────────────────────────┐
-│              FaultMaven Monolith (8000)              │
-│                                                       │
-│  ┌───────────────────────────────────────────────┐  │
-│  │              Module Layer                      │  │
-│  ├───────┬────────┬──────┬────────┬────────┬─────┤  │
-│  │ Auth  │Session │ Case │Evidence│Knowledge│Agent│  │
-│  │       │        │      │        │         │     │  │
-│  └───┬───┴────┬───┴──┬───┴────┬───┴────┬────┴─┬───┘  │
-│      │        │      │        │        │      │      │
-│  ┌───▼────────▼──────▼────────▼────────▼──────▼───┐  │
-│  │          Shared Infrastructure Layer          │  │
-│  │  Providers | ORM | Redis | ChromaDB | LLM    │  │
-│  └───────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────┘
-                     │
-                     ▼
-        ┌────────────────────────────┐
-        │    Infrastructure           │
-        │  SQLite/PostgreSQL          │
-        │  Redis (sessions/cache)     │
-        │  ChromaDB (vectors)         │
-        │  LLM Providers (7 supported)│
-        └────────────────────────────┘
+design-specifications.md (WHAT to build)
+         ↓
+    Guides design
+         ↓
+overview.md (HOW it's built)
+         ↓
+    Implementation
+         ↓
+TECHNICAL_DEBT.md (WHAT's missing)
 ```
+
+**Example workflow**:
+
+1. Read **design-specifications.md** to understand what the Evidence module SHOULD do
+2. Read **overview.md** to understand how the Evidence module IS currently structured
+3. Read **TECHNICAL_DEBT.md** to see what's missing (e.g., data processing pipeline at 0%)
 
 ---
 
-## Architecture Principles
+## 📝 Module-Specific Documentation
 
-### 1. Modular Monolith Design
+Future: This folder may contain module-specific design documents:
 
-- Single deployable unit with clear module boundaries
-- Each module owns its domain logic, routes, and services
-- Modules communicate through well-defined interfaces
-- Shared infrastructure layer (no duplication)
-
-### 2. Vertical Slice Architecture
-
-Each module contains:
-
-- **Router** (`routers.py`) - HTTP endpoints
-- **Service** (`service.py`) - Business logic
-- **Models** (`models.py`) - ORM entities
-- **Dependencies** - Module-specific DI
-
-### 3. Provider Abstraction
-
-Infrastructure accessed through provider interfaces:
-
-- `LLMProvider` - Multi-provider LLM support (7 providers)
-- `DataProvider` - Database abstraction (SQLite/PostgreSQL)
-- `FileProvider` - File storage (local/S3)
-- `VectorProvider` - Vector store (ChromaDB/Pinecone)
-- `IdentityProvider` - Auth (JWT/OAuth)
-
----
-
-## Module Structure
-
-```
-src/faultmaven/modules/
-├── auth/               # Authentication & authorization
-│   ├── routers.py     # /auth/* endpoints
-│   ├── service.py     # AuthService
-│   └── models.py      # User ORM model
-├── session/           # Session management
-│   ├── routers.py     # /sessions/* endpoints
-│   ├── service.py     # SessionService
-│   └── models.py      # Session ORM model
-├── case/              # Investigation management
-│   ├── routers.py     # /cases/* endpoints
-│   ├── service.py     # CaseService
-│   ├── models.py      # Case, Message ORM models
-│   ├── investigation.py  # Investigation domain models
-│   └── engines/       # Investigation framework
-│       ├── milestone_engine.py
-│       ├── hypothesis_manager.py
-│       ├── ooda_engine.py
-│       ├── memory_manager.py           # ✅ Integrated
-│       ├── working_conclusion_generator.py  # ✅ Integrated
-│       └── phase_orchestrator.py       # ✅ Integrated
-├── evidence/          # File upload & evidence
-│   ├── routers.py     # /evidence/* endpoints
-│   ├── service.py     # EvidenceService
-│   └── models.py      # Evidence ORM model
-├── knowledge/         # Knowledge base (RAG)
-│   ├── routers.py     # /knowledge/* endpoints
-│   ├── service.py     # KnowledgeService
-│   └── models.py      # Document ORM model
-└── agent/             # AI agent orchestration
-    ├── routers.py     # /agent/* endpoints
-    ├── service.py     # AgentService
-    └── response_types.py  # Response type system
-```
-
----
-
-## Shared Infrastructure
-
-### Provider Layer (`src/faultmaven/providers/`)
-
-**Purpose**: Abstract infrastructure dependencies behind interfaces
-
-**Providers**:
-
-- **LLM Provider** (`llm/`) - Multi-provider LLM routing with fallback
-- **Data Provider** (`data.py`) - SQLAlchemy ORM wrapper
-- **File Provider** (`files.py`) - Local/S3 file storage
-- **Vector Provider** (`vectors.py`) - ChromaDB/Pinecone abstraction
-
-**Configuration**:
-
-- Protocol-based interfaces (PEP 544)
-- Deployment profile support (Core/Team/Enterprise)
-- Automatic provider selection based on configuration
-
-### Infrastructure Layer (`src/faultmaven/infrastructure/`)
-
-**Purpose**: Concrete implementations of infrastructure services
-
-**Components**:
-
-- **Redis** (`redis_impl.py`) - Session storage, caching
-- **In-Memory** (`memory_impl.py`) - Fallback session storage
-- **SQLAlchemy** - ORM for all modules
-
----
-
-## Data Flow Examples
-
-### 1. User Login Flow
-
-```
-Browser → POST /auth/login
-       → AuthService.login()
-       → DataProvider.query(User, email=...)
-       → JWT token generation
-       → Response with access_token
-```
-
-### 2. Investigation Chat Flow
-
-```
-Browser → POST /agent/chat/{case_id}
-       → AgentService.process_message()
-       → KnowledgeService.search() [RAG retrieval]
-       → LLMProvider.chat() [LLM inference]
-       → CaseService.add_message()
-       → MilestoneEngine.process_turn()
-         ├─→ MemoryManager.organize_memory()
-         ├─→ WorkingConclusionGenerator.generate()
-         ├─→ PhaseOrchestrator.detect_loopback()
-         └─→ OODAEngine.get_current_intensity()
-       → Response with answer + updated state
-```
-
-### 3. Knowledge Base Search
-
-```
-Browser → POST /knowledge/search
-       → KnowledgeService.search()
-       → VectorProvider.search() [ChromaDB]
-       → Semantic similarity ranking
-       → Response with relevant documents
-```
-
----
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# Database
-DATABASE_URL=sqlite+aiosqlite:///./data/faultmaven.db
-
-# LLM Provider (7 supported)
-LLM_PROVIDER=openai  # fireworks, anthropic, google, ollama, etc.
-OPENAI_API_KEY=sk-...
-
-# Redis (sessions/cache)
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# ChromaDB (vectors)
-CHROMA_HOST=localhost
-CHROMA_PORT=8000
-
-# Session Configuration
-SESSION_TIMEOUT_MINUTES=60  # 60-480 range
-```
-
-### Feature Flags
-
-- `ENABLE_RAG`: Enable knowledge base search (default: true)
-- `ENABLE_STREAMING`: Enable streaming responses (default: false)
-- `DEBUG_MODE`: Enhanced logging (default: false)
-
----
-
-## Performance Characteristics
-
-### Token Efficiency
-
-- **Before**: 4,500+ tokens per investigation turn
-- **After**: ~1,600 tokens (64% reduction via MemoryManager)
-
-### Response Times
-
-- Chat endpoint: <2s (p95)
-- Knowledge search: <500ms (p95)
-- Session operations: <100ms (p95)
-
-### Scalability
-
-- Single process: 100-500 req/s
-- Horizontal scaling: Multiple processes behind load balancer
-- Database: SQLite (dev), PostgreSQL (production)
-
----
-
-## Migration History
-
-FaultMaven evolved through three architectural phases:
-
-1. **Original Monolith** (FaultMaven-Mono) - Feature-complete reference implementation
-2. **Microservices** (2024) - Split into 8 independent services
-3. **Modular Monolith** (Current) - Consolidated with improved architecture
-
-**Current Status**: Production-ready modular monolith with 80% investigation framework integration
-
----
-
-## Module Documentation
-
-Detailed documentation for each module:
-
-- [auth.md](auth.md) - Authentication module
-- [session.md](session.md) - Session management module
-- [case.md](case.md) - Case/investigation module
-- [evidence.md](evidence.md) - Evidence management module
-- [knowledge.md](knowledge.md) - Knowledge base module
-- [agent.md](agent.md) - AI agent module
-
----
-
-## Implementation Gaps
-
-For current implementation status and gaps, see:
-
-- **Module Implementation Summary**: [../SYSTEM_DESIGN.md#implementation-status](../SYSTEM_DESIGN.md#implementation-status)
-- **Detailed Gap Analysis**: [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md)
-
-**Quick Status** (as of 2025-12-27):
-
-- **Authentication**: ✅ Complete
-- **Session**: ✅ 95% (minor features missing)
-- **Case**: ⚠️ 80% (report generation, search missing)
-- **Evidence**: ❌ 0% advanced (data processing pipeline missing)
-- **Knowledge**: ⚠️ 10% advanced
-- **Agent**: ❌ 12.5% advanced (tools framework missing)
-
----
-
-## Related Documentation
-
-- **[modular-monolith-rationale.md](modular-monolith-rationale.md)** - Design rationale and patterns
-- **[../SYSTEM_DESIGN.md](../SYSTEM_DESIGN.md)** - Target design specifications
-- **[../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md)** - Implementation gaps and roadmap
-- **[../DEVELOPMENT.md](../DEVELOPMENT.md)** - Developer setup guide
-- **[../DEPLOYMENT.md](../DEPLOYMENT.md)** - Production deployment guide
+- `auth.md` - Authentication module design
+- `case.md` - Case/investigation module design
+- `agent.md` - AI agent module design
+- etc.
 
 ---
 
 **Last Updated**: 2025-12-27
 **Architecture**: Modular Monolith
-**Status**: ✅ Production Ready (80% investigation framework integrated)
+**Status**: Production Ready (with known gaps in [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md))

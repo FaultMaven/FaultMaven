@@ -7,9 +7,9 @@
 
 ## Purpose
 
-This document tracks **implementation gaps** between the [System Design](SYSTEM_DESIGN.md) (desired state) and the current implementation (actual state).
+This document tracks **implementation gaps** between the [System Design](architecture/design-specifications.md) (desired state) and the current implementation (actual state).
 
-**Design specifications** are defined in [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
+**Design specifications** are defined in [architecture/design-specifications.md](architecture/design-specifications.md).
 
 ---
 
@@ -17,7 +17,7 @@ This document tracks **implementation gaps** between the [System Design](SYSTEM_
 
 ### 1. Structured LLM Output Support
 
-**Design Requirement**: [SYSTEM_DESIGN.md - LLMProvider](SYSTEM_DESIGN.md#provider-abstraction-layer)
+**Design Requirement**: [architecture/design-specifications.md - LLMProvider](architecture/design-specifications.md#provider-abstraction-layer)
 
 **Current State**: ❌ Not implemented
 
@@ -61,7 +61,7 @@ class LLMProvider(Protocol):
 
 ### 2. Data Processing Pipeline
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Evidence Module](SYSTEM_DESIGN.md#4-evidence-module)
+**Design Requirement**: [architecture/design-specifications.md - Evidence Module](architecture/design-specifications.md#4-evidence-module)
 
 **Current State**: ❌ Not implemented (0% coverage)
 
@@ -105,7 +105,7 @@ class LLMProvider(Protocol):
 
 ### 3. Agent Tools Framework
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Agent Module](SYSTEM_DESIGN.md#6-agent-module)
+**Design Requirement**: [architecture/design-specifications.md - Agent Module](architecture/design-specifications.md#6-agent-module)
 
 **Current State**: ❌ Not implemented (0% coverage)
 
@@ -147,7 +147,7 @@ class LLMProvider(Protocol):
 
 ### 4. HypothesisManager Integration
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Case Module](SYSTEM_DESIGN.md#35-hypothesismanager)
+**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#35-hypothesismanager)
 
 **Current State**: ⏳ Pending (code exists, not integrated)
 
@@ -177,7 +177,7 @@ class LLMProvider(Protocol):
 
 ### 5. Report Generation
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Case Module](SYSTEM_DESIGN.md#3-case-module)
+**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#3-case-module)
 
 **Current State**: ❌ Not implemented
 
@@ -203,7 +203,7 @@ class LLMProvider(Protocol):
 
 ### 6. Case Search & Filter
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Case Module](SYSTEM_DESIGN.md#3-case-module)
+**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#3-case-module)
 
 **Current State**: ❌ Not implemented
 
@@ -230,7 +230,7 @@ class LLMProvider(Protocol):
 
 ### 7. Session Advanced Features
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Session Module](SYSTEM_DESIGN.md#2-session-module)
+**Design Requirement**: [architecture/design-specifications.md - Session Module](architecture/design-specifications.md#2-session-module)
 
 **Current State**: ⚠️ Partially implemented (95%)
 
@@ -257,7 +257,7 @@ class LLMProvider(Protocol):
 
 ### 8. Knowledge Base Advanced Features
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Knowledge Module](SYSTEM_DESIGN.md#5-knowledge-module)
+**Design Requirement**: [architecture/design-specifications.md - Knowledge Module](architecture/design-specifications.md#5-knowledge-module)
 
 **Current State**: ⚠️ Core complete (90%), advanced features missing
 
@@ -282,7 +282,7 @@ class LLMProvider(Protocol):
 
 ### 9. OAuth/SAML Authentication
 
-**Design Requirement**: [SYSTEM_DESIGN.md - Deployment Profiles](SYSTEM_DESIGN.md#enterprise-profile-production)
+**Design Requirement**: [architecture/design-specifications.md - Deployment Profiles](architecture/design-specifications.md#enterprise-profile-production)
 
 **Current State**: ❌ Not implemented (Enterprise feature)
 
@@ -463,7 +463,7 @@ Track implementation progress at: <https://github.com/FaultMaven/faultmaven/proj
 
 ## Related Documents
 
-**Design Specification**: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+**Design Specification**: [architecture/design-specifications.md](architecture/design-specifications.md)
 
 **Architecture**: [architecture/](architecture/)
 

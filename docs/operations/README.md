@@ -14,7 +14,7 @@ Deployment and operations guides for running FaultMaven in production.
 
 ## Quick Links
 
-- **[System Design](../SYSTEM_DESIGN.md)** - Understanding the system
+- **[System Design](../architecture/design-specifications.md)** - Understanding the system
 - **[Architecture](../architecture/README.md)** - System architecture
 - **[Development Setup](../development/setup.md)** - Local development environment
 

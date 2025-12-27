@@ -10,7 +10,7 @@
 
 This document defines the **target design** (desired state) for FaultMaven's modular monolith architecture. It describes what the system SHOULD do, not what has been implemented.
 
-**Implementation status** is tracked separately in [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).
+**Implementation status** is tracked separately in [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md).
 
 ---
 
@@ -603,11 +603,11 @@ This section tracks which parts of the design are implemented and which are not.
 
 ## Related Documents
 
-**Implementation Gaps**: [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - What's not yet implemented
+**Implementation Gaps**: [../TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md) - What's not yet implemented
 
-**Architecture Overview**: [architecture/](architecture/) - System architecture and diagrams
+**Architecture Overview**: [overview.md](overview.md) - System architecture and diagrams
 
-**Development Guide**: [development/setup.md](development/setup.md) - How to build and run
+**Development Guide**: [../development/setup.md](../development/setup.md) - How to build and run
 
 ---
 

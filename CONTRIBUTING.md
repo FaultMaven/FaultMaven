@@ -31,7 +31,7 @@ This section answers three critical questions for contributors and AI agents.
    - Shows dependencies between tasks
    - Estimated effort for each task
 
-2. **[docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)** - Understand what it SHOULD be
+2. **[docs/architecture/design-specifications.md](docs/architecture/design-specifications.md)** - Understand what it SHOULD be
    - Defines target design (desired state)
    - Complete API specifications
    - Design requirements for each module
@@ -69,7 +69,7 @@ START → TECHNICAL_DEBT.md (pick a gap + read spec)
 
 Start by reading:
 1. docs/TECHNICAL_DEBT.md#2 for the spec
-2. docs/SYSTEM_DESIGN.md (Evidence Module section)
+2. docs/architecture/design-specifications.md (Evidence Module section)
 3. FaultMaven-Mono reference: faultmaven/data_processing/
 
 Create a feature branch and submit a PR when done."
@@ -81,7 +81,7 @@ Create a feature branch and submit a PR when done."
 "Implement the Data Processing Pipeline as specified in docs/TECHNICAL_DEBT.md#2.
 
 Context:
-- Target design: docs/SYSTEM_DESIGN.md (Evidence Module)
+- Target design: docs/architecture/design-specifications.md (Evidence Module)
 - Current status: 0% complete (11 extractors missing)
 - Reference implementation: FaultMaven-Mono faultmaven/data_processing/
 
@@ -102,7 +102,7 @@ Effort: [X weeks/days]
 
 Read before starting:
 - docs/TECHNICAL_DEBT.md#[N] (specification)
-- docs/SYSTEM_DESIGN.md ([module section])
+- docs/architecture/design-specifications.md ([module section])
 - [Code location if applicable]
 
 Deliverables:
@@ -144,7 +144,7 @@ Deliverables:
 
 #### 2. Update SYSTEM_DESIGN.md (REQUIRED)
 
-**Location**: `docs/SYSTEM_DESIGN.md` (Implementation Status section at end)
+**Location**: `docs/architecture/design-specifications.md` (Implementation Status section at end)
 
 **What to update**:
 
@@ -201,7 +201,7 @@ After closing a gap or implementing a feature:
 - [ ] Tests passing (verify with pytest)
 - [ ] Coverage ≥ 80% for new code
 - [ ] docs/TECHNICAL_DEBT.md updated (mark gap completed)
-- [ ] docs/SYSTEM_DESIGN.md updated (Implementation Status section)
+- [ ] docs/architecture/design-specifications.md updated (Implementation Status section)
 - [ ] docs/architecture/ updated (if structure changed)
 - [ ] CHANGELOG.md updated (add entry for next release)
 - [ ] Close related GitHub issues (if any)
@@ -399,7 +399,7 @@ Fixes #123 (or "Addresses TECHNICAL_DEBT.md#1")
 **Architecture & Design**:
 
 - [docs/architecture/](docs/architecture/) - System architecture
-- [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) - Design specifications
+- [docs/architecture/design-specifications.md](docs/architecture/design-specifications.md) - Design specifications
 - [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps (start here!)
 
 **Development**:

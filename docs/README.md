@@ -22,7 +22,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose | Audience |
 | -------- | ------- | -------- |
-| **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | Target design specifications with implementation gaps | All developers |
+| **[architecture/design-specifications.md](architecture/design-specifications.md)** | Target design specifications with implementation gaps | All developers |
 | **[TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)** | 🔴 Detailed gap analysis and roadmap | Developers, PM |
 | **[architecture/](architecture/)** | System architecture and module designs | All developers |
 
@@ -73,7 +73,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 **Optional:**
 
-- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) - Detailed specifications
+- [architecture/design-specifications.md](architecture/design-specifications.md) - Detailed specifications
 - [api/README.md](api/README.md) - API documentation
 
 ### I'm an Architect
@@ -81,7 +81,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 **Essential reading:**
 
 1. [architecture/](architecture/) - System architecture
-2. [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) - Design specifications
+2. [architecture/design-specifications.md](architecture/design-specifications.md) - Design specifications
 3. [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - Implementation gaps
 4. [architecture/modular-monolith-rationale.md](architecture/modular-monolith-rationale.md) - Design rationale
 
@@ -117,7 +117,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Understanding System Architecture
 
-→ [architecture/](architecture/) → [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+→ [architecture/](architecture/) → [architecture/design-specifications.md](architecture/design-specifications.md)
 
 ### Tracking Implementation Gaps 🔴
 
@@ -157,9 +157,8 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Root Documentation Files
 
-**Long-term (3 files)**:
+**Long-term (2 files)**:
 
-- **SYSTEM_DESIGN.md** - Target design specifications
 - **TECHNICAL_DEBT.md** - Implementation gaps and roadmap
 - **README.md** - This file (documentation index)
 
@@ -207,7 +206,7 @@ Historical reference only:
 
 ### Design → Implementation
 
-- [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) defines target design with implementation gaps
+- [architecture/design-specifications.md](architecture/design-specifications.md) defines target design with implementation gaps
 - [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) tracks detailed gap analysis and roadmap
 
 ### Architecture → Development
@@ -234,6 +233,6 @@ Historical reference only:
 ---
 
 **Last Updated**: 2025-12-27
-**Total Long-term Documents**: 3 root files + 4 folders
+**Total Long-term Documents**: 2 root files + 4 folders
 **Architecture**: Modular Monolith (Single Repository)
 **Status**: ✅ Production Ready (with known gaps in TECHNICAL_DEBT.md)

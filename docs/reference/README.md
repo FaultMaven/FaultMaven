@@ -13,7 +13,7 @@ Reference materials and frequently asked questions.
 
 ## Quick Links
 
-- **[System Design](../SYSTEM_DESIGN.md)** - Target design specifications
+- **[System Design](../architecture/design-specifications.md)** - Target design specifications
 - **[Technical Debt](../TECHNICAL_DEBT.md)** - Implementation gaps
 - **[API Documentation](../api/README.md)** - Auto-generated API docs
 
