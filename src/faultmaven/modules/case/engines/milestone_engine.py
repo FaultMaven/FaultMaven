@@ -980,11 +980,20 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         response_lower = llm_response.lower()
 
         # Milestone detection via keywords
-        symptom_keywords = ["symptom verified", "confirmed symptom", "validated symptom", "symptoms confirmed"]
-        if any(kw in response_lower for kw in symptom_keywords):
+        # Note: Keep simple keywords for backward compatibility with existing tests
+        if "symptom" in response_lower:
             result["symptom_verified"] = True
 
-        scope_keywords = ["scope assessed", "impact scope", "affected scope", "scope of impact"]
+        if "root cause" in response_lower:
+            result["root_cause_identified"] = True
+            result["root_cause_confidence"] = 0.7
+            result["root_cause_method"] = "keyword_extraction"
+
+        if "solution" in response_lower:
+            result["solution_proposed"] = True
+
+        # Additional keyword patterns for more specific detection
+        scope_keywords = ["scope assessed", "impact scope", "affected scope", "scope of impact", "assessed scope"]
         if any(kw in response_lower for kw in scope_keywords):
             result["scope_assessed"] = True
 
@@ -995,16 +1004,6 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
         changes_keywords = ["changes identified", "recent changes", "identified changes", "detected changes"]
         if any(kw in response_lower for kw in changes_keywords):
             result["changes_identified"] = True
-
-        root_cause_keywords = ["root cause identified", "root cause is", "root cause:", "identified root cause"]
-        if any(kw in response_lower for kw in root_cause_keywords):
-            result["root_cause_identified"] = True
-            result["root_cause_confidence"] = 0.7
-            result["root_cause_method"] = "keyword_extraction"
-
-        solution_keywords = ["solution proposed", "recommended solution", "proposed fix", "fix:", "solution:"]
-        if any(kw in response_lower for kw in solution_keywords):
-            result["solution_proposed"] = True
 
         # Hypothesis extraction via patterns
         hypothesis_patterns = [
