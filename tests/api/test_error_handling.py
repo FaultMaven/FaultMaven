@@ -26,30 +26,27 @@ class TestDatabaseErrors:
     """Test handling of database-level errors."""
 
     async def test_create_case_with_nonexistent_owner(self, authenticated_client, db_session):
-        """Test creating case with invalid owner ID - service layer allows it.
+        """Test creating case with invalid owner ID raises IntegrityError.
 
-        Note: The CaseService does NOT validate owner existence by design.
-        Owner validation is handled at the API layer via JWT authentication.
-        When bypassing the API layer, cases can be created with any owner_id.
-        This test verifies the service behavior, not a constraint violation.
+        The Case ORM model has a foreign key constraint on owner_id referencing
+        users.id. Attempting to create a case with a non-existent owner_id
+        should raise an IntegrityError from the database.
         """
         client, user = authenticated_client
 
+        from sqlalchemy.exc import IntegrityError
         from faultmaven.modules.case.service import CaseService
         service = CaseService(db_session=db_session)
 
-        # Service layer allows creation with any owner_id (no FK constraint)
-        # This is by design - authentication happens at API layer
-        case = await service.create_case(
-            owner_id="00000000-0000-0000-0000-000000000000",
-            title="Test Case",
-            description="Test"
-        )
-
-        # Case is created successfully (no exception)
-        assert case is not None
-        assert case.owner_id == "00000000-0000-0000-0000-000000000000"
-        assert case.title == "Test Case"
+        # Creating case with non-existent owner should raise IntegrityError
+        # due to FK constraint on owner_id -> users.id
+        with pytest.raises(IntegrityError):
+            await service.create_case(
+                owner_id="00000000-0000-0000-0000-000000000000",
+                title="Test Case",
+                description="Test"
+            )
+            await db_session.commit()
 
     async def test_duplicate_user_email(self, db_session):
         """Test creating user with duplicate email returns 409."""
