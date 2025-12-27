@@ -1,8 +1,43 @@
 # FaultMaven Architecture Overview
 
 **Architecture**: Modular Monolith
-**Status**: Production Ready
+**Status**: Production Ready (with known gaps)
 **Last Updated**: 2025-12-26
+
+---
+
+## Implementation Status
+
+This document describes the **target architecture**. For implementation gaps and technical debt, see [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md).
+
+### Module Implementation Status
+
+| Module           | Core      | Advanced  | Gaps                                                           |
+|------------------|-----------|-----------|----------------------------------------------------------------|
+| **Authentication** | ✅ 100%  | N/A       | None                                                          |
+| **Session**        | ✅ 100%  | ⚠️ 95%   | Minor features ([TECHNICAL_DEBT.md#7](TECHNICAL_DEBT.md#7))  |
+| **Case**           | ✅ 90%   | ⚠️ 75%   | Report gen, search ([TECHNICAL_DEBT.md#5-6](TECHNICAL_DEBT.md#5-6)) |
+| **Evidence**       | ✅ 100%  | ❌ 0%    | Data processing ([TECHNICAL_DEBT.md#2](TECHNICAL_DEBT.md#2)) |
+| **Knowledge**      | ✅ 100%  | ⚠️ 10%   | Advanced features ([TECHNICAL_DEBT.md#8](TECHNICAL_DEBT.md#8)) |
+| **Agent**          | ✅ 100%  | ❌ 12.5% | Tools framework ([TECHNICAL_DEBT.md#3](TECHNICAL_DEBT.md#3)) |
+
+### Investigation Framework Status (80% Complete)
+
+| Engine                       | Status        | Notes                                                      |
+|------------------------------|---------------|------------------------------------------------------------|
+| MemoryManager                | ✅ Complete   | 64% token reduction achieved                              |
+| WorkingConclusionGenerator   | ✅ Complete   | Continuous progress tracking                               |
+| PhaseOrchestrator            | ✅ Complete   | Loop-back detection working                                |
+| OODAEngine                   | ✅ Complete   | Adaptive intensity implemented                             |
+| HypothesisManager            | ⏳ Pending    | [Blocked by structured LLM output](TECHNICAL_DEBT.md#1)   |
+
+### Critical Architectural Gaps
+
+See [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) for complete gap analysis. Top priorities:
+
+1. 🔴 **Structured LLM Output** - Blocks HypothesisManager & Tools ([#1](TECHNICAL_DEBT.md#1))
+2. 🔴 **Data Processing Pipeline** - 11 extractors missing ([#2](TECHNICAL_DEBT.md#2))
+3. 🔴 **Agent Tools Framework** - 8 tools missing ([#3](TECHNICAL_DEBT.md#3))
 
 ---
 
