@@ -1,22 +1,8 @@
 #!/usr/bin/env python3
-"""
-Generate OpenAPI specification from FastAPI application.
-
-Ported from: FaultMaven-Mono/scripts/generate_openapi_spec.py
+"""Generate OpenAPI specification from FastAPI application.
 
 This script generates the current OpenAPI spec and optionally compares it
-with the locked version to identify API changes (breaking and non-breaking).
-
-Usage:
-    python scripts/generate_openapi_spec.py
-
-Outputs:
-    - docs/api/openapi.current.yaml  (Current API spec)
-    - docs/api/openapi.locked.yaml   (Locked baseline, created if missing)
-
-Exit codes:
-    0 - Success (no changes or non-breaking changes)
-    1 - Breaking changes detected
+with the locked version to identify API changes.
 """
 
 import json
@@ -27,27 +13,22 @@ from typing import Any, Dict, Set, Tuple
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Set environment to skip service checks during spec generation
+import os
+os.environ['SKIP_SERVICE_CHECKS'] = 'true'
+
 # Import FastAPI app
-from src.faultmaven.app import create_app
+from faultmaven.main import app
 
 
 def generate_openapi_spec() -> Dict[str, Any]:
     """Generate OpenAPI specification from FastAPI app."""
-    app = create_app(enable_lifespan=False)  # Disable lifespan for spec generation
     return app.openapi()
 
 
 def save_spec(spec: Dict[str, Any], output_path: Path) -> None:
     """Save OpenAPI spec to YAML file."""
-    try:
-        import yaml
-    except ImportError:
-        print("⚠️  PyYAML not installed. Installing...")
-        import subprocess
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "pyyaml"])
-        import yaml
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    import yaml
 
     with open(output_path, 'w') as f:
         yaml.dump(spec, f, default_flow_style=False, sort_keys=False, indent=2)
@@ -57,10 +38,7 @@ def save_spec(spec: Dict[str, Any], output_path: Path) -> None:
 
 def load_yaml_spec(path: Path) -> Dict[str, Any]:
     """Load OpenAPI spec from YAML file."""
-    try:
-        import yaml
-    except ImportError:
-        return {}
+    import yaml
 
     if not path.exists():
         return {}
@@ -70,8 +48,7 @@ def load_yaml_spec(path: Path) -> Dict[str, Any]:
 
 
 def compare_specs(current: Dict[str, Any], locked: Dict[str, Any]) -> Tuple[bool, list]:
-    """
-    Compare current spec with locked spec and identify changes.
+    """Compare current spec with locked spec and identify changes.
 
     Returns:
         (has_breaking_changes, change_list)
@@ -252,19 +229,9 @@ def main():
     locked_spec_path = project_root / "docs" / "api" / "openapi.locked.yaml"
     current_spec_path = project_root / "docs" / "api" / "openapi.current.yaml"
 
-    print("=" * 80)
-    print("FaultMaven OpenAPI Specification Generator")
-    print("=" * 80)
-
     # Generate current spec
-    print("\nGenerating current OpenAPI specification...")
-    try:
-        current_spec = generate_openapi_spec()
-    except Exception as e:
-        print(f"\n❌ Failed to generate OpenAPI spec: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+    print("Generating current OpenAPI specification...")
+    current_spec = generate_openapi_spec()
 
     # Save current spec
     save_spec(current_spec, current_spec_path)
@@ -289,17 +256,15 @@ def main():
             if has_breaking:
                 print("\n⚠️  BREAKING CHANGES DETECTED")
                 print("The API has breaking changes that may affect existing clients.")
-                print("\nConsider:")
+                print("Consider:")
                 print("  1. Creating a new API version (v2)")
                 print("  2. Providing migration guide for clients")
                 print("  3. Updating the locked spec only after review")
-                print("\nTo update the locked spec:")
-                print(f"  cp {current_spec_path} {locked_spec_path}")
                 return 1
             else:
                 print("\n✅ NON-BREAKING CHANGES")
                 print("The API changes are backward compatible.")
-                print("\nYou can update the locked spec with:")
+                print("You can update the locked spec with:")
                 print(f"  cp {current_spec_path} {locked_spec_path}")
                 return 0
         else:
@@ -311,7 +276,6 @@ def main():
         print("Creating initial locked spec...")
         save_spec(current_spec, locked_spec_path)
         print("\n✅ Initial locked spec created")
-        print("\nThis establishes the baseline for future API change detection.")
         return 0
 
 
