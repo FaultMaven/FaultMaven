@@ -47,57 +47,46 @@ Documents may include comments indicating when they should be removed:
 
 ---
 
-## Current Documents
+## Current Documents (8 Active)
 
-### Checkpoints
+### Checkpoints (1 file)
 
 - **CHECKPOINT_2025_12_27.md** - Latest checkpoint snapshot
   - Delete when: Superseded by next major milestone
 
-### Framework Status
+### Framework Status (1 file)
 
-- **investigation-framework-status.md** - Investigation framework integration status
-  - Delete when: Framework 100% complete (move final summary to ARCHITECTURE.md)
+- **investigation-framework-status.md** - Investigation framework integration (80% complete)
+  - Delete when: Framework 100% complete (move summary to ARCHITECTURE.md)
 
-### Documentation Management
-
-- **documentation-analysis.md** - Documentation organization analysis
-  - Delete when: All recommendations implemented
-- **DOCUMENTATION_REORGANIZATION_PLAN.md** - Reorganization plan
-  - Delete when: Plan fully executed
-- **DOCUMENTATION_CLEANUP_COMPLETE.md** - Completion status
-  - Delete when: Documentation consolidation is fully accepted
-- **DOCUMENTATION_CLEANUP_TODO.md** - Cleanup tasks
-  - Delete when: All tasks completed and verified
-
-### Integration & Status
+### Integration Status (1 file)
 
 - **ENGINE_INTEGRATION_STATUS.md** - Engine integration tracking
-  - Delete when: All engines integrated (move summary to ARCHITECTURE.md)
-- **INTEGRATION_COMPLETION_SUMMARY.md** - Integration summary
-  - Delete when: Integration complete (move to archive)
+  - Delete when: All 5 engines 100% integrated
 
-### Feature Parity
-
-- **FEATURE_PARITY_TRACKING.md** - Feature parity vs FaultMaven-Mono
-  - Delete when: Superseded by TECHNICAL_DEBT.md (already deprecated)
-  - Note: TECHNICAL_DEBT.md is now the authoritative gap tracker
-
-### Testing
+### Testing Coverage (4 files)
 
 - **TESTING_IMPLEMENTATION_ROADMAP.md** - Testing roadmap
   - Delete when: Roadmap complete or moved to testing-strategy.md
-- **HYPOTHESIS_MANAGER_TEST_COVERAGE.md** - Test coverage report
+- **HYPOTHESIS_MANAGER_TEST_COVERAGE.md** - HypothesisManager test coverage
   - Delete when: Coverage integrated into CI reporting
-- **MILESTONE_ENGINE_TEST_COVERAGE.md** - Test coverage report
+- **MILESTONE_ENGINE_TEST_COVERAGE.md** - MilestoneEngine test coverage
   - Delete when: Coverage integrated into CI reporting
-- **OODA_ENGINE_TEST_COVERAGE.md** - Test coverage report
+- **OODA_ENGINE_TEST_COVERAGE.md** - OODAEngine test coverage
   - Delete when: Coverage integrated into CI reporting
 
-### Analysis
+---
 
-- **FAULTMAVEN_MONO_DEPRECATION_ANALYSIS.md** - Deprecation analysis
-  - Delete when: Decision finalized and documented in roadmap.md
+## Recently Archived (2025-12-27)
+
+Moved to `archive/2025/12/`:
+- ✅ documentation-analysis.md - Recommendations implemented
+- ✅ DOCUMENTATION_REORGANIZATION_PLAN.md - Plan fully executed
+- ✅ DOCUMENTATION_CLEANUP_COMPLETE.md - Cleanup complete
+- ✅ DOCUMENTATION_CLEANUP_TODO.md - All tasks done
+- ✅ FEATURE_PARITY_TRACKING.md - Superseded by TECHNICAL_DEBT.md
+- ✅ INTEGRATION_COMPLETION_SUMMARY.md - Integration complete
+- ✅ FAULTMAVEN_MONO_DEPRECATION_ANALYSIS.md - Decision documented
 
 ---
 
@@ -118,5 +107,5 @@ Documents may include comments indicating when they should be removed:
 ---
 
 **Last Updated**: 2025-12-27
-**Current Documents**: 15
+**Current Documents**: 8 active (7 archived)
 **Purpose**: Active development planning and status tracking
