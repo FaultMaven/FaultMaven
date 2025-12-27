@@ -5,7 +5,7 @@ Exposes endpoints for session management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any
 
 from faultmaven.modules.session.service import SessionService
@@ -45,6 +45,19 @@ class AddSessionMessageRequest(BaseModel):
     """Add message to session request."""
     role: str
     content: str
+
+
+class SessionSearchRequest(BaseModel):
+    """Session search request with validation."""
+    status: Optional[str] = Field(None, pattern="^(active|archived|expired)$", description="Filter by status")
+    min_messages: Optional[int] = Field(None, ge=0, description="Minimum message count")
+    max_messages: Optional[int] = Field(None, ge=0, description="Maximum message count")
+    has_cases: Optional[bool] = Field(None, description="Filter by whether session has cases")
+    created_after: Optional[str] = Field(None, description="Created after date (ISO format)")
+    created_before: Optional[str] = Field(None, description="Created before date (ISO format)")
+    search_text: Optional[str] = Field(None, max_length=500, description="Text search in messages")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results to return")
+    offset: int = Field(0, ge=0, description="Number of results to skip")
 
 
 # ============================================================================
@@ -540,12 +553,12 @@ async def get_session_stats(
 
 @router.post("/search")
 async def search_sessions(
-    query: dict,
+    request: SessionSearchRequest,
     current_user: User = Depends(get_current_user),
     session_service: SessionService = Depends(get_session_service),
 ):
     """
-    Search sessions with query parameters.
+    Search sessions with validated query parameters.
 
     Supports filters:
     - status: Filter by status (active, archived, expired)
@@ -557,21 +570,33 @@ async def search_sessions(
     - search_text: Text search in messages
 
     Args:
-        query: Search query
+        request: Validated search request
         current_user: Authenticated user
         session_service: Session service
 
     Returns:
-        Matching sessions
+        Matching sessions with pagination info
     """
+    # Convert Pydantic model to dict for service call
+    query = {
+        k: v for k, v in request.model_dump().items()
+        if v is not None and k not in ("limit", "offset")
+    }
+
     sessions = await session_service.search_sessions_advanced(
         user_id=current_user.id,
         query=query,
     )
 
+    # Apply pagination
+    total = len(sessions)
+    start = request.offset
+    end = start + request.limit
+    paginated = sessions[start:end]
+
     return {
-        "sessions": sessions,
-        "count": len(sessions),
+        "sessions": paginated,
+        "total": total,
         "query": query
     }
 
