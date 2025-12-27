@@ -535,16 +535,82 @@ class AgentTool(Protocol):
 
 ---
 
-## Related Documents
+## Implementation Status
 
-**Implementation Status**: [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)
+This section tracks which parts of the design are implemented and which are not.
 
-**Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
+**For complete gap details, effort estimates, and roadmap**: See [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)
 
-**Development**: [DEVELOPMENT.md](DEVELOPMENT.md)
+### Module Implementation Summary
+
+**Authentication**: ✅ Complete (core), N/A (advanced) - Fully implemented
+
+**Session**: ✅ Complete (core), ⚠️ 95% (advanced) - Minor features missing ([#7](TECHNICAL_DEBT.md#7))
+
+**Case**: ✅ 90% (core), ⚠️ 75% (advanced) - Report generation, search missing ([#5-6](TECHNICAL_DEBT.md#5-6))
+
+**Evidence**: ✅ Complete (core), ❌ 0% (advanced) - **Data processing pipeline missing** ([#2](TECHNICAL_DEBT.md#2))
+
+**Knowledge**: ✅ Complete (core), ⚠️ 10% (advanced) - Advanced features missing ([#8](TECHNICAL_DEBT.md#8))
+
+**Agent**: ✅ Complete (core), ❌ 12.5% (advanced) - **Tools framework missing** ([#3](TECHNICAL_DEBT.md#3))
+
+### Investigation Framework (80% Complete)
+
+**MemoryManager**: ✅ Complete
+
+**WorkingConclusionGenerator**: ✅ Complete
+
+**PhaseOrchestrator**: ✅ Complete
+
+**OODAEngine**: ✅ Complete
+
+**HypothesisManager**: ❌ Not integrated - **Blocked by structured LLM output** ([#1](TECHNICAL_DEBT.md#1))
+
+### Critical Missing Components
+
+**🔴 These gaps block core functionality:**
+
+1. **Structured LLM Output Support** ([#1](TECHNICAL_DEBT.md#1))
+   - Blocks: HypothesisManager integration, Agent Tools framework
+   - Effort: 2 weeks
+
+2. **Data Processing Pipeline** ([#2](TECHNICAL_DEBT.md#2))
+   - Gap: 11 data extractors missing (0% coverage)
+   - Impact: Evidence files uploaded but not processed
+   - Effort: 3 weeks
+
+3. **Agent Tools Framework** ([#3](TECHNICAL_DEBT.md#3))
+   - Gap: 7 of 8 tools missing (12.5% coverage)
+   - Impact: Agent cannot execute troubleshooting actions
+   - Effort: 4 weeks
+
+4. **HypothesisManager Integration** ([#4](TECHNICAL_DEBT.md#4))
+   - Gap: Code exists but not activated
+   - Blocks: Investigation framework completion (stuck at 80%)
+   - Effort: 1 week
+
+**Total effort to close critical gaps**: 10 weeks
+
+**See [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) for**:
+- Detailed gap descriptions
+- Implementation roadmap
+- Effort breakdown
+- Priority levels
+- Code size analysis
 
 ---
 
-**Last Updated**: 2025-12-26
+## Related Documents
+
+**Implementation Gaps**: [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - What's not yet implemented
+
+**Architecture Overview**: [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture and diagrams
+
+**Development Guide**: [DEVELOPMENT.md](DEVELOPMENT.md) - How to build and run
+
+---
+
+**Last Updated**: 2025-12-27
 **Version**: 1.0
 **Status**: Design of Record

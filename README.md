@@ -442,20 +442,19 @@ Apache 2.0 - See [LICENSE](LICENSE) for details.
 
 ## Contributing
 
-We welcome contributions!
+We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
-**🎯 Start here**: [NEXT_STEPS.md](NEXT_STEPS.md) - Priority-ordered list of what to work on
+- **What to work on** - Priority-ordered critical gaps and high-priority tasks
+- **Development setup** - How to get started
+- **Testing requirements** - Coverage targets and testing strategy
+- **PR guidelines** - How to submit contributions
 
-**Setup and guidelines**:
-- [DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development environment setup
-- [TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps and roadmap
-- [CONTRIBUTING.md](docs/CONTRIBUTING.md) - Contribution guidelines (if exists)
+**Quick Links**:
 
-**Architecture Guidelines**:
-- Follow modular monolith patterns
-- Maintain clear module boundaries
-- Include tests for all changes (target: 80% coverage)
-- Update documentation as needed
+- [CONTRIBUTING.md](CONTRIBUTING.md) - **Start here for contribution guidelines**
+- [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) - Development environment setup
+- [docs/TECHNICAL_DEBT.md](docs/TECHNICAL_DEBT.md) - Implementation gaps and roadmap
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - System architecture
 
 ---
 
