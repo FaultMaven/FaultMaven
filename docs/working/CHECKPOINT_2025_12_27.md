@@ -216,37 +216,17 @@ Operational Scripts:  5 scripts (1,344 lines)
 
 ## Technical Debt Summary
 
-### Critical Gaps 🔴 (10 weeks)
+For complete implementation gaps and roadmap, see **[TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md)**.
 
-1. **Structured LLM Output** (2 weeks)
-   - Blocks: HypothesisManager, Agent Tools
-   - Required: JSON mode and function calling in LLMProvider
-
-2. **Data Processing Pipeline** (3 weeks)
-   - 0% coverage (11 extractors missing)
-   - Impact: Evidence files stored but not processed
-
-3. **Agent Tools Framework** (4 weeks)
-   - 12.5% coverage (1/8 tools)
-   - Impact: Limited autonomous troubleshooting
-
-4. **HypothesisManager Integration** (1 week)
-   - Blocked by #1 (structured output)
-   - Impact: Investigation framework stuck at 80%
-
-### High Priority Gaps 🟡 (2.5 weeks)
-
-5. **Report Generation** (1 week)
-6. **Case Search & Filter** (1 week)
-7. **Session Advanced Features** (3 days)
-
-### Low Priority Gaps 🟢 (4 weeks)
-
-8. **Knowledge Base Advanced** (2 weeks)
-9. **OAuth/SAML Authentication** (2 weeks)
-
-**Total Effort to MVP**: 12.5 weeks (Critical + High)
-**Total Effort to Full Parity**: 16.5 weeks (All gaps)
+**Snapshot at checkpoint** (2025-12-27):
+- **9 gaps identified**: 4 critical, 3 high priority, 2 low priority
+- **Total effort**: 16.5 weeks (all gaps), 12.5 weeks (MVP)
+- **Next priority**: Structured LLM output (2 weeks) - Unblocks HypothesisManager and Agent Tools
+- **Critical blockers**:
+  - Structured LLM output support
+  - Data processing pipeline (0% coverage, 11 extractors)
+  - Agent tools framework (12.5% coverage, 1/8 tools)
+  - HypothesisManager integration (blocked by structured output)
 
 ---
 
@@ -344,31 +324,31 @@ pytest --cov=src/faultmaven --cov-report=html  # HTML report
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture with inline status
 - [SYSTEM_DESIGN.md](../SYSTEM_DESIGN.md) - Detailed design specifications
 - [TECHNICAL_DEBT.md](../TECHNICAL_DEBT.md) - Implementation gaps and roadmap
-- [MODULAR_MONOLITH_DESIGN.md](../MODULAR_MONOLITH_DESIGN.md) - Design rationale
-- [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](../INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md) - Framework overview
+- [modular-monolith-rationale.md](../modular-monolith-rationale.md) - Design rationale
+- [investigation-framework-status.md](investigation-framework-status.md) - Framework overview
 
 **Development**:
 - [DEVELOPMENT.md](../DEVELOPMENT.md) - Local development guide
-- [TESTING_STRATEGY.md](../TESTING_STRATEGY.md) - Testing approach
+- [testing-strategy.md](../testing-strategy.md) - Testing approach
 - [api/README.md](../api/README.md) - Auto-generated API docs
 
 **Operations**:
 - [DEPLOYMENT.md](../DEPLOYMENT.md) - Production deployment
 - [SECURITY.md](../SECURITY.md) - Security guidelines
-- [TROUBLESHOOTING.md](../TROUBLESHOOTING.md) - Common issues
+- [troubleshooting.md](../troubleshooting.md) - Common issues
 
 **Reference**:
-- [FAQ.md](../FAQ.md) - Frequently asked questions
-- [ROADMAP.md](../ROADMAP.md) - Product roadmap
+- [faq.md](../faq.md) - Frequently asked questions
+- [roadmap.md](../roadmap.md) - Product roadmap
 
 ### By Lifecycle
 
-**Long-term** (14 files in `docs/`):
+**Long-term** (13 files in `docs/`):
 - Permanent reference documentation
 - Updated as system evolves
 - Listed in [docs/README.md](../README.md)
 
-**Short-term** (10 files in `docs/working/`):
+**Short-term** (12 files in `docs/working/`):
 - Temporary planning and status tracking
 - May include deletion markers
 - Moved to archive when work completes

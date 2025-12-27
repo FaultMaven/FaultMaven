@@ -210,7 +210,7 @@ The FaultMaven investigation framework has been successfully integrated from the
 
 - ⏳ **HypothesisManager** - Requires structured LLM output (inherited limitation from FaultMaven-Mono)
 
-For detailed status, see [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](docs/INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+For detailed status, see [investigation-framework-status.md](docs/working/investigation-framework-status.md)
 
 ---
 
@@ -360,7 +360,7 @@ FaultMaven evolved through three architectural phases:
 - Modular design maintains clear boundaries without microservices overhead
 - Better developer experience and faster iteration
 
-For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](docs/INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+For detailed comparison: See [investigation-framework-status.md](docs/working/investigation-framework-status.md)
 
 ---
 
@@ -377,11 +377,11 @@ For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](d
 
 **Additional Resources:**
 
-- [TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md) - Testing approach
+- [testing-strategy.md](docs/testing-strategy.md) - Testing approach
 - [SECURITY.md](docs/SECURITY.md) - Security guidelines
-- [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues and solutions
-- [FAQ.md](docs/FAQ.md) - Frequently asked questions
-- [ROADMAP.md](docs/ROADMAP.md) - Product roadmap
+- [troubleshooting.md](docs/troubleshooting.md) - Common issues and solutions
+- [faq.md](docs/faq.md) - Frequently asked questions
+- [roadmap.md](docs/roadmap.md) - Product roadmap
 
 See [docs/README.md](docs/README.md) for complete documentation organized by role and task.
 

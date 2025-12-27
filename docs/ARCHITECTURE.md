@@ -466,17 +466,17 @@ FaultMaven evolved through three architectural phases:
 
 **Current Status**: Production-ready modular monolith with 80% investigation framework integration
 
-For detailed comparison: See [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+For detailed comparison: See [working/investigation-framework-status.md](working/investigation-framework-status.md)
 
 ---
 
 ## Related Documentation
 
-- **[MODULAR_MONOLITH_DESIGN.md](MODULAR_MONOLITH_DESIGN.md)** - Detailed design rationale
+- **[modular-monolith-rationale.md](modular-monolith-rationale.md)** - Detailed design rationale
 - **[DEVELOPMENT.md](DEVELOPMENT.md)** - Developer setup guide
 - **[API Documentation](api/)** - Auto-generated OpenAPI specs
 - **[DEPLOYMENT.md](DEPLOYMENT.md)** - Production deployment guide
-- **[INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)** - Framework integration status
+- **[working/investigation-framework-status.md](working/investigation-framework-status.md)** - Framework integration status
 
 ---
 

@@ -25,13 +25,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | 🎯 System architecture with inline status | All developers |
 | **[SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)** | Detailed design specifications | All developers |
 | **[TECHNICAL_DEBT.md](TECHNICAL_DEBT.md)** | 🔴 Implementation gaps and roadmap | Developers, PM |
-| **[MODULAR_MONOLITH_DESIGN.md](MODULAR_MONOLITH_DESIGN.md)** | Modular monolith rationale and patterns | Architects |
-
-**Investigation Framework:**
-
-| Document | Purpose |
-| -------- | ------- |
-| **[INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)** | Framework overview and integration status |
+| **[modular-monolith-rationale.md](modular-monolith-rationale.md)** | Modular monolith rationale and patterns | Architects |
 
 ---
 
@@ -42,7 +36,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 | Document | Purpose |
 | -------- | ------- |
 | **[DEVELOPMENT.md](DEVELOPMENT.md)** | Complete development guide and workflows |
-| **[TESTING_STRATEGY.md](TESTING_STRATEGY.md)** | Testing approach and patterns |
+| **[testing-strategy.md](testing-strategy.md)** | Testing approach and patterns |
 | **[api/README.md](api/README.md)** | Auto-generated API documentation |
 
 ---
@@ -55,7 +49,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 | -------- | ------- |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Production deployment guide |
 | **[SECURITY.md](SECURITY.md)** | Security guidelines and best practices |
-| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common issues and solutions |
+| **[troubleshooting.md](troubleshooting.md)** | Common issues and solutions |
 
 ---
 
@@ -63,8 +57,8 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 | Document | Purpose |
 | -------- | ------- |
-| **[FAQ.md](FAQ.md)** | Frequently asked questions |
-| **[ROADMAP.md](ROADMAP.md)** | Product roadmap and future plans |
+| **[faq.md](faq.md)** | Frequently asked questions |
+| **[roadmap.md](roadmap.md)** | Product roadmap and future plans |
 
 ---
 
@@ -76,7 +70,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 1. [DEVELOPMENT.md](DEVELOPMENT.md) - Setup and workflow
 2. [ARCHITECTURE.md](ARCHITECTURE.md) - System structure
-3. [TESTING_STRATEGY.md](TESTING_STRATEGY.md) - Testing approach
+3. [testing-strategy.md](testing-strategy.md) - Testing approach
 
 **Optional:**
 
@@ -90,18 +84,18 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 1. [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
 2. [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md) - Design specifications
 3. [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - Implementation gaps
-4. [MODULAR_MONOLITH_DESIGN.md](MODULAR_MONOLITH_DESIGN.md) - Design rationale
+4. [modular-monolith-rationale.md](modular-monolith-rationale.md) - Design rationale
 
 **Optional:**
 
-- [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md) - Framework details
+- [working/investigation-framework-status.md](working/investigation-framework-status.md) - Framework integration status
 
 ### I'm a DevOps Engineer
 
 **Essential reading:**
 
 1. [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment guide
-2. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Common issues
+2. [troubleshooting.md](troubleshooting.md) - Common issues
 3. [SECURITY.md](SECURITY.md) - Security practices
 
 **Optional:**
@@ -114,9 +108,9 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 **Essential reading:**
 
 1. [../README.md](../README.md) - Product overview
-2. [ROADMAP.md](ROADMAP.md) - Future plans
+2. [roadmap.md](roadmap.md) - Future plans
 3. [TECHNICAL_DEBT.md](TECHNICAL_DEBT.md) - Implementation priorities
-4. [FAQ.md](FAQ.md) - Common questions
+4. [faq.md](faq.md) - Common questions
 
 ---
 
@@ -140,15 +134,15 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Writing Tests
 
-→ [TESTING_STRATEGY.md](TESTING_STRATEGY.md)
+→ [testing-strategy.md](testing-strategy.md)
 
 ### Debugging Issues
 
-→ [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+→ [troubleshooting.md](troubleshooting.md)
 
 ### Understanding Investigation Framework
 
-→ [INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md](INVESTIGATION_FRAMEWORK_INTEGRATION_COMPLETE.md)
+→ [working/investigation-framework-status.md](working/investigation-framework-status.md)
 
 ### API Integration
 
@@ -156,7 +150,7 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 ### Contributing to FaultMaven
 
-→ [DEVELOPMENT.md](DEVELOPMENT.md) → [TESTING_STRATEGY.md](TESTING_STRATEGY.md)
+→ [DEVELOPMENT.md](DEVELOPMENT.md) → [testing-strategy.md](testing-strategy.md)
 
 ---
 
@@ -166,13 +160,11 @@ This guide organizes all **permanent documentation** by purpose and audience. Te
 
 All files in `docs/` (excluding `working/` and `archive/`) are **permanent reference documentation**:
 
-- **Architecture & Design** (5 files)
-- **Development** (3 files)
-- **Operations** (3 files)
-- **Reference** (2 files)
-- **Framework** (1 file)
+- **Top-Level Meta** (7 UPPERCASE files)
+- **Detailed Guides** (5 lowercase files)
+- **API Documentation** (1 file)
 
-**Total**: 14 permanent documents
+**Total**: 13 permanent documents
 
 ### Short-term Documentation ([working/](working/))
 
@@ -263,7 +255,7 @@ Archived documents from completed work or deprecated approaches:
 
 ---
 
-**Last Updated**: 2025-12-26
-**Total Long-term Documents**: 14
+**Last Updated**: 2025-12-27
+**Total Long-term Documents**: 13
 **Architecture**: Modular Monolith (Single Repository)
 **Status**: ✅ Production Ready (with known gaps in TECHNICAL_DEBT.md)

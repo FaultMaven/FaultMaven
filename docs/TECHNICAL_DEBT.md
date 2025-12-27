@@ -467,10 +467,10 @@ Track implementation progress at: <https://github.com/FaultMaven/faultmaven/proj
 
 **Architecture**: [ARCHITECTURE.md](ARCHITECTURE.md)
 
-**Feature Parity** (deprecated): [FEATURE_PARITY_TRACKING.md](FEATURE_PARITY_TRACKING.md)
+**Feature Parity** (deprecated): [working/FEATURE_PARITY_TRACKING.md](working/FEATURE_PARITY_TRACKING.md)
 
 ---
 
-**Last Updated**: 2025-12-26
+**Last Updated**: 2025-12-27
 **Next Review**: After Phase 1 completion
 **Total Estimated Effort**: 16.5 weeks (all gaps), 12.5 weeks (MVP)

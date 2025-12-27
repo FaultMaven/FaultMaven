@@ -49,8 +49,22 @@ Documents may include comments indicating when they should be removed:
 
 ## Current Documents
 
-### Documentation Cleanup
+### Checkpoints
 
+- **CHECKPOINT_2025_12_27.md** - Latest checkpoint snapshot
+  - Delete when: Superseded by next major milestone
+
+### Framework Status
+
+- **investigation-framework-status.md** - Investigation framework integration status
+  - Delete when: Framework 100% complete (move final summary to ARCHITECTURE.md)
+
+### Documentation Management
+
+- **documentation-analysis.md** - Documentation organization analysis
+  - Delete when: All recommendations implemented
+- **DOCUMENTATION_REORGANIZATION_PLAN.md** - Reorganization plan
+  - Delete when: Plan fully executed
 - **DOCUMENTATION_CLEANUP_COMPLETE.md** - Completion status
   - Delete when: Documentation consolidation is fully accepted
 - **DOCUMENTATION_CLEANUP_TODO.md** - Cleanup tasks
@@ -72,7 +86,7 @@ Documents may include comments indicating when they should be removed:
 ### Testing
 
 - **TESTING_IMPLEMENTATION_ROADMAP.md** - Testing roadmap
-  - Delete when: Roadmap complete or moved to TESTING_STRATEGY.md
+  - Delete when: Roadmap complete or moved to testing-strategy.md
 - **HYPOTHESIS_MANAGER_TEST_COVERAGE.md** - Test coverage report
   - Delete when: Coverage integrated into CI reporting
 - **MILESTONE_ENGINE_TEST_COVERAGE.md** - Test coverage report
@@ -83,7 +97,7 @@ Documents may include comments indicating when they should be removed:
 ### Analysis
 
 - **FAULTMAVEN_MONO_DEPRECATION_ANALYSIS.md** - Deprecation analysis
-  - Delete when: Decision finalized and documented in ROADMAP.md
+  - Delete when: Decision finalized and documented in roadmap.md
 
 ---
 
@@ -103,6 +117,6 @@ Documents may include comments indicating when they should be removed:
 
 ---
 
-**Last Updated**: 2025-12-26
-**Current Documents**: 10
+**Last Updated**: 2025-12-27
+**Current Documents**: 15
 **Purpose**: Active development planning and status tracking
