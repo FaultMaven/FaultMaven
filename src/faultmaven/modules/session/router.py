@@ -5,7 +5,7 @@ Exposes endpoints for session management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any
 
 from faultmaven.modules.session.service import SessionService
@@ -45,6 +45,20 @@ class AddSessionMessageRequest(BaseModel):
     """Add message to session request."""
     role: str
     content: str
+
+
+class SessionSearchRequest(BaseModel):
+    """Session search request with validation."""
+    status: Optional[str] = Field(None, pattern="^(active|archived|expired)$", description="Filter by status")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results to return")
+    offset: int = Field(0, ge=0, description="Number of results to skip")
+
+
+class SessionSearchResponse(BaseModel):
+    """Session search response."""
+    sessions: list[SessionResponse]
+    total: int
+    query: dict[str, Any]
 
 
 # ============================================================================
@@ -538,36 +552,56 @@ async def get_session_stats(
     }
 
 
-@router.post("/search")
+@router.post("/search", response_model=SessionSearchResponse)
 async def search_sessions(
-    query: dict,
+    request: SessionSearchRequest,
     current_user: User = Depends(get_current_user),
     session_service: SessionService = Depends(get_session_service),
 ):
     """
-    Search sessions with query parameters.
+    Search sessions with validated query parameters.
 
     Args:
-        query: Search query (e.g., {"status": "active"})
+        request: Search request with validated filters
         current_user: Authenticated user
         session_service: Session service
 
     Returns:
-        Matching sessions
+        Matching sessions with pagination info
     """
     # Get all user sessions
     sessions = await session_service.list_user_sessions(current_user.id)
 
-    # Simple filtering (can be enhanced)
-    status_filter = query.get("status")
-    if status_filter:
-        sessions = [s for s in sessions if s.get("status") == status_filter]
+    # Apply status filter
+    if request.status:
+        sessions = [s for s in sessions if s.get("status") == request.status]
 
-    return {
-        "sessions": sessions,
-        "count": len(sessions),
-        "query": query
-    }
+    # Get total before pagination
+    total = len(sessions)
+
+    # Apply pagination
+    start = request.offset
+    end = start + request.limit
+    paginated_sessions = sessions[start:end]
+
+    # Convert to response format
+    session_responses = [
+        SessionResponse(
+            session_id=s["session_id"],
+            created_at=s["created_at"],
+            last_accessed_at=s["last_accessed_at"],
+            expires_at=s["expires_at"],
+            ip_address=s.get("ip_address"),
+            user_agent=s.get("user_agent"),
+        )
+        for s in paginated_sessions
+    ]
+
+    return SessionSearchResponse(
+        sessions=session_responses,
+        total=total,
+        query={"status": request.status} if request.status else {},
+    )
 
 
 @router.post("/{session_id}/archive")

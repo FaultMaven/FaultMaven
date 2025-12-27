@@ -5,11 +5,11 @@ Handles case lifecycle management including hypotheses and solutions.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, or_, and_
 
 from faultmaven.modules.case.orm import Case, Hypothesis, Solution, CaseMessage, CaseStatus, CasePriority
 
@@ -398,3 +398,184 @@ class CaseService:
         messages = result.scalars().all()
 
         return list(messages)
+
+    async def search_cases(
+        self,
+        owner_id: str,
+        query: Optional[str] = None,
+        status: Optional[CaseStatus] = None,
+        priority: Optional[CasePriority] = None,
+        category: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[Case], int]:
+        """
+        Search cases with filtering at database level.
+
+        Uses database-level filtering for performance scalability.
+
+        Args:
+            owner_id: User ID for ownership filter
+            query: Text search query (searches title and description)
+            status: Filter by case status
+            priority: Filter by priority
+            category: Filter by category
+            tags: Filter by tags (any match)
+            date_from: Filter cases created after this date (ISO format)
+            date_to: Filter cases created before this date (ISO format)
+            limit: Maximum results to return
+            offset: Number of results to skip
+
+        Returns:
+            Tuple of (cases, total_count)
+        """
+        # Build base conditions
+        conditions = [Case.owner_id == owner_id]
+
+        # Text search on title and description
+        if query:
+            search_term = f"%{query}%"
+            conditions.append(
+                or_(
+                    Case.title.ilike(search_term),
+                    Case.description.ilike(search_term),
+                )
+            )
+
+        # Status filter
+        if status:
+            conditions.append(Case.status == status)
+
+        # Priority filter
+        if priority:
+            conditions.append(Case.priority == priority)
+
+        # Category filter
+        if category:
+            conditions.append(Case.category == category)
+
+        # Tags filter (any match) - for SQLite JSON array
+        if tags:
+            # For each tag, check if it exists in the tags array
+            tag_conditions = []
+            for tag in tags:
+                # SQLite JSON contains check
+                tag_conditions.append(
+                    Case.tags.contains([tag])
+                )
+            if tag_conditions:
+                conditions.append(or_(*tag_conditions))
+
+        # Date range filters
+        if date_from:
+            try:
+                from_date = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+                conditions.append(Case.created_at >= from_date)
+            except ValueError:
+                pass  # Invalid date format, skip filter
+
+        if date_to:
+            try:
+                to_date = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+                conditions.append(Case.created_at <= to_date)
+            except ValueError:
+                pass  # Invalid date format, skip filter
+
+        # Build count query
+        count_query = (
+            select(func.count())
+            .select_from(Case)
+            .where(and_(*conditions))
+        )
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar() or 0
+
+        # Build data query with pagination
+        data_query = (
+            select(Case)
+            .where(and_(*conditions))
+            .order_by(Case.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.db.execute(data_query)
+        cases = result.scalars().all()
+
+        return list(cases), total
+
+    async def get_statistics(self, owner_id: str) -> dict[str, Any]:
+        """
+        Get case statistics using database-level aggregation.
+
+        Args:
+            owner_id: User ID to get statistics for
+
+        Returns:
+            Dictionary with:
+            - total_cases: Total number of cases
+            - by_status: Count by each status
+            - by_priority: Count by each priority
+            - recent_cases: Cases created in last 7 days
+        """
+        # Total count
+        total_query = (
+            select(func.count())
+            .select_from(Case)
+            .where(Case.owner_id == owner_id)
+        )
+        total_result = await self.db.execute(total_query)
+        total_cases = total_result.scalar() or 0
+
+        # Count by status (using group by)
+        status_query = (
+            select(Case.status, func.count())
+            .where(Case.owner_id == owner_id)
+            .group_by(Case.status)
+        )
+        status_result = await self.db.execute(status_query)
+        by_status = {row[0].value: row[1] for row in status_result.fetchall()}
+
+        # Ensure all statuses are represented
+        for status in CaseStatus:
+            if status.value not in by_status:
+                by_status[status.value] = 0
+
+        # Count by priority
+        priority_query = (
+            select(Case.priority, func.count())
+            .where(Case.owner_id == owner_id)
+            .group_by(Case.priority)
+        )
+        priority_result = await self.db.execute(priority_query)
+        by_priority = {row[0].value: row[1] for row in priority_result.fetchall()}
+
+        # Ensure all priorities are represented
+        for priority in CasePriority:
+            if priority.value not in by_priority:
+                by_priority[priority.value] = 0
+
+        # Recent cases (last 7 days)
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_query = (
+            select(func.count())
+            .select_from(Case)
+            .where(
+                and_(
+                    Case.owner_id == owner_id,
+                    Case.created_at >= seven_days_ago,
+                )
+            )
+        )
+        recent_result = await self.db.execute(recent_query)
+        recent_cases = recent_result.scalar() or 0
+
+        return {
+            "total_cases": total_cases,
+            "by_status": by_status,
+            "by_priority": by_priority,
+            "recent_cases": recent_cases,
+        }

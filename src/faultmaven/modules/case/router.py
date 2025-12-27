@@ -116,6 +116,35 @@ class MessageResponse(BaseModel):
     created_at: str
 
 
+class CaseSearchRequest(BaseModel):
+    """Case search request with validation."""
+    query: Optional[str] = Field(None, max_length=500, description="Text search query")
+    status: Optional[CaseStatus] = Field(None, description="Filter by case status")
+    priority: Optional[CasePriority] = Field(None, description="Filter by priority")
+    category: Optional[str] = Field(None, max_length=100, description="Filter by category")
+    tags: Optional[list[str]] = Field(None, max_items=10, description="Filter by tags")
+    date_from: Optional[str] = Field(None, description="Filter cases created after this date (ISO format)")
+    date_to: Optional[str] = Field(None, description="Filter cases created before this date (ISO format)")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results to return")
+    offset: int = Field(0, ge=0, description="Number of results to skip")
+
+
+class CaseSearchResponse(BaseModel):
+    """Case search response."""
+    cases: list[CaseResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class CaseStatisticsResponse(BaseModel):
+    """Case statistics response."""
+    total_cases: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    recent_cases: int  # Cases created in last 7 days
+
+
 # ============================================================================
 # Helper Functions
 # ============================================================================
@@ -1115,18 +1144,38 @@ async def download_report(
     return {"case_id": case_id, "report_id": report_id, "download_url": f"/reports/{report_id}"}
 
 
-@router.get("/analytics/summary")
+@router.get("/statistics", response_model=CaseStatisticsResponse)
+async def get_case_statistics(
+    current_user: User = Depends(get_current_user),
+    case_service: CaseService = Depends(get_case_service),
+):
+    """
+    Get case statistics for the current user.
+
+    Returns aggregate statistics including:
+    - Total case count
+    - Cases grouped by status
+    - Cases grouped by priority
+    - Count of recently created cases (last 7 days)
+
+    Uses database-level aggregation for performance.
+    """
+    stats = await case_service.get_statistics(owner_id=current_user.id)
+    return CaseStatisticsResponse(**stats)
+
+
+@router.get("/analytics/summary", response_model=CaseStatisticsResponse)
 async def get_analytics_summary(
     current_user: User = Depends(get_current_user),
     case_service: CaseService = Depends(get_case_service),
 ):
-    """Get analytics summary across all cases."""
-    cases = await case_service.list_cases(current_user.id)
-    return {
-        "total_cases": len(cases),
-        "open_cases": sum(1 for c in cases if c.status.value == "open"),
-        "closed_cases": sum(1 for c in cases if c.status.value == "closed")
-    }
+    """
+    Get analytics summary across all cases.
+
+    Alias for /statistics endpoint for backwards compatibility.
+    """
+    stats = await case_service.get_statistics(owner_id=current_user.id)
+    return CaseStatisticsResponse(**stats)
 
 
 @router.get("/analytics/trends")
@@ -1183,18 +1232,42 @@ async def close_case(
     return {"case_id": case_id, "status": "closed"}
 
 
-@router.post("/search")
+@router.post("/search", response_model=CaseSearchResponse)
 async def search_cases(
-    search_query: dict,
+    request: CaseSearchRequest,
     current_user: User = Depends(get_current_user),
     case_service: CaseService = Depends(get_case_service),
 ):
-    """Search cases with query parameters."""
-    cases = await case_service.list_cases(current_user.id)
-    status_filter = search_query.get("status")
-    if status_filter:
-        cases = [c for c in cases if c.status.value == status_filter]
-    return {"cases": [{"id": c.id, "title": c.title} for c in cases], "count": len(cases)}
+    """
+    Search cases with filtering and pagination.
+
+    Args:
+        request: Search request with filters (status, priority, category, tags, date range)
+        current_user: Authenticated user
+        case_service: Case service
+
+    Returns:
+        Paginated list of matching cases with total count
+    """
+    cases, total = await case_service.search_cases(
+        owner_id=current_user.id,
+        query=request.query,
+        status=request.status,
+        priority=request.priority,
+        category=request.category,
+        tags=request.tags,
+        date_from=request.date_from,
+        date_to=request.date_to,
+        limit=request.limit,
+        offset=request.offset,
+    )
+
+    return CaseSearchResponse(
+        cases=[case_to_response(c) for c in cases],
+        total=total,
+        limit=request.limit,
+        offset=request.offset,
+    )
 
 
 @router.get("/schema.json")
