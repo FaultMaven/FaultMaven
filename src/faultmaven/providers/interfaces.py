@@ -204,6 +204,7 @@ class MessageRole(str, Enum):
     SYSTEM = "system"
     USER = "user"
     ASSISTANT = "assistant"
+    TOOL = "tool"  # For tool result messages
 
 
 class Message:
@@ -216,6 +217,48 @@ class Message:
         self.role = role
         self.content = content
         self.tool_call_id = tool_call_id
+
+
+class ToolDefinition:
+    """Tool/function definition for LLM."""
+    name: str
+    description: str
+    parameters: dict[str, Any]  # JSON Schema for parameters
+
+    def __init__(self, name: str, description: str, parameters: dict[str, Any]):
+        self.name = name
+        self.description = description
+        self.parameters = parameters
+
+    def to_openai_format(self) -> dict[str, Any]:
+        """Convert to OpenAI function calling format."""
+        return {
+            "type": "function",
+            "function": {
+                "name": self.name,
+                "description": self.description,
+                "parameters": self.parameters,
+            }
+        }
+
+
+class ResponseFormat:
+    """Structured output format specification."""
+    type: str  # "text" or "json_object" or "json_schema"
+    json_schema: Optional[dict[str, Any]] = None  # For json_schema type
+
+    def __init__(self, type: str = "text", json_schema: Optional[dict[str, Any]] = None):
+        self.type = type
+        self.json_schema = json_schema
+
+    def to_openai_format(self) -> dict[str, Any]:
+        """Convert to OpenAI response_format."""
+        if self.type == "json_schema" and self.json_schema:
+            return {
+                "type": "json_schema",
+                "json_schema": self.json_schema,
+            }
+        return {"type": self.type}
 
 
 class ToolCall:
@@ -237,6 +280,7 @@ class ChatResponse:
     usage: dict[str, int]  # tokens used
     finish_reason: str
     tool_calls: Optional[list[ToolCall]] = None  # Function calls if any
+    parsed: Optional[dict[str, Any]] = None  # Parsed JSON for structured output
 
 
 class LLMProvider(Protocol):
@@ -247,6 +291,10 @@ class LLMProvider(Protocol):
     - OpenAIProvider (gpt-4, gpt-3.5-turbo)
     - AnthropicProvider (claude-3-opus, claude-3-sonnet)
     - OllamaProvider (local LLMs)
+
+    Structured Output Support:
+    - tools: List of ToolDefinition for function calling
+    - response_format: ResponseFormat for JSON mode / structured output
     """
 
     async def chat(
@@ -255,17 +303,24 @@ class LLMProvider(Protocol):
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        tools: Optional[list[ToolDefinition]] = None,
+        response_format: Optional[ResponseFormat] = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """
-        Generate chat completion.
+        Generate chat completion with optional structured output.
 
         Args:
             messages: Conversation history
             model: Model identifier (provider-specific)
             temperature: Sampling temperature (0-2)
             max_tokens: Maximum tokens to generate
+            tools: Optional list of tool definitions for function calling
+            response_format: Optional response format for structured output (JSON mode)
             **kwargs: Provider-specific parameters
+
+        Returns:
+            ChatResponse with content, tool_calls, and/or parsed JSON
         """
         ...
 

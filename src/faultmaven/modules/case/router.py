@@ -1183,18 +1183,104 @@ async def close_case(
     return {"case_id": case_id, "status": "closed"}
 
 
-@router.post("/search")
+class CaseSearchRequest(BaseModel):
+    """Case search request."""
+    query: Optional[str] = Field(None, description="Text search in title and description")
+    status: Optional[CaseStatus] = Field(None, description="Filter by status")
+    priority: Optional[CasePriority] = Field(None, description="Filter by priority")
+    category: Optional[str] = Field(None, description="Filter by category")
+    tags: Optional[list[str]] = Field(None, description="Filter by tags (any match)")
+    created_after: Optional[str] = Field(None, description="Filter by creation date (ISO format)")
+    created_before: Optional[str] = Field(None, description="Filter by creation date (ISO format)")
+    include_archived: bool = Field(False, description="Include closed/archived cases")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results (1-100)")
+    offset: int = Field(0, ge=0, description="Pagination offset")
+
+
+@router.post("/search", response_model=list[CaseResponse])
 async def search_cases(
-    search_query: dict,
+    search_request: CaseSearchRequest,
     current_user: User = Depends(get_current_user),
     case_service: CaseService = Depends(get_case_service),
 ):
-    """Search cases with query parameters."""
-    cases = await case_service.list_cases(current_user.id)
-    status_filter = search_query.get("status")
-    if status_filter:
-        cases = [c for c in cases if c.status.value == status_filter]
-    return {"cases": [{"id": c.id, "title": c.title} for c in cases], "count": len(cases)}
+    """
+    Search cases with multiple filter criteria.
+
+    Supports:
+    - Text search in title and description
+    - Status, priority, and category filters
+    - Tag filtering (any match)
+    - Date range filtering
+    - Pagination
+
+    Args:
+        search_request: Search criteria
+        current_user: Authenticated user
+        case_service: Case service
+
+    Returns:
+        List of matching cases with pagination info
+    """
+    from datetime import datetime as dt
+
+    # Parse date filters
+    created_after = None
+    created_before = None
+    if search_request.created_after:
+        try:
+            created_after = dt.fromisoformat(search_request.created_after.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+    if search_request.created_before:
+        try:
+            created_before = dt.fromisoformat(search_request.created_before.replace("Z", "+00:00"))
+        except ValueError:
+            pass
+
+    cases, total = await case_service.search_cases(
+        owner_id=current_user.id,
+        query=search_request.query,
+        status=search_request.status,
+        priority=search_request.priority,
+        category=search_request.category,
+        tags=search_request.tags,
+        created_after=created_after,
+        created_before=created_before,
+        include_archived=search_request.include_archived,
+        limit=search_request.limit,
+        offset=search_request.offset,
+    )
+
+    return [case_to_response(case) for case in cases]
+
+
+@router.get("/statistics")
+async def get_case_statistics(
+    current_user: User = Depends(get_current_user),
+    case_service: CaseService = Depends(get_case_service),
+):
+    """
+    Get aggregate statistics for all user cases.
+
+    Returns statistics including:
+    - total_cases: Total number of cases
+    - status_breakdown: Count by status
+    - priority_breakdown: Count by priority
+    - resolved_this_week: Cases resolved in last 7 days
+    - active_cases: Currently active cases
+
+    Args:
+        current_user: Authenticated user
+        case_service: Case service
+
+    Returns:
+        Aggregate case statistics
+    """
+    stats = await case_service.get_case_statistics(current_user.id)
+    return {
+        "user_id": current_user.id,
+        **stats
+    }
 
 
 @router.get("/schema.json")

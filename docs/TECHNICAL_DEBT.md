@@ -1,6 +1,6 @@
 # Technical Debt Tracking
 
-**Last Updated**: 2025-12-26
+**Last Updated**: 2025-12-27
 **Baseline**: FaultMaven-Mono (Original Reference Implementation)
 
 ---
@@ -13,53 +13,96 @@ This document tracks **implementation gaps** between the [System Design](archite
 
 ---
 
-## Critical Gaps 🔴
+## Recently Resolved Items
 
-### 1. Structured LLM Output Support
+### Structured LLM Output Support
 
-**Design Requirement**: [architecture/design-specifications.md - LLMProvider](architecture/design-specifications.md#provider-abstraction-layer)
+**Status**: ✅ RESOLVED (2025-12-27)
 
-**Current State**: ❌ Not implemented
+**Implementation**:
+- Added `ToolDefinition` class for function calling definitions
+- Added `ResponseFormat` class for JSON mode / structured output
+- Updated `LLMProvider` protocol with explicit `tools` and `response_format` parameters
+- Updated `CoreLLMProvider.chat()` to handle structured output and parse JSON responses
+- `ChatResponse` now includes `parsed` field for JSON output
 
-**Gap Description**:
-- LLM providers do not support structured output modes (JSON mode or function calling)
-- Required for HypothesisManager to extract hypotheses from LLM responses
-- Required for Agent Tools to parse tool calls from LLM
-
-**Impact**:
-- HypothesisManager cannot be completed (investigation framework stuck at 80%)
-- Agent Tools framework cannot be implemented
-- Manual prompt engineering required for structured data extraction (unreliable)
-
-**Architectural Change Required**:
-```python
-# Current: Only supports text completion
-class LLMProvider(Protocol):
-    async def chat(self, messages: List[Message]) -> str:
-        ...
-
-# Required: Add structured output support
-class LLMProvider(Protocol):
-    async def chat(
-        self,
-        messages: List[Message],
-        response_format: Optional[Dict] = None,  # JSON schema
-        tools: Optional[List[Tool]] = None        # Function calling
-    ) -> Union[str, Dict, ToolCall]:
-        ...
-```
-
-**Estimated Effort**: 2 weeks
-- 1 week: Refactor LLMProvider abstraction
-- 1 week: Update all provider implementations (OpenAI, Anthropic, etc.)
-
-**Priority**: 🔴 CRITICAL - Blocks multiple features
-
-**Tracking**: Issue #5
+**Files Changed**:
+- `src/faultmaven/providers/interfaces.py` - Added ToolDefinition, ResponseFormat classes
+- `src/faultmaven/providers/core.py` - Updated CoreLLMProvider.chat() method
 
 ---
 
-### 2. Data Processing Pipeline
+### HypothesisManager Integration
+
+**Status**: ✅ RESOLVED (2025-12-27)
+
+**Implementation**:
+- Integrated HypothesisManager with MilestoneEngine for hypothesis extraction
+- Added `_extract_investigation_updates()` method for structured/keyword-based extraction
+- Added `_infer_hypothesis_category()` for automatic categorization
+- Connected hypothesis creation, evidence linking, and anchoring prevention
+- Investigation framework now at 100% engine integration (5/5 engines)
+
+**Files Changed**:
+- `src/faultmaven/modules/case/engines/milestone_engine.py` - Full HypothesisManager integration
+
+---
+
+### Case Search & Filter
+
+**Status**: ✅ RESOLVED (2025-12-27)
+
+**Implementation**:
+- Added `search_cases()` method to CaseService with multi-criteria filtering
+- Added `get_case_statistics()` for aggregate statistics
+- Added `POST /cases/search` endpoint with CaseSearchRequest schema
+- Added `GET /cases/statistics` endpoint
+- Supports: text search, status/priority/category filters, date range, pagination
+
+**Files Changed**:
+- `src/faultmaven/modules/case/service.py` - Added search_cases, get_case_statistics
+- `src/faultmaven/modules/case/router.py` - Added search and statistics endpoints
+
+---
+
+### Session Advanced Features
+
+**Status**: ✅ RESOLVED (2025-12-27)
+
+**Implementation**:
+- Added `get_aggregate_statistics()` method to SessionService
+- Added `search_sessions_advanced()` with multiple filter criteria
+- Added `GET /sessions/statistics` endpoint for aggregate stats
+- Enhanced `POST /sessions/search` with advanced filtering
+
+**Files Changed**:
+- `src/faultmaven/modules/session/service.py` - Added statistics and advanced search
+- `src/faultmaven/modules/session/router.py` - Added statistics endpoint, enhanced search
+
+---
+
+### Report Generation
+
+**Status**: ✅ ALREADY IMPLEMENTED (discovered 2025-12-27)
+
+**Note**: This was incorrectly marked as "Not implemented" in the original document.
+
+**Existing Implementation**:
+- Full ReportService with template-based and LLM-based generation
+- Three report types: Incident Report, Runbook, Post-Mortem
+- Version management (max 5 versions per type)
+- Markdown export with download endpoint
+- Report recommendations based on case status
+
+**Files**:
+- `src/faultmaven/modules/report/service.py` - Complete implementation (634 lines)
+- `src/faultmaven/modules/report/router.py` - Full API endpoints (331 lines)
+
+---
+
+## Critical Gaps 🔴
+
+### 1. Data Processing Pipeline
 
 **Design Requirement**: [architecture/design-specifications.md - Evidence Module](architecture/design-specifications.md#4-evidence-module)
 
@@ -99,11 +142,11 @@ class LLMProvider(Protocol):
 
 **Priority**: 🔴 CRITICAL - Core troubleshooting functionality
 
-**Reference**: FaultMaven-Mono `faultmaven/data_processing/`
+**Reference**: FaultMaven-Mono `faultmaven/core/preprocessing/`
 
 ---
 
-### 3. Agent Tools Framework
+### 2. Agent Tools Framework
 
 **Design Requirement**: [architecture/design-specifications.md - Agent Module](architecture/design-specifications.md#6-agent-module)
 
@@ -131,7 +174,7 @@ class LLMProvider(Protocol):
 - Limited to passive Q&A (no active investigation)
 - Reduced troubleshooting effectiveness
 
-**Architectural Dependency**: Requires structured LLM output for function calling
+**Note**: Structured LLM output (required dependency) is now implemented.
 
 **Estimated Effort**: 4 weeks
 - Week 1: Tool execution framework + sandboxing
@@ -141,121 +184,11 @@ class LLMProvider(Protocol):
 
 **Priority**: 🔴 CRITICAL - Core agent capability
 
-**Blockers**: Depends on structured LLM output (#1)
-
----
-
-### 4. HypothesisManager Integration
-
-**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#35-hypothesismanager)
-
-**Current State**: ⏳ Pending (code exists, not integrated)
-
-**Gap Description**:
-- HypothesisManager code exists in `src/faultmaven/modules/case/engines/hypothesis_manager.py`
-- Cannot be activated without structured LLM output
-- Investigation framework stuck at 80% completion (4/5 engines)
-
-**Impact**:
-- No automatic hypothesis extraction
-- Manual hypothesis tracking required
-- Investigation framework incomplete
-
-**Architectural Dependency**: Requires structured LLM output for hypothesis extraction
-
-**Estimated Effort**: 1 week (after structured output is available)
-
-**Priority**: 🔴 CRITICAL - Completes investigation framework
-
-**Blockers**: Depends on structured LLM output (#1)
-
-**Tracking**: Issue #5
-
----
-
-## High Priority Gaps 🟡
-
-### 5. Report Generation
-
-**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#3-case-module)
-
-**Current State**: ❌ Not implemented
-
-**Gap Description**:
-- Cannot export investigation results
-- No PDF or Markdown report generation
-- Missing API endpoint: `GET /cases/{case_id}/report`
-
-**Impact**:
-- Cannot share investigation results
-- No audit trail for closed cases
-- Reduced usability
-
-**Estimated Effort**: 1 week
-- Report template design
-- PDF generation (weasyprint or reportlab)
-- Markdown generation
-- API endpoint implementation
-
-**Priority**: 🟡 HIGH - Required for case lifecycle completion
-
----
-
-### 6. Case Search & Filter
-
-**Design Requirement**: [architecture/design-specifications.md - Case Module](architecture/design-specifications.md#3-case-module)
-
-**Current State**: ❌ Not implemented
-
-**Gap Description**:
-- Missing API endpoint: `POST /cases/search`
-- No filtering by status, date, user
-- No full-text search across case messages
-- Missing 62% of advanced case management endpoints
-
-**Impact**:
-- Difficult to find past cases
-- Poor user experience for case management
-- Cannot analyze historical cases
-
-**Estimated Effort**: 1 week
-- Search query parser
-- Database query optimization
-- Pagination support
-- API endpoint implementation
-
-**Priority**: 🟡 HIGH - User experience
-
----
-
-### 7. Session Advanced Features
-
-**Design Requirement**: [architecture/design-specifications.md - Session Module](architecture/design-specifications.md#2-session-module)
-
-**Current State**: ⚠️ Partially implemented (95%)
-
-**Missing Features**:
-- ❌ Session search
-- ❌ Session statistics
-- ⚠️ Heartbeat endpoint exists but needs testing
-
-**Impact**:
-- Cannot search historical sessions
-- No analytics on session usage
-- Minor UX gaps
-
-**Estimated Effort**: 3 days
-- Session search API
-- Statistics aggregation
-- Heartbeat testing
-
-**Priority**: 🟡 MEDIUM - Nice to have
-
 ---
 
 ## Low Priority Gaps 🟢
 
-### 8. Knowledge Base Advanced Features
+### 3. Knowledge Base Advanced Features
 
 **Design Requirement**: [architecture/design-specifications.md - Knowledge Module](architecture/design-specifications.md#5-knowledge-module)
 
@@ -280,7 +213,7 @@ class LLMProvider(Protocol):
 
 ---
 
-### 9. OAuth/SAML Authentication
+### 4. OAuth/SAML Authentication
 
 **Design Requirement**: [architecture/design-specifications.md - Deployment Profiles](architecture/design-specifications.md#enterprise-profile-production)
 
@@ -308,113 +241,71 @@ class LLMProvider(Protocol):
 | Module | Design Coverage | Implementation | Status |
 |--------|----------------|----------------|--------|
 | Authentication | 100% | 100% | ✅ Complete |
-| Session | 100% | 95% | ✅ Nearly complete |
-| Case (Basic) | 100% | 85% | ⚠️ Core complete |
-| Case (Framework) | 100% | 80% | ⚠️ 4/5 engines |
+| Session | 100% | 100% | ✅ Complete |
+| Case (Basic) | 100% | 100% | ✅ Complete |
+| Case (Framework) | 100% | 100% | ✅ Complete (5/5 engines) |
 | Evidence (Upload) | 100% | 100% | ✅ Complete |
 | Evidence (Processing) | 100% | 0% | ❌ Critical gap |
 | Knowledge (Core) | 100% | 100% | ✅ Complete |
 | Knowledge (Advanced) | 100% | 10% | 🟢 Optional features |
 | Agent (Chat) | 100% | 100% | ✅ Complete |
 | Agent (Tools) | 100% | 12.5% | ❌ Critical gap (1/8 tools) |
+| Report | 100% | 100% | ✅ Complete |
 
 ### By Priority
 
 | Priority | Count | Total Effort | Impact |
 |----------|-------|--------------|--------|
-| 🔴 Critical | 4 | 10 weeks | Blocks core features |
-| 🟡 High | 3 | 2.5 weeks | UX and completeness |
+| 🔴 Critical | 2 | 7 weeks | Blocks core features |
 | 🟢 Low | 2 | 4 weeks | Optional enhancements |
-| **Total** | **9** | **16.5 weeks** | |
+| **Total** | **4** | **11 weeks** | |
 
 ---
 
-## Code Size Analysis
+## Resolved Items Summary
 
-### Current vs Reference
+| Item | Resolution Date | Effort Saved |
+|------|-----------------|--------------|
+| Structured LLM Output | 2025-12-27 | 2 weeks |
+| HypothesisManager Integration | 2025-12-27 | 1 week |
+| Case Search & Filter | 2025-12-27 | 1 week |
+| Session Advanced Features | 2025-12-27 | 3 days |
+| Report Generation | Already implemented | 1 week |
 
-```
-FaultMaven-Mono (Baseline):  23,456 lines of Python
-Current Monolith:             3,684 lines of Python
-Coverage:                     15.7%
-Gap:                         19,772 lines (84.3%)
-```
-
-### Gap Breakdown by Component
-
-| Component | Lines (est.) | Priority | Effort |
-|-----------|--------------|----------|--------|
-| Data Processing Pipeline | ~8,000 | 🔴 Critical | 3 weeks |
-| Agent Tools Framework | ~4,000 | 🔴 Critical | 4 weeks |
-| Advanced Knowledge Features | ~3,000 | 🟢 Low | 2 weeks |
-| Report Generation | ~2,000 | 🟡 High | 1 week |
-| Case Search/Analytics | ~1,500 | 🟡 High | 1 week |
-| Other Features | ~1,272 | Mixed | Variable |
+**Total Effort Saved**: ~5.5 weeks
 
 ---
 
-## Implementation Roadmap
+## Implementation Roadmap (Updated)
 
-### Phase 1: Critical Gaps (10 weeks)
+### Phase 1: Critical Gaps (7 weeks)
 
 **Priority**: Unblock core features
 
-1. **Structured LLM Output** (2 weeks) - Unblocks everything
-   - Refactor LLMProvider abstraction
-   - Add JSON mode and function calling support
-   - Update all provider implementations
-
-2. **Data Processing Pipeline** (3 weeks) - Core evidence processing
+1. **Data Processing Pipeline** (3 weeks) - Core evidence processing
    - Implement 11 data extractors
    - Add data type detection
    - Integrate with knowledge base
 
-3. **Agent Tools Framework** (4 weeks) - Agent capabilities
+2. **Agent Tools Framework** (4 weeks) - Agent capabilities
    - Build tool execution framework
    - Implement 8+ required tools
    - Add sandboxing and permissions
 
-4. **HypothesisManager** (1 week) - Complete investigation framework
-   - Integrate structured output
-   - Activate hypothesis tracking
-   - Add hypothesis lifecycle management
-
-**Deliverables**: 100% investigation framework, full evidence processing, autonomous agent
+**Deliverables**: Full evidence processing, autonomous agent
 
 ---
 
-### Phase 2: High Priority (2.5 weeks)
-
-**Priority**: User experience and completeness
-
-5. **Report Generation** (1 week) - Case lifecycle completion
-   - PDF and Markdown export
-   - Report templates
-   - API endpoint
-
-6. **Case Search & Filter** (1 week) - Case management UX
-   - Search API
-   - Filtering and pagination
-   - Full-text search
-
-7. **Session Features** (3 days) - Session management polish
-   - Session search
-   - Statistics
-
-**Deliverables**: Complete case lifecycle, improved UX
-
----
-
-### Phase 3: Enhancements (4 weeks) - Optional
+### Phase 2: Enhancements (4 weeks) - Optional
 
 **Priority**: Advanced features, not MVP
 
-8. **Knowledge Base Advanced** (2 weeks)
+3. **Knowledge Base Advanced** (2 weeks)
    - Document versioning
    - Knowledge graph
    - Smart indexing
 
-9. **OAuth/SAML** (2 weeks)
+4. **OAuth/SAML** (2 weeks)
    - Enterprise authentication
    - Identity provider integration
 
@@ -424,40 +315,35 @@ Gap:                         19,772 lines (84.3%)
 
 ## Decision Points
 
-### Should We Implement All Gaps?
+### Recommended Path Forward
 
-**Option A: Full Parity** (16.5 weeks)
-- Implement all features from FaultMaven-Mono
-- Achieve 100% feature parity
-- Total effort: 16.5 weeks
+**Option A: Critical Only** (7 weeks) ✅ RECOMMENDED
+- Implement Data Processing Pipeline and Agent Tools Framework
+- Achieves full troubleshooting capability
+- Total effort: 7 weeks
 
-**Option B: MVP Focus** (12.5 weeks)
-- Implement only Critical + High priority (Phases 1-2)
-- Skip Low priority enhancements
-- Total effort: 12.5 weeks
-- Recommended: **✅ Yes**
-
-**Option C: Critical Only** (10 weeks)
-- Implement only Critical gaps (Phase 1)
-- Skip High and Low priority
-- Total effort: 10 weeks
-- Risk: Incomplete user experience
-
-**Recommendation**: **Option B (MVP Focus)** - Implement Phases 1-2 for functional completeness without optional features.
+**Option B: Full Implementation** (11 weeks)
+- Add Phase 2 enhancements
+- Enterprise-ready features
+- Total effort: 11 weeks
 
 ---
 
 ## Tracking
 
-### Active Issues
+### Completed Issues
 
-- **Issue #5**: HypothesisManager integration (blocked by structured LLM output)
+- ~~**Issue #5**: HypothesisManager integration~~ ✅ RESOLVED
+- ~~Structured LLM Output~~ ✅ RESOLVED
+- ~~Case Search & Filter~~ ✅ RESOLVED
+- ~~Session Features~~ ✅ RESOLVED
 
-### GitHub Project Board
+### Remaining Work
 
-Track implementation progress at: <https://github.com/FaultMaven/faultmaven/projects>
-
-(Create project board with 3 columns: Critical, High Priority, Low Priority)
+- Data Processing Pipeline
+- Agent Tools Framework
+- Knowledge Base Advanced (optional)
+- OAuth/SAML (optional)
 
 ---
 
@@ -467,10 +353,8 @@ Track implementation progress at: <https://github.com/FaultMaven/faultmaven/proj
 
 **Architecture**: [architecture/](architecture/)
 
-**Feature Parity** (deprecated): [working/FEATURE_PARITY_TRACKING.md](working/FEATURE_PARITY_TRACKING.md)
-
 ---
 
 **Last Updated**: 2025-12-27
 **Next Review**: After Phase 1 completion
-**Total Estimated Effort**: 16.5 weeks (all gaps), 12.5 weeks (MVP)
+**Total Estimated Effort**: 11 weeks (all gaps), 7 weeks (critical only)

@@ -547,26 +547,64 @@ async def search_sessions(
     """
     Search sessions with query parameters.
 
+    Supports filters:
+    - status: Filter by status (active, archived, expired)
+    - min_messages: Minimum message count
+    - max_messages: Maximum message count
+    - has_cases: Whether session has associated cases
+    - created_after: Created after date (ISO format)
+    - created_before: Created before date (ISO format)
+    - search_text: Text search in messages
+
     Args:
-        query: Search query (e.g., {"status": "active"})
+        query: Search query
         current_user: Authenticated user
         session_service: Session service
 
     Returns:
         Matching sessions
     """
-    # Get all user sessions
-    sessions = await session_service.list_user_sessions(current_user.id)
-
-    # Simple filtering (can be enhanced)
-    status_filter = query.get("status")
-    if status_filter:
-        sessions = [s for s in sessions if s.get("status") == status_filter]
+    sessions = await session_service.search_sessions_advanced(
+        user_id=current_user.id,
+        query=query,
+    )
 
     return {
         "sessions": sessions,
         "count": len(sessions),
         "query": query
+    }
+
+
+@router.get("/statistics")
+async def get_aggregate_statistics(
+    current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+):
+    """
+    Get aggregate statistics for all user sessions.
+
+    Returns statistics including:
+    - total_sessions: Total number of active sessions
+    - total_messages: Total messages across all sessions
+    - total_cases: Total cases across all sessions
+    - oldest_session: Oldest session creation time
+    - newest_session: Newest session creation time
+    - avg_messages_per_session: Average messages per session
+    - session_status_breakdown: Count by status
+    - devices: List of device types used
+
+    Args:
+        current_user: Authenticated user
+        session_service: Session service
+
+    Returns:
+        Aggregate session statistics
+    """
+    stats = await session_service.get_aggregate_statistics(current_user.id)
+    return {
+        "user_id": current_user.id,
+        **stats
     }
 
 
