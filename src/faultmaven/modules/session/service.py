@@ -305,3 +305,173 @@ class SessionService:
 
             for session in sessions_to_delete:
                 await self.delete_session(session["session_id"])
+
+    async def get_aggregate_statistics(self, user_id: str) -> dict[str, Any]:
+        """
+        Get aggregate statistics for all sessions belonging to a user.
+
+        Args:
+            user_id: User ID
+
+        Returns:
+            Dict with aggregate statistics including:
+            - total_sessions: Total number of active sessions
+            - total_messages: Total messages across all sessions
+            - total_cases: Total cases across all sessions
+            - oldest_session: Oldest session creation time
+            - newest_session: Newest session creation time
+            - avg_messages_per_session: Average messages per session
+        """
+        sessions = await self.list_user_sessions(user_id)
+
+        if not sessions:
+            return {
+                "total_sessions": 0,
+                "total_messages": 0,
+                "total_cases": 0,
+                "oldest_session": None,
+                "newest_session": None,
+                "avg_messages_per_session": 0.0,
+                "session_status_breakdown": {},
+                "devices": [],
+            }
+
+        total_messages = 0
+        total_cases = 0
+        status_breakdown: dict[str, int] = {}
+        devices = set()
+        created_times = []
+
+        for session in sessions:
+            # Count messages
+            session_data = session.get("data", {})
+            messages = session_data.get("messages", [])
+            total_messages += len(messages)
+
+            # Count cases
+            cases = session_data.get("cases", [])
+            total_cases += len(cases)
+
+            # Track status
+            status = session_data.get("status", "active")
+            status_breakdown[status] = status_breakdown.get(status, 0) + 1
+
+            # Track devices
+            user_agent = session.get("user_agent", "")
+            if user_agent:
+                # Simple device detection
+                if "Mobile" in user_agent:
+                    devices.add("mobile")
+                elif "Tablet" in user_agent:
+                    devices.add("tablet")
+                else:
+                    devices.add("desktop")
+
+            # Track times
+            created_at = session.get("created_at")
+            if created_at:
+                created_times.append(created_at)
+
+        # Sort times
+        created_times.sort()
+
+        return {
+            "total_sessions": len(sessions),
+            "total_messages": total_messages,
+            "total_cases": total_cases,
+            "oldest_session": created_times[0] if created_times else None,
+            "newest_session": created_times[-1] if created_times else None,
+            "avg_messages_per_session": round(total_messages / len(sessions), 2) if sessions else 0.0,
+            "session_status_breakdown": status_breakdown,
+            "devices": list(devices),
+        }
+
+    async def search_sessions_advanced(
+        self,
+        user_id: str,
+        query: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        """
+        Advanced session search with multiple filter criteria.
+
+        Args:
+            user_id: User ID
+            query: Search query with filter criteria:
+                - status: Filter by status (active, archived, expired)
+                - min_messages: Minimum message count
+                - max_messages: Maximum message count
+                - has_cases: Whether session has associated cases
+                - created_after: Created after date (ISO format)
+                - created_before: Created before date (ISO format)
+                - search_text: Text search in messages (simple contains)
+
+        Returns:
+            Filtered list of sessions
+        """
+        from datetime import datetime as dt
+
+        sessions = await self.list_user_sessions(user_id)
+
+        # Apply filters
+        filtered = []
+        for session in sessions:
+            session_data = session.get("data", {})
+            messages = session_data.get("messages", [])
+            cases = session_data.get("cases", [])
+
+            # Status filter
+            status_filter = query.get("status")
+            if status_filter and session_data.get("status", "active") != status_filter:
+                continue
+
+            # Message count filters
+            min_messages = query.get("min_messages")
+            if min_messages and len(messages) < min_messages:
+                continue
+
+            max_messages = query.get("max_messages")
+            if max_messages and len(messages) > max_messages:
+                continue
+
+            # Has cases filter
+            has_cases = query.get("has_cases")
+            if has_cases is True and len(cases) == 0:
+                continue
+            if has_cases is False and len(cases) > 0:
+                continue
+
+            # Date filters
+            created_after = query.get("created_after")
+            if created_after:
+                try:
+                    after_dt = dt.fromisoformat(created_after.replace("Z", "+00:00"))
+                    session_created = dt.fromisoformat(session.get("created_at", "").replace("Z", "+00:00"))
+                    if session_created < after_dt:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+
+            created_before = query.get("created_before")
+            if created_before:
+                try:
+                    before_dt = dt.fromisoformat(created_before.replace("Z", "+00:00"))
+                    session_created = dt.fromisoformat(session.get("created_at", "").replace("Z", "+00:00"))
+                    if session_created > before_dt:
+                        continue
+                except (ValueError, TypeError):
+                    pass
+
+            # Text search in messages
+            search_text = query.get("search_text", "").lower()
+            if search_text:
+                found = False
+                for msg in messages:
+                    if search_text in msg.get("content", "").lower():
+                        found = True
+                        break
+                if not found:
+                    continue
+
+            filtered.append(session)
+
+        return filtered

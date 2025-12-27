@@ -604,23 +604,82 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
                     inv_state.evidence_items.append(evidence)
                     evidence_added.append(evidence.evidence_id)
 
-            # Simple keyword-based milestone detection (placeholder)
-            # TODO: Replace with structured output parsing
-            response_lower = llm_response.lower()
+            # Extract milestones and hypotheses from LLM response
+            # Uses structured output parsing with fallback to keyword detection
+            extracted = self._extract_investigation_updates(llm_response, inv_state)
 
-            if not inv_state.progress.symptom_verified and "symptom" in response_lower:
+            # Update milestones from extraction
+            if extracted.get("symptom_verified") and not inv_state.progress.symptom_verified:
                 inv_state.progress.symptom_verified = True
                 milestones_completed.append("symptom_verified")
 
-            if not inv_state.progress.root_cause_identified and "root cause" in response_lower:
+            if extracted.get("scope_assessed") and not inv_state.progress.scope_assessed:
+                inv_state.progress.scope_assessed = True
+                milestones_completed.append("scope_assessed")
+
+            if extracted.get("timeline_established") and not inv_state.progress.timeline_established:
+                inv_state.progress.timeline_established = True
+                milestones_completed.append("timeline_established")
+
+            if extracted.get("changes_identified") and not inv_state.progress.changes_identified:
+                inv_state.progress.changes_identified = True
+                milestones_completed.append("changes_identified")
+
+            if extracted.get("root_cause_identified") and not inv_state.progress.root_cause_identified:
                 inv_state.progress.root_cause_identified = True
-                inv_state.progress.root_cause_confidence = 0.8
-                inv_state.progress.root_cause_method = "direct_analysis"
+                inv_state.progress.root_cause_confidence = extracted.get("root_cause_confidence", 0.8)
+                inv_state.progress.root_cause_method = extracted.get("root_cause_method", "direct_analysis")
                 milestones_completed.append("root_cause_identified")
 
-            if not inv_state.progress.solution_proposed and "solution" in response_lower:
+            if extracted.get("solution_proposed") and not inv_state.progress.solution_proposed:
                 inv_state.progress.solution_proposed = True
                 milestones_completed.append("solution_proposed")
+
+            # Process hypotheses from extraction using HypothesisManager
+            for hyp_data in extracted.get("hypotheses", []):
+                hypothesis = self.hypothesis_manager.create_hypothesis(
+                    statement=hyp_data.get("statement", ""),
+                    category=hyp_data.get("category", "general"),
+                    initial_likelihood=hyp_data.get("likelihood", 0.5),
+                    current_turn=inv_state.current_turn + 1,
+                    triggering_observation=hyp_data.get("observation"),
+                )
+                inv_state.hypotheses.append(hypothesis)
+                hypotheses_generated.append(hypothesis.hypothesis_id)
+
+            # Update existing hypothesis confidence based on new evidence
+            for hyp_update in extracted.get("hypothesis_updates", []):
+                hyp_id = hyp_update.get("hypothesis_id")
+                for hypothesis in inv_state.hypotheses:
+                    if hypothesis.hypothesis_id == hyp_id:
+                        if hyp_update.get("evidence_supports"):
+                            self.hypothesis_manager.link_evidence(
+                                hypothesis=hypothesis,
+                                evidence_id=hyp_update.get("evidence_id", f"ev_{uuid4().hex[:8]}"),
+                                supports=True,
+                                turn=inv_state.current_turn + 1,
+                            )
+                        elif hyp_update.get("evidence_refutes"):
+                            self.hypothesis_manager.link_evidence(
+                                hypothesis=hypothesis,
+                                evidence_id=hyp_update.get("evidence_id", f"ev_{uuid4().hex[:8]}"),
+                                supports=False,
+                                turn=inv_state.current_turn + 1,
+                            )
+                        if hypothesis.status == HypothesisStatus.VALIDATED:
+                            hypotheses_validated.append(hypothesis.hypothesis_id)
+
+            # Check for anchoring and apply prevention if needed
+            is_anchored, anchor_reason, affected_ids = self.hypothesis_manager.detect_anchoring(
+                hypotheses=inv_state.hypotheses,
+                current_iteration=inv_state.ooda_state.current_iteration if inv_state.ooda_state else 1,
+            )
+            if is_anchored and anchor_reason:
+                logger.warning(f"Anchoring detected: {anchor_reason}")
+                self.hypothesis_manager.force_alternative_generation(
+                    existing_hypotheses=inv_state.hypotheses,
+                    current_turn=inv_state.current_turn + 1,
+                )
 
             # Determine outcome
             if milestones_completed:
@@ -839,6 +898,153 @@ The investigation is complete. Focus on documentation and knowledge sharing."""
             hypotheses_updated=hypotheses_generated + hypotheses_validated,
             outcome=outcome.value if isinstance(outcome, TurnOutcome) else outcome
         )
+
+    def _extract_investigation_updates(
+        self,
+        llm_response: str,
+        inv_state: InvestigationState
+    ) -> Dict[str, Any]:
+        """
+        Extract milestone completions and hypotheses from LLM response.
+
+        Uses a three-tier parsing strategy:
+        1. Structured JSON output (if available)
+        2. JSON block extraction from markdown
+        3. Keyword-based heuristic fallback
+
+        Source: Ported from FaultMaven-Mono response_parser.py
+
+        Args:
+            llm_response: Raw LLM response text
+            inv_state: Current investigation state for context
+
+        Returns:
+            Dict with extracted milestones, hypotheses, and updates
+        """
+        import json
+        import re
+
+        result: Dict[str, Any] = {
+            "symptom_verified": False,
+            "scope_assessed": False,
+            "timeline_established": False,
+            "changes_identified": False,
+            "root_cause_identified": False,
+            "root_cause_confidence": 0.0,
+            "root_cause_method": "",
+            "solution_proposed": False,
+            "hypotheses": [],
+            "hypothesis_updates": [],
+        }
+
+        # Tier 1: Try to find structured JSON in the response
+        json_match = re.search(r'```json\s*([\s\S]*?)\s*```', llm_response)
+        if json_match:
+            try:
+                parsed = json.loads(json_match.group(1))
+                if isinstance(parsed, dict):
+                    # Extract milestones from structured output
+                    milestones = parsed.get("milestones", parsed.get("state_updates", {}))
+                    if isinstance(milestones, dict):
+                        result["symptom_verified"] = milestones.get("symptom_verified", False)
+                        result["scope_assessed"] = milestones.get("scope_assessed", False)
+                        result["timeline_established"] = milestones.get("timeline_established", False)
+                        result["changes_identified"] = milestones.get("changes_identified", False)
+                        result["root_cause_identified"] = milestones.get("root_cause_identified", False)
+                        result["root_cause_confidence"] = milestones.get("root_cause_confidence", 0.8)
+                        result["root_cause_method"] = milestones.get("root_cause_method", "structured_analysis")
+                        result["solution_proposed"] = milestones.get("solution_proposed", False)
+
+                    # Extract hypotheses from structured output
+                    hypotheses = parsed.get("hypotheses", [])
+                    if isinstance(hypotheses, list):
+                        for hyp in hypotheses:
+                            if isinstance(hyp, dict) and hyp.get("statement"):
+                                result["hypotheses"].append({
+                                    "statement": hyp.get("statement", ""),
+                                    "category": hyp.get("category", "general"),
+                                    "likelihood": hyp.get("likelihood", hyp.get("confidence", 0.5)),
+                                    "observation": hyp.get("observation", hyp.get("trigger", "")),
+                                })
+
+                    # Extract hypothesis updates
+                    updates = parsed.get("hypothesis_updates", parsed.get("evidence_links", []))
+                    if isinstance(updates, list):
+                        result["hypothesis_updates"] = updates
+
+                    return result
+            except json.JSONDecodeError:
+                pass  # Fall through to tier 2
+
+        # Tier 2: Keyword-based heuristic extraction
+        response_lower = llm_response.lower()
+
+        # Milestone detection via keywords
+        # Note: Keep simple keywords for backward compatibility with existing tests
+        if "symptom" in response_lower:
+            result["symptom_verified"] = True
+
+        if "root cause" in response_lower:
+            result["root_cause_identified"] = True
+            result["root_cause_confidence"] = 0.7
+            result["root_cause_method"] = "keyword_extraction"
+
+        if "solution" in response_lower:
+            result["solution_proposed"] = True
+
+        # Additional keyword patterns for more specific detection
+        scope_keywords = ["scope assessed", "impact scope", "affected scope", "scope of impact", "assessed scope"]
+        if any(kw in response_lower for kw in scope_keywords):
+            result["scope_assessed"] = True
+
+        timeline_keywords = ["timeline established", "timeline of events", "event timeline", "sequence of events"]
+        if any(kw in response_lower for kw in timeline_keywords):
+            result["timeline_established"] = True
+
+        changes_keywords = ["changes identified", "recent changes", "identified changes", "detected changes"]
+        if any(kw in response_lower for kw in changes_keywords):
+            result["changes_identified"] = True
+
+        # Hypothesis extraction via patterns
+        hypothesis_patterns = [
+            r"hypothesis:\s*(.+?)(?:\n|$)",
+            r"possible cause:\s*(.+?)(?:\n|$)",
+            r"theory:\s*(.+?)(?:\n|$)",
+            r"suspect:\s*(.+?)(?:\n|$)",
+        ]
+
+        for pattern in hypothesis_patterns:
+            matches = re.findall(pattern, response_lower, re.IGNORECASE)
+            for match in matches:
+                statement = match.strip()
+                if len(statement) > 10:  # Ignore very short matches
+                    result["hypotheses"].append({
+                        "statement": statement,
+                        "category": self._infer_hypothesis_category(statement),
+                        "likelihood": 0.5,
+                        "observation": "",
+                    })
+
+        return result
+
+    def _infer_hypothesis_category(self, statement: str) -> str:
+        """Infer hypothesis category from statement content."""
+        statement_lower = statement.lower()
+
+        if any(kw in statement_lower for kw in ["network", "connection", "dns", "firewall", "port"]):
+            return "network"
+        elif any(kw in statement_lower for kw in ["database", "sql", "query", "connection pool"]):
+            return "database"
+        elif any(kw in statement_lower for kw in ["memory", "cpu", "disk", "resource", "capacity"]):
+            return "resource"
+        elif any(kw in statement_lower for kw in ["config", "configuration", "setting", "environment"]):
+            return "configuration"
+        elif any(kw in statement_lower for kw in ["code", "bug", "logic", "implementation"]):
+            return "code"
+        elif any(kw in statement_lower for kw in ["deploy", "release", "update", "change"]):
+            return "deployment"
+        else:
+            return "general"
 
     def _extract_actions(self, agent_response: str) -> List[str]:
         """

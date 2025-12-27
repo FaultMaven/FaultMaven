@@ -5,7 +5,7 @@ Exposes endpoints for session management.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Any
 
 from faultmaven.modules.session.service import SessionService
@@ -45,6 +45,19 @@ class AddSessionMessageRequest(BaseModel):
     """Add message to session request."""
     role: str
     content: str
+
+
+class SessionSearchRequest(BaseModel):
+    """Session search request with validation."""
+    status: Optional[str] = Field(None, pattern="^(active|archived|expired)$", description="Filter by status")
+    min_messages: Optional[int] = Field(None, ge=0, description="Minimum message count")
+    max_messages: Optional[int] = Field(None, ge=0, description="Maximum message count")
+    has_cases: Optional[bool] = Field(None, description="Filter by whether session has cases")
+    created_after: Optional[str] = Field(None, description="Created after date (ISO format)")
+    created_before: Optional[str] = Field(None, description="Created before date (ISO format)")
+    search_text: Optional[str] = Field(None, max_length=500, description="Text search in messages")
+    limit: int = Field(20, ge=1, le=100, description="Maximum results to return")
+    offset: int = Field(0, ge=0, description="Number of results to skip")
 
 
 # ============================================================================
@@ -540,33 +553,83 @@ async def get_session_stats(
 
 @router.post("/search")
 async def search_sessions(
-    query: dict,
+    request: SessionSearchRequest,
     current_user: User = Depends(get_current_user),
     session_service: SessionService = Depends(get_session_service),
 ):
     """
-    Search sessions with query parameters.
+    Search sessions with validated query parameters.
+
+    Supports filters:
+    - status: Filter by status (active, archived, expired)
+    - min_messages: Minimum message count
+    - max_messages: Maximum message count
+    - has_cases: Whether session has associated cases
+    - created_after: Created after date (ISO format)
+    - created_before: Created before date (ISO format)
+    - search_text: Text search in messages
 
     Args:
-        query: Search query (e.g., {"status": "active"})
+        request: Validated search request
         current_user: Authenticated user
         session_service: Session service
 
     Returns:
-        Matching sessions
+        Matching sessions with pagination info
     """
-    # Get all user sessions
-    sessions = await session_service.list_user_sessions(current_user.id)
+    # Convert Pydantic model to dict for service call
+    query = {
+        k: v for k, v in request.model_dump().items()
+        if v is not None and k not in ("limit", "offset")
+    }
 
-    # Simple filtering (can be enhanced)
-    status_filter = query.get("status")
-    if status_filter:
-        sessions = [s for s in sessions if s.get("status") == status_filter]
+    sessions = await session_service.search_sessions_advanced(
+        user_id=current_user.id,
+        query=query,
+    )
+
+    # Apply pagination
+    total = len(sessions)
+    start = request.offset
+    end = start + request.limit
+    paginated = sessions[start:end]
 
     return {
-        "sessions": sessions,
-        "count": len(sessions),
+        "sessions": paginated,
+        "total": total,
         "query": query
+    }
+
+
+@router.get("/statistics")
+async def get_aggregate_statistics(
+    current_user: User = Depends(get_current_user),
+    session_service: SessionService = Depends(get_session_service),
+):
+    """
+    Get aggregate statistics for all user sessions.
+
+    Returns statistics including:
+    - total_sessions: Total number of active sessions
+    - total_messages: Total messages across all sessions
+    - total_cases: Total cases across all sessions
+    - oldest_session: Oldest session creation time
+    - newest_session: Newest session creation time
+    - avg_messages_per_session: Average messages per session
+    - session_status_breakdown: Count by status
+    - devices: List of device types used
+
+    Args:
+        current_user: Authenticated user
+        session_service: Session service
+
+    Returns:
+        Aggregate session statistics
+    """
+    stats = await session_service.get_aggregate_statistics(current_user.id)
+    return {
+        "user_id": current_user.id,
+        **stats
     }
 
 

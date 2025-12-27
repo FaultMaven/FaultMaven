@@ -398,3 +398,147 @@ class CaseService:
         messages = result.scalars().all()
 
         return list(messages)
+
+    async def search_cases(
+        self,
+        owner_id: str,
+        query: Optional[str] = None,
+        status: Optional[CaseStatus] = None,
+        priority: Optional[CasePriority] = None,
+        category: Optional[str] = None,
+        tags: Optional[list[str]] = None,
+        created_after: Optional[datetime] = None,
+        created_before: Optional[datetime] = None,
+        include_archived: bool = False,
+        limit: int = 20,
+        offset: int = 0,
+    ) -> tuple[list[Case], int]:
+        """
+        Search cases with multiple filter criteria.
+
+        Args:
+            owner_id: User ID who owns the cases
+            query: Text search query (searches title and description)
+            status: Filter by case status
+            priority: Filter by priority level
+            category: Filter by category
+            tags: Filter by tags (any match)
+            created_after: Filter by creation date (after)
+            created_before: Filter by creation date (before)
+            include_archived: Include closed/archived cases
+            limit: Maximum number of cases to return
+            offset: Offset for pagination
+
+        Returns:
+            Tuple of (matching cases, total_count)
+        """
+        from sqlalchemy import or_, and_
+
+        # Build base conditions
+        conditions = [Case.owner_id == owner_id]
+
+        # Text search (title and description)
+        if query:
+            search_term = f"%{query}%"
+            conditions.append(
+                or_(
+                    Case.title.ilike(search_term),
+                    Case.description.ilike(search_term),
+                )
+            )
+
+        # Status filter
+        if status:
+            conditions.append(Case.status == status)
+        elif not include_archived:
+            # Exclude archived/closed by default
+            conditions.append(Case.status != CaseStatus.CLOSED)
+
+        # Priority filter
+        if priority:
+            conditions.append(Case.priority == priority)
+
+        # Category filter
+        if category:
+            conditions.append(Case.category == category)
+
+        # Date filters
+        if created_after:
+            conditions.append(Case.created_at >= created_after)
+        if created_before:
+            conditions.append(Case.created_at <= created_before)
+
+        # Get total count
+        count_query = select(func.count()).select_from(Case).where(and_(*conditions))
+        count_result = await self.db.execute(count_query)
+        total = count_result.scalar() or 0
+
+        # Get paginated results
+        query_stmt = (
+            select(Case)
+            .where(and_(*conditions))
+            .order_by(Case.updated_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        result = await self.db.execute(query_stmt)
+        cases = result.scalars().all()
+
+        return list(cases), total
+
+    async def get_case_statistics(self, owner_id: str) -> dict[str, Any]:
+        """
+        Get statistics for all cases owned by a user.
+
+        Args:
+            owner_id: User ID
+
+        Returns:
+            Dict with case statistics
+        """
+        from datetime import timedelta
+
+        # Get status breakdown
+        status_query = (
+            select(Case.status, func.count(Case.id))
+            .where(Case.owner_id == owner_id)
+            .group_by(Case.status)
+        )
+        status_result = await self.db.execute(status_query)
+        status_counts = {row[0].value: row[1] for row in status_result.fetchall()}
+
+        # Get priority breakdown
+        priority_query = (
+            select(Case.priority, func.count(Case.id))
+            .where(Case.owner_id == owner_id)
+            .group_by(Case.priority)
+        )
+        priority_result = await self.db.execute(priority_query)
+        priority_counts = {row[0].value: row[1] for row in priority_result.fetchall()}
+
+        # Get total count
+        total_query = select(func.count()).select_from(Case).where(Case.owner_id == owner_id)
+        total_result = await self.db.execute(total_query)
+        total = total_result.scalar() or 0
+
+        # Get resolved in last 7 days
+        week_ago = datetime.utcnow() - timedelta(days=7)
+        resolved_query = (
+            select(func.count())
+            .select_from(Case)
+            .where(
+                Case.owner_id == owner_id,
+                Case.resolved_at >= week_ago,
+            )
+        )
+        resolved_result = await self.db.execute(resolved_query)
+        resolved_this_week = resolved_result.scalar() or 0
+
+        return {
+            "total_cases": total,
+            "status_breakdown": status_counts,
+            "priority_breakdown": priority_counts,
+            "resolved_this_week": resolved_this_week,
+            "active_cases": status_counts.get("consulting", 0) + status_counts.get("investigating", 0),
+        }

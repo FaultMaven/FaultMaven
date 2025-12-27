@@ -538,6 +538,7 @@ class TestSessionSearchEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert "sessions" in data
+        assert "total" in data
         assert isinstance(data["sessions"], list)
 
     async def test_search_sessions_empty_query(self, authenticated_client):
@@ -547,6 +548,48 @@ class TestSessionSearchEndpoint:
         response = await client.post("/sessions/search", json={})
 
         assert response.status_code == 200
+        data = response.json()
+        assert "sessions" in data
+        assert "total" in data
+
+    async def test_search_sessions_with_pagination(self, authenticated_client):
+        """Test searching with pagination parameters."""
+        client, user = authenticated_client
+
+        # Create some sessions first
+        await client.post("/sessions", json={})
+        await client.post("/sessions", json={})
+
+        response = await client.post(
+            "/sessions/search",
+            json={"limit": 1, "offset": 0}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data["sessions"]) <= 1
+
+    async def test_search_sessions_invalid_status(self, authenticated_client):
+        """Test searching with invalid status returns 422."""
+        client, user = authenticated_client
+
+        response = await client.post(
+            "/sessions/search",
+            json={"status": "invalid_status"}  # Not active/archived/expired
+        )
+
+        assert response.status_code == 422
+
+    async def test_search_sessions_invalid_limit(self, authenticated_client):
+        """Test searching with invalid limit returns 422."""
+        client, user = authenticated_client
+
+        response = await client.post(
+            "/sessions/search",
+            json={"limit": 1000}  # Max is 100
+        )
+
+        assert response.status_code == 422
 
     async def test_search_sessions_unauthenticated(self, unauthenticated_client):
         """Test searching without authentication returns 401."""

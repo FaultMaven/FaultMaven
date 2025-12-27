@@ -17,6 +17,8 @@ from faultmaven.providers.interfaces import (
     MessageRole,
     ChatResponse,
     ToolCall,
+    ToolDefinition,
+    ResponseFormat,
     DataProvider,
     FileProvider,
 )
@@ -174,30 +176,51 @@ class CoreLLMProvider:
         model: Optional[str] = None,
         temperature: float = 0.7,
         max_tokens: Optional[int] = None,
+        tools: Optional[list[ToolDefinition]] = None,
+        response_format: Optional[ResponseFormat] = None,
         **kwargs: Any,
     ) -> ChatResponse:
         """
-        Generate chat completion with tool calling support.
+        Generate chat completion with tool calling and structured output support.
 
         Args:
             messages: Conversation messages
             model: Model to use (overrides default)
             temperature: Sampling temperature (0-2)
             max_tokens: Maximum tokens to generate
-            **kwargs: Additional arguments for the API (including 'tools' for function calling)
+            tools: Optional list of tool definitions for function calling
+            response_format: Optional response format for structured output (JSON mode)
+            **kwargs: Additional arguments for the API
 
         Returns:
-            ChatResponse with content, metadata, and tool calls (if any)
+            ChatResponse with content, metadata, tool calls (if any), and parsed JSON (if structured)
         """
+        import json
+
         openai_messages = self._convert_messages(messages)
 
-        response = await self.client.chat.completions.create(
-            model=model or self.model,
-            messages=openai_messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            **kwargs,
-        )
+        # Build request kwargs
+        request_kwargs: dict[str, Any] = {
+            "model": model or self.model,
+            "messages": openai_messages,
+            "temperature": temperature,
+        }
+
+        if max_tokens:
+            request_kwargs["max_tokens"] = max_tokens
+
+        # Add tools if provided
+        if tools:
+            request_kwargs["tools"] = [t.to_openai_format() for t in tools]
+
+        # Add response_format if provided
+        if response_format:
+            request_kwargs["response_format"] = response_format.to_openai_format()
+
+        # Merge any additional kwargs
+        request_kwargs.update(kwargs)
+
+        response = await self.client.chat.completions.create(**request_kwargs)
 
         chat_response = ChatResponse()
         chat_response.content = response.choices[0].message.content or ""
@@ -219,6 +242,14 @@ class CoreLLMProvider:
                 )
                 for tc in response.choices[0].message.tool_calls
             ]
+
+        # Parse JSON response if structured output was requested
+        if response_format and response_format.type in ("json_object", "json_schema"):
+            try:
+                chat_response.parsed = json.loads(chat_response.content)
+            except json.JSONDecodeError:
+                # Content wasn't valid JSON, leave parsed as None
+                pass
 
         return chat_response
 

@@ -640,3 +640,225 @@ class TestCaseMessageEndpoint:
         response = await client.get("/cases/non-existent-id/messages")
 
         assert response.status_code == 404
+
+
+# ============================================================================
+# Search Cases Endpoint Tests
+# ============================================================================
+
+@pytest.mark.api
+class TestCaseSearchEndpoint:
+    """Test POST /cases/search - Search cases."""
+
+    async def test_search_cases_success(self, authenticated_client, db_session):
+        """Test searching cases returns matching results."""
+        client, user = authenticated_client
+
+        # Create test cases
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Payment Gateway Error",
+            status=CaseStatus.CONSULTING,
+            priority=CasePriority.HIGH,
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Database Connection Issue",
+            status=CaseStatus.INVESTIGATING,
+            priority=CasePriority.MEDIUM,
+        )
+        await db_session.commit()
+
+        response = await client.post("/cases/search", json={})
+
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 2
+
+    async def test_search_cases_by_status(self, authenticated_client, db_session):
+        """Test searching cases with status filter."""
+        client, user = authenticated_client
+
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Consulting Case",
+            status=CaseStatus.CONSULTING,
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Investigating Case",
+            status=CaseStatus.INVESTIGATING,
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            "/cases/search",
+            json={"status": "investigating"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        for case in data:
+            assert case["status"] == "investigating"
+
+    async def test_search_cases_by_priority(self, authenticated_client, db_session):
+        """Test searching cases with priority filter."""
+        client, user = authenticated_client
+
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Critical Case",
+            priority=CasePriority.CRITICAL,
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Low Priority Case",
+            priority=CasePriority.LOW,
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            "/cases/search",
+            json={"priority": "critical"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        for case in data:
+            assert case["priority"] == "critical"
+
+    async def test_search_cases_with_query(self, authenticated_client, db_session):
+        """Test searching cases with text query."""
+        client, user = authenticated_client
+
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Payment Gateway Timeout",
+            description="Users are experiencing timeouts during checkout",
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            title="Unrelated Issue",
+            description="Something else",
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            "/cases/search",
+            json={"query": "payment"}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1
+        titles = [c["title"].lower() for c in data]
+        assert any("payment" in t for t in titles)
+
+    async def test_search_cases_pagination(self, authenticated_client, db_session):
+        """Test searching cases with pagination."""
+        client, user = authenticated_client
+
+        for i in range(5):
+            await CaseFactory.create_async(
+                _session=db_session,
+                owner_id=user.id,
+                title=f"Test Case {i}",
+            )
+        await db_session.commit()
+
+        response = await client.post(
+            "/cases/search",
+            json={"limit": 2, "offset": 0}
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) <= 2
+
+    async def test_search_cases_validation_error(self, authenticated_client):
+        """Test searching cases with invalid parameters returns 422."""
+        client, user = authenticated_client
+
+        response = await client.post(
+            "/cases/search",
+            json={"limit": 1000}  # Max is 100
+        )
+
+        assert response.status_code == 422
+
+    async def test_search_cases_unauthenticated(self, unauthenticated_client):
+        """Test searching cases without auth returns 401."""
+        client = unauthenticated_client
+
+        response = await client.post("/cases/search", json={})
+
+        assert response.status_code == 401
+
+
+# ============================================================================
+# Case Statistics Endpoint Tests
+# ============================================================================
+
+@pytest.mark.api
+class TestCaseStatisticsEndpoint:
+    """Test GET /cases/statistics - Get case statistics."""
+
+    async def test_get_statistics_success(self, authenticated_client, db_session):
+        """Test getting statistics returns aggregated data."""
+        client, user = authenticated_client
+
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            status=CaseStatus.CONSULTING,
+            priority=CasePriority.HIGH,
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            status=CaseStatus.INVESTIGATING,
+            priority=CasePriority.MEDIUM,
+        )
+        await CaseFactory.create_async(
+            _session=db_session,
+            owner_id=user.id,
+            status=CaseStatus.RESOLVED,
+            priority=CasePriority.LOW,
+        )
+        await db_session.commit()
+
+        response = await client.get("/cases/statistics")
+
+        assert response.status_code == 200
+        data = response.json()
+
+        # Check response has statistics
+        assert "user_id" in data
+        assert "total_cases" in data or "status_breakdown" in data
+
+    async def test_get_statistics_empty(self, authenticated_client):
+        """Test getting statistics with no cases."""
+        client, user = authenticated_client
+
+        response = await client.get("/cases/statistics")
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "user_id" in data
+
+    async def test_get_statistics_unauthenticated(self, unauthenticated_client):
+        """Test getting statistics without auth returns 401."""
+        client = unauthenticated_client
+
+        response = await client.get("/cases/statistics")
+
+        assert response.status_code == 401
